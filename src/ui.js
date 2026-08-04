@@ -235,7 +235,9 @@ function viewConcept(id) {
     <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:14px">
       ${claimTag(c.claim)}<span class="ref">${esc(c.ref)}</span>
       <span class="pill g">${esc(B_BY_ID[c.b].name)}</span>
+      ${readItHTML(c.ref)}
     </div>
+    <div class="passage" hidden></div>
     <div class="vellum"><p style="margin:0">${esc(c.sum)}</p></div>
     <div class="grid g3" style="margin-top:14px">
       <div class="stat"><div class="k">Mastery</div><div class="v">${m}<small>%</small></div>${bar(m)}</div>
@@ -362,13 +364,15 @@ function showFeedback(correct, item, extra) {
     <div class="why">${extra || esc(p.w || '')}</div>
     <div class="foot">${claimTag(c.claim)}<span class="ref">${esc(c.ref)}</span>
       <span>Level now: ${LEVEL_NAMES[conceptLevel(item.cid)]} · ${conceptMastery(item.cid)}%</span>
-      <span>Returns ${fmtWhen(r ? r.next : 0)}</span></div>
+      <span>Returns ${fmtWhen(r ? r.next : 0)}</span>${readItHTML(c.ref)}</div>
+    <div class="passage" hidden></div>
   </div>
   <div class="btnrow"><button class="btn solid" id="next">${Q.i + 1 >= Q.list.length ? 'See results' : 'Next question'}</button>
   <button class="btn ghost" data-concept="${item.cid}">About this concept</button></div>`;
   fb.querySelector('#next').onclick = nextQuestion;
   const link = fb.querySelector('[data-concept]');
   if (link) link.onclick = () => { Q = null; go('concept', item.cid); };
+  wireReadIt();
   fb.querySelector('#next').focus();
 }
 
@@ -924,6 +928,53 @@ function renderMini() {
 
 /* ================================ PEOPLE ================================ */
 /* --------------------------- SCRIPTURE READER --------------------------- */
+/* "Read it" — inline passages anywhere a ref appears. */
+function readItHTML(ref) {
+  const r = parseRefRanges(ref);
+  if (!r.segs.length) return '';
+  return `<button class="btn ghost sm readit" data-readit="${esc(ref)}">Read it ¶</button>`;
+}
+function renderPassage(refStr) {
+  const r = parseRefRanges(refStr);
+  if (!r.segs.length) return '<div class="empty">Nothing readable in this reference.</div>';
+  const CAP = 24;
+  let shown = 0, total = 0, html = '', lastHead = '';
+  r.segs.forEach(seg => {
+    let biI = seg.aBi, c = seg.aC;
+    while (biI < seg.bBi || (biI === seg.bBi && c <= seg.bC)) {
+      const bk = BOOKS[biI], verses = KJV[bk.id][c - 1];
+      const v1 = (biI === seg.aBi && c === seg.aC) ? seg.aV : 1;
+      const v2 = (biI === seg.bBi && c === seg.bC) ? seg.bV : verses.length;
+      for (let v = v1; v <= v2; v++) {
+        total++;
+        if (shown < CAP) {
+          const head = bk.name + ' ' + c;
+          if (head !== lastHead) { html += `<div class="pass-h">${esc(head)}</div>`; lastHead = head; }
+          html += `<p class="vv"><sup class="vn">${v}</sup>${esc(verses[v - 1])}</p>`;
+          shown++;
+        }
+      }
+      c++;
+      if (c > bk.ch) { biI++; c = 1; }
+    }
+  });
+  if (total > shown) html += `<div class="pass-more">… ${total - shown} more verse${total - shown === 1 ? '' : 's'} in this passage — open the reader for all of it.</div>`;
+  const first = r.segs[0];
+  return `<div class="vellum pass">${html}
+    <div class="btnrow"><button class="btn ghost sm" data-openreader="${BOOKS[first.aBi].id}:${first.aC}${first.aV > 1 ? ':' + first.aV : ''}">Open in the reader</button></div>
+  </div>`;
+}
+function wireReadIt() {
+  document.querySelectorAll('[data-readit]').forEach(btn => btn.onclick = () => {
+    const all = Array.prototype.slice.call(document.querySelectorAll('[data-readit], .passage'));
+    const box = all.slice(all.indexOf(btn) + 1).find(el => el.classList.contains('passage'));
+    if (!box) return;
+    if (!box.innerHTML) box.innerHTML = renderPassage(btn.dataset.readit);
+    box.hidden = !box.hidden;
+    btn.textContent = box.hidden ? 'Read it ¶' : 'Hide the passage';
+    box.querySelectorAll('[data-openreader]').forEach(b => b.onclick = () => go('read', b.dataset.openreader));
+  });
+}
 let readResults = null; // { q, list, total } while showing search results
 
 /* Parse "John 3:16", "Gen 1", "1 Cor 13", "Song of Songs 2". Chapter defaults
@@ -1618,6 +1669,7 @@ function wireDelegates() {
   });
   const nx = document.getElementById('next');
   if (nx && VIEW.name === 'quiz') nx.onclick = nextQuestion;
+  wireReadIt();
 }
 
 /* ================================= BOOT ================================= */

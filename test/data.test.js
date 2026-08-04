@@ -112,6 +112,24 @@ test('the KJV text is complete and keyed to the book ids', () => {
   assert(X.KJV.psa.length === 150, 'Psalms should have 150 chapters');
 });
 
+test('every ref field resolves to real KJV text', () => {
+  /* Two segments are deliberately non-specific and allowed; everything else
+     must parse and point at chapters and verses that actually exist. */
+  const LOOSE_OK = new Set(['Gospels', 'the letters']);
+  const all = [];
+  X.ALL_CONCEPTS.forEach(c => all.push(['concept ' + c.id, c.ref]));
+  X.PEOPLE.forEach(p => all.push(['person ' + p.id, p.ref]));
+  X.PLACES.forEach(p => all.push(['place ' + p.id, p.ref]));
+  X.TIMELINE.forEach(t => all.push(['timeline ' + (t.id || t.n), t.ref]));
+  all.forEach(([owner, ref]) => {
+    assert(ref && String(ref).trim(), owner + ' has no ref');
+    const r = X.parseRefRanges(ref);
+    assert(r.broken.length === 0, owner + ' broken ref in "' + ref + '": ' + r.broken.join(' | '));
+    r.loose.forEach(s => assert(LOOSE_OK.has(s), owner + ' unrecognised ref segment "' + s + '" in "' + ref + '"'));
+    assert(r.segs.length, owner + ' ref contains no readable passage: "' + ref + '"');
+  });
+});
+
 test('every era has a guide who exists, with a line and a reference', () => {
   X.ERAS.forEach(e => {
     const g = X.GUIDES[e.id];

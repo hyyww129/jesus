@@ -404,6 +404,16 @@ textarea.explain:focus{border-color:var(--gold-dim)}
 .reader .vv.vhl{background:rgba(201,162,39,.28);border-radius:2px;padding:1px 4px;margin-left:-4px}
 .vres .nm{font-size:14px;line-height:1.55}
 .vres mark{background:rgba(201,162,39,.3);color:var(--gold-lt);border-radius:2px;padding:0 1px}
+/* inline "Read it" passages */
+.passage{margin:0 0 12px}
+.passage[hidden]{display:none}
+.passage .pass{padding:14px 18px;margin-top:4px;max-width:680px}
+.passage .vv{margin:0 0 3px;font-size:14px;line-height:1.7}
+.passage .vn{font-family:var(--ui);font-size:9px;color:#8A6A10;margin-right:6px}
+.passage .pass-h{font-family:var(--ui);font-size:10px;letter-spacing:.18em;text-transform:uppercase;color:#7A6A3E;margin:10px 0 6px}
+.passage .pass-h:first-child{margin-top:0}
+.passage .pass-more{font-family:var(--ui);font-size:11px;color:#7A6A3E;margin-top:8px}
+.feedback .passage{margin:10px 0 0}
 /* who am I challenge */
 .whocard{margin-top:18px;display:grid;gap:16px;justify-items:center;padding:26px}
 .whocard .whoport .portrait{width:150px;height:150px;filter:drop-shadow(0 8px 18px rgba(0,0,0,.6))}

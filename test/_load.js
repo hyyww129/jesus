@@ -27,7 +27,7 @@ function load(withUi) {
     'buildQuiz','bossQuiz','finalExamQuiz','masterChallengeQuiz','transferQuiz','pickProbe',
     'recordAnswer','conceptMastery','conceptLevel','conceptsInEra','conceptsInBook',
     'dailySet','reviewQueue','checkAchievements','eraMastery','bookProgress','avgMastery',
-    'recordGeo','geoStats','geoPickTargets','recordWho','whoStats','whoPickTargets']
+    'recordGeo','geoStats','geoPickTargets','recordWho','whoStats','whoPickTargets','parseRefRanges','findBookByKey']
     .concat(withUi ? ['go','render','startQuiz','startTlChallenge','startPlaceQuiz','renderResults','portraitSVG','PERSON_ART','PORTRAIT_PARTS','P_BY_ID','startWhoQuiz','parseRef','bibleSearch'] : []);
   const exp = names.map(n => `${n}: typeof ${n} !== 'undefined' ? ${n} : undefined`).join(',');
   return eval(src + `\n;({${exp}, setQ: v => { Q = v; }, getQ: () => Q, getWho: () => (typeof whoQuiz !== 'undefined' ? whoQuiz : null), nextQuestion: typeof nextQuestion !== 'undefined' ? nextQuestion : null})`);

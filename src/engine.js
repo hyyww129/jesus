@@ -460,6 +460,115 @@ function markBookGate(bid, gate) {
 }
 function visitPlace(id) { if (!S.visited.includes(id)) { S.visited.push(id); saveState(); } }
 function setReaderPos(b, c) { S.reader = { b, c }; saveState(); }
+
+/* ------------------------------------------------ reference resolution -- */
+/* Resolve a normalised book key ("gen", "psalms", "1corinthians", a prefix)
+   to a BOOKS entry, or null. Shared by the reader's jump box, the Read-it
+   buttons, and the data tests. */
+function findBookByKey(key) {
+  const norm = s => s.toLowerCase().replace(/[.\s]+/g, '');
+  const k = norm(key);
+  if (!k) return null;
+  return BOOKS.find(b => b.id === k)
+    || BOOKS.find(b => norm(b.name) === k)
+    || BOOKS.find(b => norm(b.name).indexOf(k) === 0)
+    || null;
+}
+
+/* Parse a human reference string ("Genesis 1–2; Acts 16:11-40", "Daniel 1;
+   3; 6", "Joshua 2, 6", "Exodus 2 – Deuteronomy 34", "1–2 Timothy",
+   "Isaiah 52:13 – 53:12", "Psalms") into concrete KJV spans.
+   Returns { segs, loose, broken }:
+     segs   [{aBi,aC,aV,bBi,bC,bV}] — book-index/chapter/verse start→end
+     loose  segments with no recognisable book ("Gospels", "the letters")
+     broken segments naming real books but impossible chapters/verses.
+   Bare numbers inherit the most recent book, as the data does. */
+function parseRefRanges(str) {
+  const out = { segs: [], loose: [], broken: [] };
+  const bi = b => BOOKS.indexOf(b);
+  const lastCh = b => b.ch;
+  const lastV = (b, c) => KJV[b.id][c - 1].length;
+  let inherit = null;
+
+  const point = (s, role, ownBookRequired) => {
+    /* "book", "book C", "book C:V", "C", "C:V" -> {b,c,v} or string error */
+    const m = s.match(/^(?:([1-3]?\s*[a-z][a-z .]*?)\s+)?(\d+)(?::(\d+))?$/i) ||
+              s.match(/^([1-3]?\s*[a-z][a-z .]*)$/i);
+    if (!m) return 'unreadable "' + s + '"';
+    const b = m[1] ? findBookByKey(m[1]) : (ownBookRequired ? findBookByKey(s) : inherit);
+    if (!b) return null; /* no book — caller decides loose */
+    const c = m[2] ? parseInt(m[2], 10) : (role === 'start' ? 1 : lastCh(b));
+    if (c < 1 || c > b.ch) return '"' + s + '" — ' + b.name + ' has ' + b.ch + ' chapters';
+    const v = m[3] ? parseInt(m[3], 10) : (role === 'start' ? 1 : lastV(b, c));
+    if (v < 1 || v > lastV(b, c)) return '"' + s + '" — ' + b.name + ' ' + c + ' has ' + lastV(b, c) + ' verses';
+    return { b, c, v, cGiven: !!m[2], vGiven: !!m[3] };
+  };
+
+  const push = (a, b2) => {
+    const seg = { aBi: bi(a.b), aC: a.c, aV: a.v, bBi: bi(b2.b), bC: b2.c, bV: b2.v };
+    if (seg.aBi > seg.bBi || (seg.aBi === seg.bBi && (seg.aC > seg.bC || (seg.aC === seg.bC && seg.aV > seg.bV)))) {
+      out.broken.push('range runs backwards'); return;
+    }
+    out.segs.push(seg);
+  };
+
+  String(str || '').split(';').forEach(rawSeg => {
+    rawSeg.split(',').forEach(rawItem => {
+      let s = rawItem.trim().replace(/[–—−]/g, '-').replace(/\s+/g, ' ');
+      if (!s) return;
+      /* "1-2 Timothy": a range of numbered books */
+      let m = s.match(/^([1-3])\s*-\s*([1-3])\s+([a-z][a-z .]*)$/i);
+      if (m) {
+        const b1 = findBookByKey(m[1] + m[3]), b2 = findBookByKey(m[2] + m[3]);
+        if (!b1 || !b2) { out.loose.push(rawItem.trim()); return; }
+        push({ b: b1, c: 1, v: 1 }, { b: b2, c: lastCh(b2), v: lastV(b2, lastCh(b2)) });
+        inherit = b2; return;
+      }
+      /* two-point range where the right side names a book or a chapter:verse */
+      m = s.match(/^(.+?)\s*-\s*(.+)$/);
+      if (m && (/[a-z]/i.test(m[2]) || m[2].includes(':'))) {
+        const a = point(m[1], 'start', false);
+        if (typeof a === 'string') { out.broken.push(a); return; }
+        if (!a) { out.loose.push(rawItem.trim()); return; }
+        inherit = a.b;
+        const b2 = point(m[2], 'end', /[a-z]/i.test(m[2]));
+        if (typeof b2 === 'string') { out.broken.push(b2); return; }
+        if (!b2) { out.loose.push(rawItem.trim()); return; }
+        inherit = b2.b;
+        push(a, b2); return;
+      }
+      /* single-book forms: "book C[-C2]", "book C:V[-V2]", "C", "C:V", "C-C2", "V-V2 after :", "book" */
+      m = s.match(/^(?:([1-3]?\s*[a-z][a-z .]*?)\s+)?(\d+)(?::(\d+))?(?:\s*-\s*(\d+))?$/i);
+      if (m) {
+        const b = m[1] ? findBookByKey(m[1]) : inherit;
+        if (!b) { out.loose.push(rawItem.trim()); return; }
+        inherit = b;
+        const c1 = parseInt(m[2], 10);
+        if (c1 < 1 || c1 > b.ch) { out.broken.push('"' + s + '" — ' + b.name + ' has ' + b.ch + ' chapters'); return; }
+        const v1 = m[3] ? parseInt(m[3], 10) : null;
+        if (v1 && v1 > lastV(b, c1)) { out.broken.push('"' + s + '" — ' + b.name + ' ' + c1 + ' has ' + lastV(b, c1) + ' verses'); return; }
+        if (m[4]) {
+          const n2 = parseInt(m[4], 10);
+          if (v1) { /* verse range within the chapter */
+            if (n2 < v1 || n2 > lastV(b, c1)) { out.broken.push('"' + s + '" — ' + b.name + ' ' + c1 + ' has ' + lastV(b, c1) + ' verses'); return; }
+            push({ b, c: c1, v: v1 }, { b, c: c1, v: n2 });
+          } else { /* chapter range */
+            if (n2 < c1 || n2 > b.ch) { out.broken.push('"' + s + '" — ' + b.name + ' has ' + b.ch + ' chapters'); return; }
+            push({ b, c: c1, v: 1 }, { b, c: n2, v: lastV(b, n2) });
+          }
+        } else {
+          push({ b, c: c1, v: v1 || 1 }, { b, c: c1, v: v1 || lastV(b, c1) });
+        }
+        return;
+      }
+      /* whole book */
+      const wb = findBookByKey(s);
+      if (wb) { inherit = wb; push({ b: wb, c: 1, v: 1 }, { b: wb, c: lastCh(wb), v: lastV(wb, lastCh(wb)) }); return; }
+      out.loose.push(rawItem.trim());
+    });
+  });
+  return out;
+}
 function meetPerson(id) { if (!S.met.includes(id)) { S.met.push(id); saveState(); } }
 
 /* Recognition tracks — the map's "where did this happen?" and the people
