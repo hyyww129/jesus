@@ -58,6 +58,22 @@ test('people, places, timeline and palace cross-references resolve', () => {
   X.PALACE.forEach(r => r.anchor.forEach(a => assert(X.C_BY_ID[a], 'palace ' + r.id + ' missing anchor ' + a)));
 });
 
+test('map pins sit inside their panel and routes stay on the chart', () => {
+  const ids = new Set(X.PLACES.map(p => p.id));
+  assert(ids.size === X.PLACES.length, 'duplicate place id');
+  X.PLACES.forEach(p => {
+    assert(['world','land'].includes(p.panel), 'place ' + p.id + ' bad panel');
+    if (p.panel === 'world') assert(p.x >= 0 && p.x <= 1000 && p.y >= 0 && p.y <= 570, 'place ' + p.id + ' outside viewBox');
+    else assert(p.x >= 55 && p.x <= 330 && p.y >= 285 && p.y <= 547, 'place ' + p.id + ' outside the land inset');
+  });
+  assert(X.ROUTES.length === 3, 'expected the three missionary journeys');
+  X.ROUTES.forEach(r => {
+    assert(r.id && r.n && r.ref && r.d, 'route ' + r.id + ' incomplete');
+    assert(r.pts.length >= 4, 'route ' + r.id + ' too few waypoints');
+    r.pts.forEach(([x, y]) => assert(x >= 0 && x <= 1000 && y >= 0 && y <= 570, 'route ' + r.id + ' waypoint off the chart'));
+  });
+});
+
 test('every era has concepts and can fill its boss battle', () => {
   X.ERAS.forEach(e => {
     assert(X.conceptsInEra(e.id).length, 'era with no concepts: ' + e.id);

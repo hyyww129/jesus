@@ -808,6 +808,33 @@ const PLACES = [
 {id:'babylon',n:'Babylon',panel:'world',x:894,y:291,era:'exile',
  d:'The empire that destroyed Jerusalem and the place of exile — and in Revelation, a symbol of proud worldly power.',
  people:['Nebuchadnezzar','Daniel','Ezekiel'],events:['Jerusalem\u2019s captives deported','Daniel in the court','Ezekiel\u2019s visions','Cyrus\u2019s decree ends the exile'],books:['2ki','dan','eze','rev'],ref:'2 Kings 25; Daniel 1'},
+{id:'ararat',n:'Ararat',panel:'world',x:940,y:120,era:'creation',
+ d:'The mountain region where the ark came to rest as the flood waters receded.',
+ people:['Noah'],events:['The ark comes to rest on the mountains of Ararat'],books:['gen'],ref:'Genesis 8:4'},
+{id:'susa',n:'Susa',panel:'world',x:962,y:262,era:'return',
+ d:'A Persian royal city: the setting of Esther\u2019s story, and where Nehemiah served as cupbearer before returning to rebuild Jerusalem\u2019s walls.',
+ people:['Esther','Mordecai','Ahasuerus (Xerxes)','Nehemiah'],events:['Esther becomes queen','Haman\u2019s plot overturned','Nehemiah hears of Jerusalem\u2019s ruins'],books:['est','neh'],ref:'Esther 1:2; Nehemiah 1:1'},
+{id:'tarsus',n:'Tarsus',panel:'world',x:655,y:175,era:'paul',
+ d:'A university city of Cilicia and Paul\u2019s home town \u2014 \u201ca citizen of no ordinary city\u201d, as he put it.',
+ people:['Paul','Barnabas'],events:['Saul sent home to Tarsus for safety','Barnabas fetches Saul to help at Antioch'],books:['act'],ref:'Acts 9:30; 11:25; 22:3'},
+{id:'cyprus',n:'Cyprus',panel:'world',x:592,y:232,era:'paul',
+ d:'Barnabas\u2019s home island and the first stop of the first missionary journey, where the proconsul Sergius Paulus believed.',
+ people:['Barnabas','Paul','John Mark','Sergius Paulus'],events:['First journey begins here','Elymas the sorcerer opposed','Sergius Paulus believes'],books:['act'],ref:'Acts 4:36; 13:4-12'},
+{id:'lystra',n:'Lystra',panel:'world',x:570,y:168,era:'paul',
+ d:'A Galatian town that first hailed Paul as a god and then stoned him \u2014 and later gave him Timothy.',
+ people:['Paul','Barnabas','Timothy'],events:['A lame man healed','Crowds try to sacrifice to Paul and Barnabas','Paul stoned and left for dead','Timothy joins Paul'],books:['act','2ti'],ref:'Acts 14:8-20; 16:1-3'},
+{id:'troas',n:'Troas',panel:'world',x:455,y:122,era:'paul',
+ d:'The Aegean port where Paul saw the night vision of a man of Macedonia \u2014 the call that took the gospel into Europe.',
+ people:['Paul','Luke','Eutychus'],events:['The vision of the man of Macedonia','Eutychus falls from the window and is restored'],books:['act','2co'],ref:'Acts 16:8-10; 20:6-12'},
+{id:'berea',n:'Berea',panel:'world',x:352,y:122,era:'paul',
+ d:'The Macedonian town whose synagogue examined the Scriptures daily to test what Paul said \u2014 and was commended for it.',
+ people:['Paul','Silas','Timothy'],events:['The Bereans search the Scriptures daily','Many believe before agitators arrive'],books:['act'],ref:'Acts 17:10-15'},
+{id:'crete',n:'Crete',panel:'world',x:430,y:232,era:'paul',
+ d:'The large island Paul\u2019s prison ship hugged before the storm, and where Titus was later left to put the churches in order.',
+ people:['Paul','Titus'],events:['The ship shelters at Fair Havens','Titus left to appoint elders'],books:['act','tit'],ref:'Acts 27:7-13; Titus 1:5'},
+{id:'malta',n:'Malta',panel:'world',x:172,y:226,era:'paul',
+ d:'The island where Paul\u2019s shipwreck voyage ended: a viper, unusual kindness, and a winter of healings.',
+ people:['Paul','Publius'],events:['Shipwreck survivors come ashore','A viper fastens on Paul\u2019s hand','Publius\u2019s father healed'],books:['act'],ref:'Acts 28:1-10'},
 /* --- inset: the land --- */
 {id:'dan',n:'Dan',panel:'land',x:150,y:315,era:'divided',
  d:'The northern boundary marker of Israel ("from Dan to Beersheba") and a site of Jeroboam\u2019s golden calf.',
@@ -850,7 +877,33 @@ const PLACES = [
  people:['Abraham','Sarah','David'],events:['Abraham buys a burial site','David crowned king of Judah'],books:['gen','2sa'],ref:'Genesis 23; 2 Samuel 2:1-4'},
 {id:'beersheba',n:'Beersheba',panel:'land',x:112,y:532,era:'patriarchs',
  d:'The southern boundary marker of Israel and a well-site associated with Abraham, Isaac and Jacob.',
- people:['Abraham','Isaac','Jacob','Elijah'],events:['Abraham\u2019s treaty and well','Jacob\u2019s departure to Egypt','Elijah flees south'],books:['gen','1ki'],ref:'Genesis 21:31; 46:1'}
+ people:['Abraham','Isaac','Jacob','Elijah'],events:['Abraham\u2019s treaty and well','Jacob\u2019s departure to Egypt','Elijah flees south'],books:['gen','1ki'],ref:'Genesis 21:31; 46:1'},
+{id:'joppa',n:'Joppa',panel:'land',x:92,y:442,era:'church',
+ d:'The port Jonah sailed from to run away, and where Peter raised Tabitha and saw the vision that opened the door to the Gentiles.',
+ people:['Jonah','Peter','Tabitha (Dorcas)','Simon the tanner'],events:['Jonah boards a ship for Tarshish','Tabitha raised','Peter\u2019s rooftop vision'],books:['jon','act'],ref:'Jonah 1:3; Acts 9:36-43; 10:9-16'},
+{id:'shiloh',n:'Shiloh',panel:'land',x:190,y:440,era:'judges',
+ d:'Where the tent of meeting stood for generations: Hannah prayed here, and the boy Samuel heard God call his name.',
+ people:['Joshua','Eli','Hannah','Samuel'],events:['The tabernacle set up at Shiloh','Hannah\u2019s prayer for a son','Samuel called in the night','The ark lost to the Philistines'],books:['jos','1sa','jer'],ref:'Joshua 18:1; 1 Samuel 1\u20134; Jeremiah 7:12'},
+{id:'nebo',n:'Mount Nebo',panel:'land',x:272,y:486,era:'exodus',
+ d:'The height east of the Jordan from which Moses saw the whole promised land he would not enter, and where he died.',
+ people:['Moses'],events:['Moses views the promised land','Death of Moses'],books:['deu'],ref:'Deuteronomy 34:1-5'}
+];
+
+/* --------------------------------------------------------------------------
+   ROUTES \u2014 Paul's three missionary journeys, drawn on the world panel.
+   Waypoints are the schematic coordinates of the cities above plus a few
+   curve points at sea; like the map itself they fix relationships, not miles.
+   -------------------------------------------------------------------------- */
+const ROUTES = [
+{id:'j1',n:'First journey',ref:'Acts 13\u201314',
+ d:'Antioch \u2192 Cyprus \u2192 Galatia (Pisidian Antioch, Iconium, Lystra, Derbe) and back to Antioch.',
+ pts:[[697,206],[645,228],[592,232],[588,205],[570,168],[612,182],[662,198],[697,206]]},
+{id:'j2',n:'Second journey',ref:'Acts 15:36\u201318:22',
+ d:'Overland through Galatia, the night vision at Troas, then Philippi, Thessalonica, Berea, Athens and Corinth, returning by way of Ephesus.',
+ pts:[[697,206],[655,175],[570,168],[505,140],[455,122],[411,91],[377,104],[352,122],[400,160],[358,174],[425,182],[483,164],[560,215],[640,230],[697,206]]},
+{id:'j3',n:'Third journey',ref:'Acts 18:23\u201321:17',
+ d:'Through Galatia to the long stay at Ephesus, on to Macedonia and Corinth, then back by Troas and Miletus, bound for Jerusalem.',
+ pts:[[697,206],[655,175],[570,168],[483,164],[440,120],[411,91],[377,104],[358,174],[420,150],[455,122],[478,180],[540,225],[615,255],[655,300]]}
 ];
 
 /* --------------------------------------------------------------------------

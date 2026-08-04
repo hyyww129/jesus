@@ -63,11 +63,11 @@ function dotFor(m) { return m >= 75 ? 'grn' : m >= 45 ? 'yel' : 'red'; }
 /* ============================== THE JOURNEY ============================== */
 function viewJourney() {
   const om = overallMastery();
-  const rows = ERAS.map(e => {
+  const rows = ERAS.map((e, i) => {
     const m = eraMastery(e.id), unlocked = eraUnlocked(e.id), passed = eraRec(e.id).passed;
     const bookNames = e.books.map(b => B_BY_ID[b] && B_BY_ID[b].name).filter(Boolean);
     return `<div class="era ${passed ? 'done' : ''} ${unlocked ? '' : 'locked'}">
-      <div class="roundel"><div class="fill" style="height:${m}%"></div><span class="initial">${e.initial}</span></div>
+      <div class="roundel"><div class="fill" style="--h:${m}%;--i:${i}"></div><span class="initial">${e.initial}</span></div>
       <button class="era-card" data-era="${e.id}" ${unlocked ? '' : 'disabled'}>
         <div class="era-top"><h3>${esc(e.name)}</h3><span class="pct">${unlocked ? m + '%' : 'locked'}</span></div>
         <div class="meta">${esc(e.span)} — ${esc(e.blurb)}</div>
@@ -494,6 +494,8 @@ function renderTlChallenge() {
 
 /* ================================= MAP ================================= */
 let mapSel = null;
+let mapRoutes = { j1: true, j2: true, j3: true };
+function routePath(r) { return 'M' + r.pts.map(p => p.join(' ')).join(' L '); }
 function viewMap() {
   const pins = PLACES.map(p => {
     const visited = S.visited.includes(p.id);
@@ -502,34 +504,54 @@ function viewMap() {
       <circle class="pin" cx="${p.x}" cy="${p.y}" r="5"/>
       <text x="${p.x + 9}" y="${p.y + 3.5}">${esc(p.n)}</text></g>`;
   }).join('');
+  const routes = ROUTES.filter(r => mapRoutes[r.id]).map(r =>
+    `<path class="route ${r.id}" d="${routePath(r)}"><title>${esc(r.n)} — ${esc(r.ref)}</title></path>`).join('');
   const sel = mapSel ? PL_BY_ID[mapSel] : null;
 
   app().innerHTML = `
     <div class="eyebrow">Geography</div>
     <h1 class="page-h">The Bible Map</h1>
-    <p class="lede">A schematic chart, not a survey map — positions are approximate and are there to fix relationships in memory. Tap a place to open it.</p>
-    <div class="mapwrap" style="margin-top:18px">
+    <p class="lede">A schematic chart, not a survey map — coastlines and positions are stylised and are there to fix relationships in memory. Tap a place to open it; toggle Paul’s journeys below.</p>
+    <div class="filters" style="margin-top:14px">${ROUTES.map(r =>
+      `<button class="chip rt ${r.id} ${mapRoutes[r.id] ? 'on' : ''}" data-route="${r.id}" aria-pressed="${mapRoutes[r.id]}">${esc(r.n)} · ${esc(r.ref)}</button>`).join('')}</div>
+    <div class="mapwrap" style="margin-top:12px">
       <svg viewBox="0 0 1000 570" role="img" aria-label="Schematic map of the biblical world">
         <defs><pattern id="sea" width="14" height="14" patternUnits="userSpaceOnUse">
           <path d="M0 7 Q3.5 4 7 7 T14 7" stroke="rgba(120,150,220,.16)" fill="none" stroke-width="1"/></pattern></defs>
         <rect width="1000" height="570" fill="url(#sea)"/>
+        <g class="coast">
+          <path d="M60 0 L95 25 Q112 42 126 58 L142 80 Q156 102 174 120 L190 142 Q200 158 191 170 L176 179 Q160 181 150 168 L137 149 Q119 129 104 107 L84 74 Q69 44 54 19 L48 0 Z"/>
+          <path d="M150 189 L179 187 L166 211 Z"/>
+          <path d="M285 0 Q290 40 300 70 Q310 95 330 110 Q345 122 350 140 Q352 158 342 168 Q350 180 365 186 Q385 190 398 180 Q408 170 404 158 Q416 148 420 132 Q424 116 414 104 Q430 96 448 100 Q460 92 464 60 L466 0 Z"/>
+          <path d="M478 0 L472 45 Q462 80 462 100 L448 115 Q460 130 472 140 Q478 155 470 168 Q480 185 500 190 L540 196 Q580 200 615 192 L650 185 Q670 190 678 205 L672 230 Q666 260 668 290 L660 310 Q640 318 618 315 Q600 310 585 318 Q560 328 530 326 L480 330 Q420 334 360 331 L280 328 Q200 326 120 330 L0 326 L0 570 L1000 570 L1000 0 Z"/>
+          <path d="M575 228 Q590 220 608 226 Q600 238 580 236 Z"/>
+          <path d="M405 230 Q430 222 458 228 Q435 240 405 235 Z"/>
+          <circle cx="172" cy="230" r="5"/>
+          <circle cx="462" cy="184" r="4"/>
+        </g>
         ${[...Array(9)].map((_, i) => `<line x1="0" y1="${i * 63 + 30}" x2="1000" y2="${i * 63 + 30}" stroke="rgba(201,162,39,.07)"/>`).join('')}
         ${[...Array(14)].map((_, i) => `<line x1="${i * 71 + 30}" y1="0" x2="${i * 71 + 30}" y2="570" stroke="rgba(201,162,39,.07)"/>`).join('')}
         <text x="150" y="40" fill="rgba(201,162,39,.45)" font-family="Cinzel,serif" font-size="13" letter-spacing="4">EUROPE</text>
-        <text x="470" y="128" fill="rgba(201,162,39,.45)" font-family="Cinzel,serif" font-size="13" letter-spacing="4">ASIA MINOR</text>
+        <text x="524" y="142" fill="rgba(201,162,39,.45)" font-family="Cinzel,serif" font-size="13" letter-spacing="4">ASIA MINOR</text>
         <text x="820" y="150" fill="rgba(201,162,39,.45)" font-family="Cinzel,serif" font-size="13" letter-spacing="4">MESOPOTAMIA</text>
         <text x="540" y="420" fill="rgba(201,162,39,.45)" font-family="Cinzel,serif" font-size="13" letter-spacing="4">EGYPT</text>
-        <text x="250" y="250" fill="rgba(140,170,235,.35)" font-family="Cinzel,serif" font-size="12" letter-spacing="5">THE GREAT SEA</text>
-        <rect x="55" y="285" width="275" height="262" fill="rgba(9,12,30,.55)" stroke="rgba(201,162,39,.35)"/>
+        <text x="250" y="260" fill="rgba(140,170,235,.35)" font-family="Cinzel,serif" font-size="12" letter-spacing="5">THE GREAT SEA</text>
+        ${routes}
+        <rect x="55" y="285" width="275" height="262" fill="rgba(9,12,30,.82)" stroke="rgba(201,162,39,.35)"/>
         <text x="66" y="303" fill="rgba(201,162,39,.7)" font-family="Cinzel,serif" font-size="11" letter-spacing="3">THE LAND — DETAIL</text>
-        <path d="M232 330 L236 400 L240 470 L238 520" stroke="rgba(120,150,220,.4)" fill="none" stroke-width="2"/>
-        <ellipse cx="240" cy="505" rx="10" ry="22" fill="rgba(120,150,220,.22)"/>
-        <ellipse cx="202" cy="350" rx="14" ry="11" fill="rgba(120,150,220,.22)"/>
+        <g class="inset-geo">
+          <path class="inset-sea" d="M55 285 L118 285 Q110 318 112 348 L100 364 Q94 386 98 424 L90 452 Q86 480 94 510 L92 547 L55 547 Z"/>
+          <path class="river" d="M218 316 Q225 330 214 342 Q206 348 202 352 M204 364 Q214 380 230 396 Q226 418 234 438 Q228 456 236 468 Q241 478 240 484"/>
+          <path class="lake" d="M191 342 Q203 336 213 344 Q217 354 208 361 Q196 364 190 356 Q187 348 191 342 Z"/>
+          <path class="lake" d="M233 486 Q243 482 248 492 Q252 508 247 522 Q240 530 234 522 Q229 506 233 486 Z"/>
+          <path class="valley" d="M212 316 Q200 350 230 396 Q222 430 236 468 Q232 500 238 528" />
+        </g>
         ${pins}
       </svg>
     </div>
     <div class="legend"><span><span style="width:9px;height:9px;border-radius:50%;background:var(--verd);display:inline-block"></span> visited</span>
       <span><span style="width:9px;height:9px;border-radius:50%;background:var(--gold-dim);display:inline-block"></span> not yet opened</span>
+      ${ROUTES.filter(r => mapRoutes[r.id]).map(r => `<span><span class="swatch ${r.id}"></span> ${esc(r.n.toLowerCase())}</span>`).join('')}
       <span>${S.visited.length} of ${PLACES.length} explored</span></div>
     ${sel ? `<div class="vellum" style="margin-top:18px">
       <div class="eyebrow">${esc(E_BY_ID[sel.era] ? E_BY_ID[sel.era].name : '')}</div>
@@ -548,6 +570,9 @@ function viewMap() {
     const act = () => { mapSel = g.dataset.place; visitPlace(mapSel); celebrate(checkAchievements()); render(); };
     g.onclick = act;
     g.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); act(); } };
+  });
+  app().querySelectorAll('[data-route]').forEach(b => b.onclick = () => {
+    mapRoutes[b.dataset.route] = !mapRoutes[b.dataset.route]; render();
   });
   const pq = document.getElementById('placequiz');
   if (pq) pq.onclick = () => startPlaceQuiz(sel);
@@ -1003,8 +1028,17 @@ function bindQuizInteractions() {
 }
 
 /* ================================ ROUTER ================================ */
+let lastViewKey = null;
 function render() {
   renderNav();
+  /* Fade only when the screen actually changes — intra-view re-renders
+     (filters, matching picks, route toggles) must not flash. */
+  const key = VIEW.name + ':' + String(VIEW.arg);
+  if (key !== lastViewKey) {
+    lastViewKey = key;
+    const m = app();
+    m.classList.remove('viewfade'); void m.offsetWidth; m.classList.add('viewfade');
+  }
   const v = VIEW.name;
   if (v === 'quiz') { renderQuiz(); if (!Q.answered && Q.i < Q.list.length) bindQuizInteractions(); }
   else if (v === 'mini') renderMini();
