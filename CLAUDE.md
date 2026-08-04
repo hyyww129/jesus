@@ -26,6 +26,7 @@ Load order matters and is defined in `build.js`. Data first, then engine, then U
 | `src/data/concepts-ot.js` | Old Testament concepts and their questions |
 | `src/data/concepts-nt.js` | New Testament concepts and their questions |
 | `src/engine.js` | Mastery maths, spaced repetition, probe selection, achievements, storage |
+| `src/portraits.js` | Illuminated SVG portraits: parts kit + per-person art specs (`PERSON_ART`) |
 | `src/ui.js` | Router, all views, the quiz runner, event binding |
 | `src/styles.css` | Design tokens and all styling |
 | `src/head.html` / `mid.html` / `tail.html` | Shell fragments the build wraps around the code |
@@ -126,4 +127,9 @@ spine — roundels that fill with gold as mastery rises. Keep that the one loud 
   `MAP_DETAIL`, all in `core.js`. `test/data.test.js` bounds-checks pins, waypoints,
   stops and detail labels; `test/mastery.test.js` covers the geo track.
 - `exp` questions grade on keyword coverage plus an honest self-rating.
+- Every person has an illuminated portrait built from the parts kit in
+  `src/portraits.js`. A new person without a `PERSON_ART` entry gets the plain
+  figure; to give them emblems, add one line picking parts (or add a part to
+  `PORTRAIT_PARTS` with a layer: `bg` behind the figure, `ov` on the robe, `fg`
+  held in front). Portrait colours are token values; keep them that way.
 - There is no export/import of a save file yet.

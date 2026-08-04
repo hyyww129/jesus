@@ -20,7 +20,7 @@ function stubDom() {
 function load(withUi) {
   global.window = { storage: null, scrollTo() {}, addEventListener() {} };
   if (withUi) stubDom();
-  const files = withUi ? FILES.concat('src/ui.js') : FILES;
+  const files = withUi ? FILES.concat('src/portraits.js', 'src/ui.js') : FILES;
   const src = files.map(f => fs.readFileSync(path.join(root, f), 'utf8')).join('\n');
   const names = ['ALL_CONCEPTS','BOOKS','ERAS','PEOPLE','PLACES','ROUTES','MAP_DETAIL','TIMELINE','PALACE','ACHIEVEMENTS',
     'C_BY_ID','B_BY_ID','E_BY_ID','PL_BY_ID','ERA_ORDER','S',
@@ -28,7 +28,7 @@ function load(withUi) {
     'recordAnswer','conceptMastery','conceptLevel','conceptsInEra','conceptsInBook',
     'dailySet','reviewQueue','checkAchievements','eraMastery','bookProgress','avgMastery',
     'recordGeo','geoStats','geoPickTargets']
-    .concat(withUi ? ['go','render','startQuiz','startTlChallenge','startPlaceQuiz','renderResults'] : []);
+    .concat(withUi ? ['go','render','startQuiz','startTlChallenge','startPlaceQuiz','renderResults','portraitSVG','PERSON_ART','PORTRAIT_PARTS','P_BY_ID'] : []);
   const exp = names.map(n => `${n}: typeof ${n} !== 'undefined' ? ${n} : undefined`).join(',');
   return eval(src + `\n;({${exp}, setQ: v => { Q = v; }, getQ: () => Q, nextQuestion: typeof nextQuestion !== 'undefined' ? nextQuestion : null})`);
 }

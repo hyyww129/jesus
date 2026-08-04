@@ -369,6 +369,12 @@ textarea.explain:focus{border-color:var(--gold-dim)}
 .tree b{color:var(--gold-lt);font-weight:500}
 .pcard{background:linear-gradient(160deg,rgba(34,48,127,.3),rgba(14,19,48,.55));border:1px solid var(--line-soft);border-radius:var(--r);padding:14px 16px;text-align:left;color:inherit;transition:.16s;width:100%}
 .pcard:hover{border-color:var(--gold-dim);transform:translateY(-2px);box-shadow:0 8px 22px -14px rgba(0,0,0,.8)}
+.prow{display:flex;gap:13px;align-items:center;text-align:left}
+.prow>span:last-child{display:grid;gap:2px;min-width:0}
+.pcard .portrait{width:52px;height:52px;flex:none;filter:drop-shadow(0 3px 6px rgba(0,0,0,.5))}
+.pcard:hover .portrait{filter:drop-shadow(0 3px 6px rgba(0,0,0,.5)) drop-shadow(0 0 8px rgba(235,206,122,.35))}
+.phead{display:flex;gap:20px;align-items:center;margin-top:4px}
+.phead .phero .portrait{width:104px;height:104px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.55))}
 .pcard .nm{font-family:var(--display);font-size:15px;color:var(--vellum);letter-spacing:.06em}
 .pcard .rl{font-family:var(--ui);font-size:11px;color:var(--gold-dim);margin-top:3px}
 

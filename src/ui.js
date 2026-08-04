@@ -913,9 +913,11 @@ function viewPeople() {
     </div>
     <div class="sec-h">The database — ${S.met.length} of ${PEOPLE.length} studied</div>
     <div class="grid g3">${PEOPLE.map(p => `<button class="pcard" data-person="${p.id}">
-      <div class="nm">${esc(p.n)}${S.met.includes(p.id) ? ' <span style="color:var(--gold);font-size:11px">✦</span>' : ''}</div>
-      <div class="rl">${esc(p.role)}</div>
-      <div class="rl" style="color:var(--muted);margin-top:6px">${esc(E_BY_ID[p.era] ? E_BY_ID[p.era].name : '')}</div>
+      <span class="prow">${portraitSVG(p)}<span>
+        <span class="nm">${esc(p.n)}${S.met.includes(p.id) ? ' <span style="color:var(--gold);font-size:11px">✦</span>' : ''}</span>
+        <span class="rl">${esc(p.role)}</span>
+        <span class="rl" style="color:var(--muted)">${esc(E_BY_ID[p.era] ? E_BY_ID[p.era].name : '')}</span>
+      </span></span>
     </button>`).join('')}</div>`;
 }
 
@@ -924,8 +926,13 @@ function viewPerson(id) {
   meetPerson(id); celebrate(checkAchievements());
   app().innerHTML = `
     <div class="crumb"><button data-go="people">People</button> / ${esc(p.n)}</div>
-    <h1 class="page-h">${esc(p.n)}</h1>
-    <p class="lede">${esc(p.role)} · ${esc(E_BY_ID[p.era] ? E_BY_ID[p.era].name : '')}</p>
+    <div class="phead">
+      <span class="phero">${portraitSVG(p)}</span>
+      <div>
+        <h1 class="page-h">${esc(p.n)}</h1>
+        <p class="lede" style="margin-top:6px">${esc(p.role)} · ${esc(E_BY_ID[p.era] ? E_BY_ID[p.era].name : '')}</p>
+      </div>
+    </div>
     <div class="vellum" style="margin-top:16px"><div class="eyebrow">Why they matter</div>
       <p style="margin:8px 0 0;font-size:17px">${esc(p.lesson)}</p></div>
     <div class="panel" style="margin-top:14px"><dl class="kv">

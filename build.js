@@ -12,6 +12,7 @@ const SOURCES = {
     'src/data/concepts-ot.js',
     'src/data/concepts-nt.js',
     'src/engine.js',
+    'src/portraits.js',
     'src/ui.js'
   ]
 };

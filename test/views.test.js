@@ -10,6 +10,18 @@ test('renders all 17 era pages', () => X.ERAS.forEach(e => X.go('era', e.id)));
 test('renders all 66 book pages', () => X.BOOKS.forEach(b => X.go('book', b.id)));
 test('renders every concept page', () => X.ALL_CONCEPTS.forEach(c => X.go('concept', c.id)));
 test('renders every person page', () => X.PEOPLE.forEach(p => X.go('person', p.id)));
+test('every person gets a well-formed illuminated portrait', () => {
+  X.PEOPLE.forEach(p => {
+    const s = X.portraitSVG(p);
+    assert(s.includes('<svg') && s.includes('</svg>'), p.id + ' portrait malformed');
+    assert(s.includes('aria-label'), p.id + ' portrait missing aria-label');
+  });
+  Object.keys(X.PERSON_ART).forEach(id => {
+    assert(X.P_BY_ID[id], 'portrait art for unknown person: ' + id);
+    (X.PERSON_ART[id].parts || []).forEach(k =>
+      assert(X.PORTRAIT_PARTS[k], 'unknown portrait part: ' + k));
+  });
+});
 test('renders every palace room', () => X.PALACE.forEach(r => X.go('room', r.id)));
 test('timeline ordering challenge starts', () => { X.go('timeline'); X.startTlChallenge(); });
 test('map place quiz starts', () => X.startPlaceQuiz(X.PL_BY_ID['jerusalem']));
