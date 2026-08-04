@@ -395,6 +395,25 @@ textarea.explain:focus{border-color:var(--gold-dim)}
 .guidebar .gport .portrait{width:72px;height:72px;flex:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,.5))}
 .guidebar .gq{font-size:16px}
 .guidebar .gref{font-size:10px;margin-top:6px}
+/* scripture reader */
+.readbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.rin{background:rgba(255,255,255,.06);border:1px solid var(--line-soft);border-radius:var(--r);padding:8px 12px;color:inherit;font-family:var(--ui);font-size:13px;min-width:170px}
+.rin.grow{flex:1;min-width:200px}
+.rin::placeholder{color:var(--muted);opacity:.8}
+.rin:focus{border-color:var(--gold-dim);outline:none}
+.bkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:8px}
+.bkbtn{display:flex;justify-content:space-between;gap:8px;align-items:baseline;background:none;border:1px solid var(--line-soft);border-radius:var(--r);padding:9px 12px;color:#C8CBE2;font-family:var(--ui);font-size:12.5px;text-align:left;transition:.15s}
+.bkbtn:hover{border-color:var(--gold-dim);color:var(--gold-lt)}
+.bkbtn .bch{font-size:10px;color:var(--muted)}
+.chgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(48px,1fr));gap:8px}
+.chgrid button{background:none;border:1px solid var(--line-soft);border-radius:var(--r);padding:10px 0;color:#C8CBE2;font-family:var(--ui);font-size:13px;transition:.15s}
+.chgrid button:hover{border-color:var(--gold-dim);color:var(--gold-lt);background:rgba(201,162,39,.08)}
+.reader{max-width:720px}
+.reader .vv{margin:0 0 3px;font-size:16.5px;line-height:1.78}
+.reader .vn{font-family:var(--ui);font-size:9.5px;color:#8A6A10;margin-right:7px;letter-spacing:.02em}
+.reader .vv.vhl{background:rgba(201,162,39,.28);border-radius:2px;padding:1px 4px;margin-left:-4px}
+.vres .nm{font-size:14px;line-height:1.55}
+.vres mark{background:rgba(201,162,39,.3);color:var(--gold-lt);border-radius:2px;padding:0 1px}
 /* who am I challenge */
 .whocard{margin-top:18px;display:grid;gap:16px;justify-items:center;padding:26px}
 .whocard .whoport .portrait{width:150px;height:150px;filter:drop-shadow(0 8px 18px rgba(0,0,0,.6))}
@@ -2636,6 +2655,7 @@ const BLANK = () => ({
   ach: [],        // achievement ids
   exams: {},      // final + master challenge
   daily: {},      // date -> true
+  reader: null,   // last scripture reader position {b, c}
   log: []         // recent activity, capped
 });
 
@@ -3054,6 +3074,7 @@ function markBookGate(bid, gate) {
   if (!b[gate]) { b[gate] = true; saveState(); }
 }
 function visitPlace(id) { if (!S.visited.includes(id)) { S.visited.push(id); saveState(); } }
+function setReaderPos(b, c) { S.reader = { b, c }; saveState(); }
 function meetPerson(id) { if (!S.met.includes(id)) { S.met.push(id); saveState(); } }
 
 /* Recognition tracks — the map's "where did this happen?" and the people
@@ -3285,6 +3306,7 @@ const NAV = [
   { g: 'The journey' },
   { id: 'journey', ic: '❦', n: 'Bible journey' },
   { id: 'books', ic: '▤', n: 'The 66 books' },
+  { id: 'read', ic: '¶', n: 'Scripture reader' },
   { id: 'timeline', ic: '⏳', n: 'Timeline' },
   { id: 'map', ic: '⌖', n: 'Map' },
   { id: 'people', ic: '☙', n: 'People' },
@@ -3326,7 +3348,7 @@ function renderNav() {
     return `<button class="navbtn ${VIEW.name === item.id ? 'on' : ''}" data-go="${item.id}">
       <span class="ic">${item.ic}</span><span>${item.n}</span>${tag}</button>`;
   }).join('');
-  const mob = ['journey', 'books', 'map', 'daily', 'review', 'dashboard'];
+  const mob = ['journey', 'books', 'read', 'map', 'daily', 'review', 'dashboard'];
   bar.innerHTML = NAV.filter(i => mob.includes(i.id)).map(i =>
     `<button class="${VIEW.name === i.id ? 'on' : ''}" data-go="${i.id}"><span class="ic">${i.ic}</span>${i.n.split(' ')[0]}</button>`).join('');
 }
@@ -4198,6 +4220,152 @@ function renderMini() {
 }
 
 /* ================================ PEOPLE ================================ */
+/* --------------------------- SCRIPTURE READER --------------------------- */
+let readResults = null; // { q, list, total } while showing search results
+
+/* Parse "John 3:16", "Gen 1", "1 Cor 13", "Song of Songs 2". Chapter defaults
+   to 1; verse optional. Returns {b, c, v} or null. */
+function parseRef(input) {
+  const m = String(input || '').trim().match(/^([1-3]?\s*[a-z][a-z\s.]*?)(?:\s+(\d+)(?:\s*:\s*(\d+))?)?$/i);
+  if (!m) return null;
+  const norm = s => s.toLowerCase().replace(/[.\s]+/g, '');
+  const key = norm(m[1]);
+  if (!key) return null;
+  const book = BOOKS.find(b => b.id === key)
+    || BOOKS.find(b => norm(b.name) === key)
+    || BOOKS.find(b => norm(b.name).indexOf(key) === 0);
+  if (!book) return null;
+  const c = m[2] ? parseInt(m[2], 10) : 1;
+  if (c < 1 || c > book.ch) return null;
+  const verses = KJV[book.id][c - 1].length;
+  const v = m[3] ? Math.min(parseInt(m[3], 10), verses) : null;
+  return { b: book.id, c, v: v && v >= 1 ? v : null };
+}
+
+/* Case-insensitive word/phrase search across all 31,102 verses. */
+function bibleSearch(q, cap) {
+  const needle = String(q || '').trim().toLowerCase();
+  const out = { q: needle, list: [], total: 0 };
+  if (needle.length < 2) return out;
+  BOOKS.forEach(bk => KJV[bk.id].forEach((ch, ci) => ch.forEach((vt, vi) => {
+    if (vt.toLowerCase().includes(needle)) {
+      out.total++;
+      if (out.list.length < (cap || 100)) out.list.push({ b: bk.id, c: ci + 1, v: vi + 1, t: vt });
+    }
+  })));
+  return out;
+}
+
+function chapterNav(b, c, dir) {
+  if (c + dir >= 1 && c + dir <= B_BY_ID[b].ch) return { b, c: c + dir };
+  const i = BOOKS.findIndex(x => x.id === b) + dir;
+  if (i < 0 || i >= BOOKS.length) return null;
+  const nb = BOOKS[i];
+  return { b: nb.id, c: dir > 0 ? 1 : nb.ch };
+}
+
+function markMatches(text, needle) {
+  const lower = text.toLowerCase();
+  let i = 0, out = '', at;
+  while ((at = lower.indexOf(needle, i)) !== -1) {
+    out += esc(text.slice(i, at)) + '<mark>' + esc(text.slice(at, at + needle.length)) + '</mark>';
+    i = at + needle.length;
+  }
+  return out + esc(text.slice(i));
+}
+
+function viewRead() {
+  const arg = VIEW.arg;
+  let mode = 'books', b = null, c = 0, focusV = null;
+  if (arg === 'search' && readResults) mode = 'search';
+  else if (arg && arg !== 'books' && arg !== 'search') {
+    const parts = arg.split(':');
+    b = parts[0];
+    if (!B_BY_ID[b] || !KJV[b]) return go('read', 'books');
+    if (parts[1]) { mode = 'text'; c = Math.min(Math.max(1, +parts[1]), B_BY_ID[b].ch); focusV = parts[2] ? +parts[2] : null; }
+    else mode = 'chapters';
+  } else if (!arg && S.reader && KJV[S.reader.b]) { mode = 'text'; b = S.reader.b; c = S.reader.c; }
+
+  const toolbar = `
+    <div class="readbar">
+      <button class="chip ${mode === 'books' ? 'on' : ''}" data-rgo="books">All books</button>
+      <input class="rin" id="rjump" type="text" placeholder="Go to — John 3:16, Gen 1" aria-label="Go to reference">
+      <input class="rin grow" id="rquery" type="text" placeholder="Search the whole Bible" aria-label="Search scripture" value="${mode === 'search' ? esc(readResults.q) : ''}">
+      <button class="btn ghost sm" id="rsearch">Search</button>
+    </div>`;
+
+  let body = '';
+  if (mode === 'books') {
+    const half = t => BOOKS.filter(x => x.t === t).map(x =>
+      `<button class="bkbtn" data-rgo="${x.id}"><span>${esc(x.name)}</span><span class="bch">${x.ch}</span></button>`).join('');
+    body = `<div class="sec-h">Old Testament</div><div class="bkgrid">${half('OT')}</div>
+      <div class="sec-h">New Testament</div><div class="bkgrid">${half('NT')}</div>`;
+  } else if (mode === 'chapters') {
+    const bk = B_BY_ID[b];
+    body = `<div class="crumb"><button data-rgo="books">Books</button> / ${esc(bk.name)}</div>
+      <h2 style="font-size:20px;margin:8px 0 14px">${esc(bk.name)} — ${bk.ch} chapter${bk.ch > 1 ? 's' : ''}</h2>
+      <div class="chgrid">${KJV[b].map((_, i) => `<button data-rgo="${b}:${i + 1}">${i + 1}</button>`).join('')}</div>`;
+  } else if (mode === 'search') {
+    const r = readResults;
+    body = `<div class="sec-h">${r.total} match${r.total === 1 ? '' : 'es'} for “${esc(r.q)}”${r.total > r.list.length ? ' — showing the first ' + r.list.length : ''}</div>
+      ${r.list.length ? r.list.map(x =>
+        `<button class="bookrow vres" data-rgo="${x.b}:${x.c}:${x.v}">
+          <div><div class="nm">${markMatches(x.t, r.q)}</div><div class="sm">${esc(B_BY_ID[x.b].name)} ${x.c}:${x.v}</div></div>
+        </button>`).join('') : '<div class="empty">No verses contain that. Try fewer or different words.</div>'}`;
+  } else {
+    const bk = B_BY_ID[b], prev = chapterNav(b, c, -1), next = chapterNav(b, c, 1);
+    setReaderPos(b, c);
+    const navRow = pos => `<div class="btnrow" style="justify-content:space-between;${pos === 'top' ? 'margin:14px 0 0' : ''}">
+      <button class="btn ghost sm" data-rgo="${prev ? prev.b + ':' + prev.c : ''}" ${prev ? '' : 'disabled'}>◂ ${prev ? esc(B_BY_ID[prev.b].name) + ' ' + prev.c : 'Beginning'}</button>
+      <button class="btn ghost sm" data-rgo="${b}">${esc(bk.name)} — chapters</button>
+      <button class="btn ghost sm" data-rgo="${next ? next.b + ':' + next.c : ''}" ${next ? '' : 'disabled'}>${next ? esc(B_BY_ID[next.b].name) + ' ' + next.c : 'The end'} ▸</button>
+    </div>`;
+    body = `${navRow('top')}
+      <div class="vellum reader" style="margin-top:12px">
+        <div class="eyebrow">King James Version</div>
+        <h2 style="font-size:24px;margin:6px 0 14px">${esc(bk.name)} ${c}</h2>
+        ${KJV[b][c - 1].map((vt, i) =>
+          `<p class="vv ${focusV === i + 1 ? 'vhl' : ''}" id="v${i + 1}"><sup class="vn">${i + 1}</sup>${esc(vt)}</p>`).join('')}
+      </div>${navRow('bottom')}
+      <div class="meta" style="font-family:var(--ui);font-size:11px;color:var(--muted);margin-top:10px">← and → move a chapter. Your place is kept.</div>`;
+  }
+
+  app().innerHTML = `
+    <div class="eyebrow">Scripture</div>
+    <h1 class="page-h">The Reader</h1>
+    ${toolbar}
+    <div style="margin-top:16px">${body}</div>`;
+
+  app().querySelectorAll('[data-rgo]').forEach(el => el.onclick = () => {
+    if (!el.dataset.rgo) return;
+    go('read', el.dataset.rgo);
+  });
+  const doSearch = () => {
+    const q = document.getElementById('rquery').value;
+    readResults = bibleSearch(q, 100);
+    go('read', 'search');
+  };
+  const doJump = () => {
+    const r = parseRef(document.getElementById('rjump').value);
+    if (!r) return toast('Could not read that reference — try “John 3:16” or “Gen 1”.');
+    go('read', r.b + ':' + r.c + (r.v ? ':' + r.v : ''));
+  };
+  const sb = document.getElementById('rsearch'); if (sb) sb.onclick = doSearch;
+  const qi = document.getElementById('rquery'); if (qi) qi.onkeydown = ev => { if (ev.key === 'Enter') doSearch(); };
+  const ji = document.getElementById('rjump'); if (ji) ji.onkeydown = ev => { if (ev.key === 'Enter') doJump(); };
+  if (mode === 'text') {
+    document.onkeydown = ev => {
+      if (/INPUT|TEXTAREA|SELECT/.test(ev.target && ev.target.tagName)) return;
+      if (ev.key === 'ArrowLeft') { const p = chapterNav(b, c, -1); if (p) go('read', p.b + ':' + p.c); }
+      if (ev.key === 'ArrowRight') { const n = chapterNav(b, c, 1); if (n) go('read', n.b + ':' + n.c); }
+    };
+    if (focusV) {
+      const el = document.getElementById('v' + focusV);
+      if (el && el.scrollIntoView) el.scrollIntoView({ block: 'center' });
+    }
+  }
+}
+
 /* ------------------------- WHO AM I? (portraits) ------------------------- */
 let whoQuiz = null; // { rounds:[{pid, opts}], i, right, answered, done }
 function startWhoQuiz() {
@@ -4686,6 +4854,7 @@ function bindQuizInteractions() {
 let lastViewKey = null;
 function render() {
   renderNav();
+  document.onkeydown = null; /* view-scoped key handlers re-attach below */
   /* Fade only when the screen actually changes — intra-view re-renders
      (filters, matching picks, route toggles) must not flash. */
   const key = VIEW.name + ':' + String(VIEW.arg);
@@ -4698,6 +4867,7 @@ function render() {
   if (v === 'quiz') { renderQuiz(); if (!Q.answered && Q.i < Q.list.length) bindQuizInteractions(); }
   else if (v === 'mini') renderMini();
   else if (v === 'who') viewWho();
+  else if (v === 'read') viewRead();
   else if (v === 'journey') viewJourney();
   else if (v === 'era') viewEra(VIEW.arg);
   else if (v === 'books') viewBooks();

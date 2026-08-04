@@ -385,6 +385,25 @@ textarea.explain:focus{border-color:var(--gold-dim)}
 .guidebar .gport .portrait{width:72px;height:72px;flex:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,.5))}
 .guidebar .gq{font-size:16px}
 .guidebar .gref{font-size:10px;margin-top:6px}
+/* scripture reader */
+.readbar{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;align-items:center}
+.rin{background:rgba(255,255,255,.06);border:1px solid var(--line-soft);border-radius:var(--r);padding:8px 12px;color:inherit;font-family:var(--ui);font-size:13px;min-width:170px}
+.rin.grow{flex:1;min-width:200px}
+.rin::placeholder{color:var(--muted);opacity:.8}
+.rin:focus{border-color:var(--gold-dim);outline:none}
+.bkgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:8px}
+.bkbtn{display:flex;justify-content:space-between;gap:8px;align-items:baseline;background:none;border:1px solid var(--line-soft);border-radius:var(--r);padding:9px 12px;color:#C8CBE2;font-family:var(--ui);font-size:12.5px;text-align:left;transition:.15s}
+.bkbtn:hover{border-color:var(--gold-dim);color:var(--gold-lt)}
+.bkbtn .bch{font-size:10px;color:var(--muted)}
+.chgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(48px,1fr));gap:8px}
+.chgrid button{background:none;border:1px solid var(--line-soft);border-radius:var(--r);padding:10px 0;color:#C8CBE2;font-family:var(--ui);font-size:13px;transition:.15s}
+.chgrid button:hover{border-color:var(--gold-dim);color:var(--gold-lt);background:rgba(201,162,39,.08)}
+.reader{max-width:720px}
+.reader .vv{margin:0 0 3px;font-size:16.5px;line-height:1.78}
+.reader .vn{font-family:var(--ui);font-size:9.5px;color:#8A6A10;margin-right:7px;letter-spacing:.02em}
+.reader .vv.vhl{background:rgba(201,162,39,.28);border-radius:2px;padding:1px 4px;margin-left:-4px}
+.vres .nm{font-size:14px;line-height:1.55}
+.vres mark{background:rgba(201,162,39,.3);color:var(--gold-lt);border-radius:2px;padding:0 1px}
 /* who am I challenge */
 .whocard{margin-top:18px;display:grid;gap:16px;justify-items:center;padding:26px}
 .whocard .whoport .portrait{width:150px;height:150px;filter:drop-shadow(0 8px 18px rgba(0,0,0,.6))}

@@ -147,4 +147,9 @@ spine — roundels that fill with gold as mastery rises. Keep that the one loud 
   figure; to give them emblems, add one line picking parts (or add a part to
   `PORTRAIT_PARTS` with a layer: `bg` behind the figure, `ov` on the robe, `fg`
   held in front). Portrait colours are token values; keep them that way.
+- The scripture reader (`viewRead` in `ui.js`) reads `KJV` directly: book list →
+  chapter grid → vellum text, whole-Bible search (`bibleSearch`), reference jump
+  (`parseRef` — extend it rather than adding a second parser), last position in
+  `S.reader` via `setReaderPos`. Arrow keys page chapters; the handler is
+  view-scoped and cleared at the top of `render()`.
 - There is no export/import of a save file yet.

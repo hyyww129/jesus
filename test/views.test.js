@@ -3,8 +3,44 @@
 const { load, test, assert, done } = require('./_load');
 const X = load(true);
 
-['journey','books','timeline','map','people','palace','daily','review','transfer','final','master','dashboard','achievements','about']
+['journey','books','read','timeline','map','people','palace','daily','review','transfer','final','master','dashboard','achievements','about']
   .forEach(v => test('renders ' + v, () => X.go(v)));
+
+test('scripture reader renders book list, chapter grid, text and search', () => {
+  X.go('read', 'books');
+  X.go('read', 'gen');
+  X.go('read', 'gen:1');
+  assert(X.S.reader && X.S.reader.b === 'gen' && X.S.reader.c === 1, 'position not remembered');
+  X.go('read', 'joh:3:16');
+  assert(X.S.reader.b === 'joh' && X.S.reader.c === 3, 'position not updated on jump');
+  X.go('read'); /* resume from S.reader */
+});
+
+test('reference jump understands common forms', () => {
+  const cases = [
+    ['John 3:16', { b: 'joh', c: 3, v: 16 }],
+    ['Gen 1', { b: 'gen', c: 1, v: null }],
+    ['1 Cor 13', { b: '1co', c: 13, v: null }],
+    ['psalm 23:1', { b: 'psa', c: 23, v: 1 }],
+    ['Song of Songs 2', { b: 'sng', c: 2, v: null }],
+    ['rev 22:21', { b: 'rev', c: 22, v: 21 }]
+  ];
+  cases.forEach(([input, want]) => {
+    const got = X.parseRef(input);
+    assert(got && got.b === want.b && got.c === want.c && got.v === want.v,
+      input + ' -> ' + JSON.stringify(got));
+  });
+  assert(X.parseRef('Gen 99') === null, 'chapter beyond the book should fail');
+  assert(X.parseRef('nowhere 3') === null, 'unknown book should fail');
+});
+
+test('scripture search finds words and phrases', () => {
+  const r = X.bibleSearch('for God so loved the world', 100);
+  assert(r.total >= 1 && r.list.some(x => x.b === 'joh' && x.c === 3 && x.v === 16), 'John 3:16 not found');
+  const shep = X.bibleSearch('shepherd', 100);
+  assert(shep.total > 30 && shep.list.length === Math.min(shep.total, 100), 'search cap mismatch');
+  assert(X.bibleSearch('x', 100).total === 0, 'single letters should not search');
+});
 
 test('renders all 17 era pages', () => X.ERAS.forEach(e => X.go('era', e.id)));
 test('renders all 66 book pages', () => X.BOOKS.forEach(b => X.go('book', b.id)));

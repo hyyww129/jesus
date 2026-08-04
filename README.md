@@ -19,6 +19,8 @@ Node 18+ (only used for the build and tests — the game itself has no runtime d
 - **17 stages** from Creation to Revelation, each ending in a boss battle
 - **All 66 books**, each with its own page and six completion gates
 - **116 concepts** carrying **405 questions** across 12 formats
+- **The full KJV on board** — a scripture reader with chapter navigation, whole-Bible
+  search, reference jump ("John 3:16"), and a remembered reading position
 - **Memory engine** — spaced repetition, five knowledge levels, per-concept confidence
 - **42 people**, each with an illuminated-manuscript portrait drawn in code,
   an era **guide** who introduces every stage in their own recorded voice, and a

@@ -40,6 +40,7 @@ const BLANK = () => ({
   ach: [],        // achievement ids
   exams: {},      // final + master challenge
   daily: {},      // date -> true
+  reader: null,   // last scripture reader position {b, c}
   log: []         // recent activity, capped
 });
 
@@ -458,6 +459,7 @@ function markBookGate(bid, gate) {
   if (!b[gate]) { b[gate] = true; saveState(); }
 }
 function visitPlace(id) { if (!S.visited.includes(id)) { S.visited.push(id); saveState(); } }
+function setReaderPos(b, c) { S.reader = { b, c }; saveState(); }
 function meetPerson(id) { if (!S.met.includes(id)) { S.met.push(id); saveState(); } }
 
 /* Recognition tracks — the map's "where did this happen?" and the people
