@@ -39,4 +39,19 @@ test('review queue prioritises weak and overdue concepts', () => {
   assert(q.every((x, i) => i === 0 || q[i - 1].score >= x.score), 'queue not sorted by urgency');
 });
 
+test('geography challenge keeps its own mastery track', () => {
+  let g = X.recordGeo('jericho', true);
+  assert(g.seen === 1 && g.right === 1 && g.streak === 1, 'first correct not recorded');
+  X.recordGeo('jericho', true); X.recordGeo('jericho', true);
+  assert(X.geoStats().known === 1, 'three straight rights should mark a place known');
+  g = X.recordGeo('jericho', false);
+  assert(g.streak === 0, 'a miss must reset the streak');
+  assert(X.geoStats().known === 0, 'a place stays known after a miss');
+  const s = X.geoStats();
+  assert(s.seen === 4 && s.right === 3 && s.pct === 75, 'accuracy maths wrong: ' + JSON.stringify(s));
+  const picks = X.geoPickTargets(8);
+  assert(picks.length === 8, 'picker returned ' + picks.length);
+  assert(!picks.some(p => p.id === 'jericho'), 'practised place crowded out fresh ones');
+});
+
 done();

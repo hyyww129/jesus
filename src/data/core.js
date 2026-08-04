@@ -819,7 +819,7 @@ const PLACES = [
  people:['Paul','Barnabas'],events:['Saul sent home to Tarsus for safety','Barnabas fetches Saul to help at Antioch'],books:['act'],ref:'Acts 9:30; 11:25; 22:3'},
 {id:'cyprus',n:'Cyprus',panel:'world',x:592,y:232,era:'paul',
  d:'Barnabas\u2019s home island and the first stop of the first missionary journey, where the proconsul Sergius Paulus believed.',
- people:['Barnabas','Paul','John Mark','Sergius Paulus'],events:['First journey begins here','Elymas the sorcerer opposed','Sergius Paulus believes'],books:['act'],ref:'Acts 4:36; 13:4-12'},
+ people:['Barnabas','Paul','John Mark','Sergius Paulus'],events:['First island stop of the first journey','Elymas the sorcerer opposed','Sergius Paulus believes'],books:['act'],ref:'Acts 4:36; 13:4-12'},
 {id:'lystra',n:'Lystra',panel:'world',x:570,y:168,era:'paul',
  d:'A Galatian town that first hailed Paul as a god and then stoned him \u2014 and later gave him Timothy.',
  people:['Paul','Barnabas','Timothy'],events:['A lame man healed','Crowds try to sacrifice to Paul and Barnabas','Paul stoned and left for dead','Timothy joins Paul'],books:['act','2ti'],ref:'Acts 14:8-20; 16:1-3'},
@@ -897,13 +897,42 @@ const PLACES = [
 const ROUTES = [
 {id:'j1',n:'First journey',ref:'Acts 13\u201314',
  d:'Antioch \u2192 Cyprus \u2192 Galatia (Pisidian Antioch, Iconium, Lystra, Derbe) and back to Antioch.',
- pts:[[697,206],[645,228],[592,232],[588,205],[570,168],[612,182],[662,198],[697,206]]},
+ pts:[[697,206],[645,228],[592,232],[588,205],[570,168],[612,182],[662,198],[697,206]],
+ stops:[
+  {p:'antioch',note:'Set apart with Barnabas by the church at Antioch and sent out with John Mark.',ref:'Acts 13:1-3'},
+  {p:'cyprus',note:'Across the island from Salamis to Paphos; Elymas opposed, and the proconsul Sergius Paulus believes.',ref:'Acts 13:4-12'},
+  {p:'lystra',note:'A lame man healed; the crowd hails them as gods, then stones Paul and leaves him for dead.',ref:'Acts 14:8-20'},
+  {p:'antioch',note:'Back to Antioch by the same towns, reporting all that God had done and how a door of faith had opened to the Gentiles.',ref:'Acts 14:26-28'}]},
 {id:'j2',n:'Second journey',ref:'Acts 15:36\u201318:22',
  d:'Overland through Galatia, the night vision at Troas, then Philippi, Thessalonica, Berea, Athens and Corinth, returning by way of Ephesus.',
- pts:[[697,206],[655,175],[570,168],[505,140],[455,122],[411,91],[377,104],[352,122],[400,160],[358,174],[425,182],[483,164],[560,215],[640,230],[697,206]]},
+ pts:[[697,206],[655,175],[570,168],[505,140],[455,122],[411,91],[377,104],[352,122],[400,160],[358,174],[425,182],[483,164],[560,215],[640,230],[697,206]],
+ stops:[
+  {p:'antioch',note:'After the Jerusalem council, Paul sets out again \u2014 this time with Silas.',ref:'Acts 15:36-41'},
+  {p:'lystra',note:'Young Timothy joins the team.',ref:'Acts 16:1-3'},
+  {p:'troas',note:'The night vision: a man of Macedonia begging, \u201cCome over and help us.\u201d',ref:'Acts 16:8-10'},
+  {p:'philippi',note:'Lydia believes; Paul and Silas are jailed, and the jailer\u2019s household is baptised.',ref:'Acts 16:11-40'},
+  {p:'thessalonica',note:'Three sabbaths reasoning in the synagogue before a riot forces them out.',ref:'Acts 17:1-9'},
+  {p:'berea',note:'The Bereans examine the Scriptures daily to test what they hear.',ref:'Acts 17:10-15'},
+  {p:'athens',note:'The Areopagus speech: the God the altar calls unknown, made known.',ref:'Acts 17:16-34'},
+  {p:'corinth',note:'Eighteen months of teaching, tentmaking alongside Priscilla and Aquila.',ref:'Acts 18:1-18'},
+  {p:'ephesus',note:'A brief first visit; Priscilla and Aquila stay on.',ref:'Acts 18:19-21'},
+  {p:'antioch',note:'Home by way of Caesarea to Antioch.',ref:'Acts 18:22'}]},
 {id:'j3',n:'Third journey',ref:'Acts 18:23\u201321:17',
  d:'Through Galatia to the long stay at Ephesus, on to Macedonia and Corinth, then back by Troas and Miletus, bound for Jerusalem.',
- pts:[[697,206],[655,175],[570,168],[483,164],[440,120],[411,91],[377,104],[358,174],[420,150],[455,122],[478,180],[540,225],[615,255],[655,300]]}
+ pts:[[697,206],[655,175],[570,168],[483,164],[440,120],[411,91],[377,104],[358,174],[420,150],[455,122],[478,180],[540,225],[615,255],[655,300]],
+ stops:[
+  {p:'antioch',note:'Out a third time, strengthening the disciples region by region through Galatia.',ref:'Acts 18:23'},
+  {p:'ephesus',note:'Around three years: daily teaching in the hall of Tyrannus, and the silversmiths\u2019 riot.',ref:'Acts 19; 20:31'},
+  {p:'corinth',note:'Three months in Greece \u2014 where Romans is commonly thought to have been written.',ref:'Acts 20:2-3; Romans 16:23'},
+  {p:'troas',note:'A sermon past midnight; Eutychus falls from the window and is restored.',ref:'Acts 20:6-12'},
+  {p:'jerusalem',note:'By Miletus and Caesarea to Jerusalem, despite repeated warnings of what waits there.',ref:'Acts 20:17\u201321:17'}]},
+{id:'ex',n:'Road into exile',ref:'2 Kings 25:8-11',
+ d:'Captives from fallen Jerusalem taken to Babylon. The chart follows the army road north through the Levant and down the Euphrates \u2014 the usual route, since the desert crossing was impassable for a marching column.',
+ pts:[[655,300],[668,268],[690,225],[730,200],[764,187],[820,215],[860,255],[894,291]],
+ stops:[
+  {p:'jerusalem',note:'The city falls to Babylon: the temple burned, the walls broken, the people deported.',ref:'2 Kings 25:8-11'},
+  {p:'babylon',note:'Life by the rivers of Babylon \u2014 Daniel in the court, Ezekiel among the exiles.',ref:'Psalm 137:1; Daniel 1; Ezekiel 1:1'},
+  {p:'susa',note:'Babylon falls to Persia; under the new empire, Susa becomes Esther\u2019s and Nehemiah\u2019s city \u2014 and the exile begins to turn home.',ref:'Esther 1:2; Nehemiah 1:1; Ezra 1'}]}
 ];
 
 /* --------------------------------------------------------------------------

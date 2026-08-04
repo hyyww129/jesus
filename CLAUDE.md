@@ -116,10 +116,14 @@ spine — roundels that fill with gold as mastery rises. Keep that the one loud 
   Conquest, Exile, Return and Revelation have the fewest concepts.
 - Books without their own concepts fall back to their era's pool for quizzes and mastery.
 - The map is schematic, not geographic — but it now draws stylised coastlines,
-  Paul's three journeys, and supports pinch/scroll zoom and drag pan (camera code in
-  `wireMapCamera`, `ui.js`; it bails out under the node test stub, so keep any new
-  browser-only calls behind that guard). Coordinates live in `PLACES`, journey
-  waypoints in `ROUTES`, zoom-revealed labels in `MAP_DETAIL`, all in `core.js`.
-  `test/data.test.js` bounds-checks pins, waypoints and detail labels.
+  four walkable routes (Paul's journeys + the exile road), era layer toggles, a
+  stop-by-stop journey mode, and a "where did this happen?" challenge recorded in
+  `S.geo` via `recordGeo`/`geoStats` in `engine.js` (places are not concepts — geo
+  keeps its own mastery track; three straight correct = "sure"). Pinch/scroll zoom
+  and drag pan live in `wireMapCamera` (`ui.js`); it bails out under the node test
+  stub, so keep any new browser-only calls behind that guard. Coordinates live in
+  `PLACES`, waypoints and stop itineraries in `ROUTES`, zoom-revealed labels in
+  `MAP_DETAIL`, all in `core.js`. `test/data.test.js` bounds-checks pins, waypoints,
+  stops and detail labels; `test/mastery.test.js` covers the geo track.
 - `exp` questions grade on keyword coverage plus an honest self-rating.
 - There is no export/import of a save file yet.

@@ -66,11 +66,16 @@ test('map pins sit inside their panel and routes stay on the chart', () => {
     if (p.panel === 'world') assert(p.x >= 0 && p.x <= 1000 && p.y >= 0 && p.y <= 570, 'place ' + p.id + ' outside viewBox');
     else assert(p.x >= 55 && p.x <= 330 && p.y >= 285 && p.y <= 547, 'place ' + p.id + ' outside the land inset');
   });
-  assert(X.ROUTES.length === 3, 'expected the three missionary journeys');
+  assert(X.ROUTES.length === 4, 'expected three missionary journeys plus the exile route');
   X.ROUTES.forEach(r => {
     assert(r.id && r.n && r.ref && r.d, 'route ' + r.id + ' incomplete');
     assert(r.pts.length >= 4, 'route ' + r.id + ' too few waypoints');
     r.pts.forEach(([x, y]) => assert(x >= 0 && x <= 1000 && y >= 0 && y <= 570, 'route ' + r.id + ' waypoint off the chart'));
+    assert(r.stops && r.stops.length >= 3, 'route ' + r.id + ' needs walkable stops');
+    r.stops.forEach(s => {
+      assert(X.PL_BY_ID[s.p], 'route ' + r.id + ' stop at unknown place ' + s.p);
+      assert(s.note && s.ref, 'route ' + r.id + ' stop ' + s.p + ' missing note or reference');
+    });
   });
   X.MAP_DETAIL.towns.concat(X.MAP_DETAIL.regions).forEach(t => {
     assert(t.n && t.ref, 'map detail label missing name or reference');

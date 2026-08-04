@@ -495,15 +495,53 @@ function renderTlChallenge() {
 /* ================================= MAP ================================= */
 let mapSel = null;
 let mapRoutes = { j1: true, j2: true, j3: true };
+let mapLayers = { ot: true, gospels: true, paul: true, exile: true };
+let mapJourney = null;  // { rid, i } while walking a route stop by stop
+let mapQuiz = null;     // { rounds:[{pid, ev}], i, right, answered, done }
 /* Camera and gesture state survive re-renders so selecting a pin or toggling
    a route never loses the player's zoom. */
 let mapView = { x: 0, y: 0, w: 1000 };
 const mapDrag = { moved: false };
 function routePath(r) { return 'M' + r.pts.map(p => p.join(' ')).join(' L '); }
+function placeLayer(p) {
+  return p.era === 'jesus' ? 'gospels'
+    : ['church', 'paul', 'letters', 'revelation'].includes(p.era) ? 'paul' : 'ot';
+}
+const LAYER_NAMES = { ot: 'OT sites', gospels: 'Gospels', paul: 'Paul’s journeys', exile: 'Exile route' };
+function routeVisible(r) {
+  if (mapJourney && mapJourney.rid === r.id) return true;
+  return r.id === 'ex' ? mapLayers.exile : (mapLayers.paul && mapRoutes[r.id]);
+}
+/* Build "where did this happen?" rounds. An event that names its own place
+   would give the answer away, so those are skipped. */
+function startGeoQuiz() {
+  const leaky = (p, ev) => p.n.toLowerCase().split(/[^a-z]+/).filter(w => w.length > 3)
+    .some(w => ev.toLowerCase().includes(w));
+  const rounds = [];
+  geoPickTargets(PLACES.length).forEach(p => {
+    if (rounds.length >= 8) return;
+    const evs = p.events.filter(ev => !leaky(p, ev));
+    if (evs.length) rounds.push({ pid: p.id, ev: evs[Math.floor(Math.random() * evs.length)] });
+  });
+  mapQuiz = { rounds, i: 0, right: 0, answered: null, done: false };
+  mapSel = null; mapJourney = null;
+  render();
+}
 function viewMap() {
+  const jr = mapJourney ? ROUTES.find(r => r.id === mapJourney.rid) : null;
+  const stop = jr ? jr.stops[mapJourney.i] : null;
+  const round = mapQuiz && !mapQuiz.done ? mapQuiz.rounds[mapQuiz.i] : null;
+  const ans = mapQuiz ? mapQuiz.answered : null;
   const pins = PLACES.map((p, i) => {
     const visited = S.visited.includes(p.id);
-    return `<g class="mp ${mapSel === p.id ? 'on' : ''} ${visited ? 'visited' : ''}" data-place="${p.id}" tabindex="0" role="button" aria-label="${esc(p.n)}" style="--pd:${(i % 8) * 0.4}s">
+    const off = !mapQuiz && !mapLayers[placeLayer(p)];
+    const cls = [
+      'mp', mapSel === p.id ? 'on' : '', visited ? 'visited' : '', off ? 'loff' : '',
+      stop && stop.p === p.id ? 'stop-on' : '',
+      ans && round && round.pid === p.id ? 'geo-target' : '',
+      ans && !ans.ok && ans.pick === p.id ? 'geo-miss' : ''
+    ].join(' ');
+    return `<g class="${cls}" data-place="${p.id}" tabindex="${off ? -1 : 0}" role="button" aria-label="${esc(p.n)}" style="--pd:${(i % 8) * 0.4}s">
       <circle class="hit" cx="${p.x}" cy="${p.y}" r="16"/>
       <circle class="halo" cx="${p.x}" cy="${p.y}" r="10"/>
       <circle class="pin" cx="${p.x}" cy="${p.y}" r="5"/>
@@ -513,16 +551,63 @@ function viewMap() {
     `<text x="${t.x}" y="${t.y}">${esc(t.n)}</text>`).join('')}</g>
   <g class="lod lod-towns">${MAP_DETAIL.towns.map(t =>
     `<g><circle cx="${t.x}" cy="${t.y}" r="2.5"/><text x="${t.x + 5}" y="${t.y + 3}">${esc(t.n)}</text></g>`).join('')}</g>`;
-  const routes = ROUTES.filter(r => mapRoutes[r.id]).map(r =>
-    `<path class="route ${r.id}" d="${routePath(r)}"><title>${esc(r.n)} — ${esc(r.ref)}</title></path>`).join('');
-  const sel = mapSel ? PL_BY_ID[mapSel] : null;
+  const routes = ROUTES.filter(routeVisible).map(r =>
+    `<path class="route ${r.id} ${jr && jr.id === r.id ? 'walk' : ''}" d="${routePath(r)}"><title>${esc(r.n)} — ${esc(r.ref)}</title></path>`).join('');
+  const sel = !mapJourney && !mapQuiz && mapSel ? PL_BY_ID[mapSel] : null;
+  const gs = geoStats();
+  const ringC = 2 * Math.PI * 20;
+  const ring = `<div class="georing">
+      <svg viewBox="0 0 48 48" role="img" aria-label="${S.visited.length} of ${PLACES.length} places explored">
+        <circle cx="24" cy="24" r="20" class="track"/>
+        <circle cx="24" cy="24" r="20" class="prog" stroke-dasharray="${(S.visited.length / PLACES.length * ringC).toFixed(1)} ${ringC.toFixed(1)}" transform="rotate(-90 24 24)"/>
+        <text x="24" y="29">${S.visited.length}</text>
+      </svg>
+      <div class="cap">of ${PLACES.length} explored${gs.seen ? `<br>challenge ${gs.pct}% · ${gs.known} sure` : ''}</div>
+    </div>`;
+
+  const quizBanner = !mapQuiz ? '' : mapQuiz.done ? `
+    <div class="geobanner" role="status">
+      <div class="gq">Challenge over</div>
+      <div class="gtext"><b>${mapQuiz.right} of ${mapQuiz.rounds.length}</b> placed correctly · lifetime accuracy ${geoStats().pct}%</div>
+      <span class="gsp"></span>
+      <button class="btn solid sm" id="geoagain">Again</button>
+      <button class="btn ghost sm" id="geoend">Close</button>
+    </div>` : `
+    <div class="geobanner" role="status">
+      <div class="gq">Round ${mapQuiz.i + 1}/${mapQuiz.rounds.length} · ${mapQuiz.right} right</div>
+      <div class="gtext">Where did this happen? <b>“${esc(round.ev)}”</b></div>
+      <span class="gsp"></span>
+      ${ans ? `
+        <span class="gfb ${ans.ok ? 'ok' : 'no'}">${ans.ok
+          ? 'Yes — ' + esc(PL_BY_ID[round.pid].n)
+          : 'It happened at ' + esc(PL_BY_ID[round.pid].n) + ' <span class="ref">' + esc(PL_BY_ID[round.pid].ref) + '</span>'}</span>
+        <button class="btn solid sm" id="geonext">${mapQuiz.i + 1 >= mapQuiz.rounds.length ? 'See score' : 'Next'}</button>`
+      : `<span class="ghint">Click the place on the map</span>`}
+      <button class="btn ghost sm" id="geoend">End</button>
+    </div>`;
 
   app().innerHTML = `
-    <div class="eyebrow">Geography</div>
-    <h1 class="page-h">The Bible Map</h1>
+    <div class="maphead">
+      <div>
+        <div class="eyebrow">Geography</div>
+        <h1 class="page-h">The Bible Map</h1>
+      </div>
+      ${ring}
+    </div>
     <p class="lede">A schematic chart, not a survey map — coastlines and positions are stylised and are there to fix relationships in memory. Scroll or pinch to zoom, drag to pan; smaller towns and regions appear as you close in. Tap a place to open it.</p>
-    <div class="filters" style="margin-top:14px">${ROUTES.map(r =>
-      `<button class="chip rt ${r.id} ${mapRoutes[r.id] ? 'on' : ''}" data-route="${r.id}" aria-pressed="${mapRoutes[r.id]}">${esc(r.n)} · ${esc(r.ref)}</button>`).join('')}</div>
+    ${mapQuiz ? quizBanner : `
+    <div class="filters" style="margin-top:14px">
+      ${['ot', 'gospels', 'paul', 'exile'].map(k =>
+        `<button class="chip lyr ${mapLayers[k] ? 'on' : ''}" data-layer="${k}" aria-pressed="${mapLayers[k]}">${LAYER_NAMES[k]}</button>`).join('')}
+      ${mapLayers.paul ? ROUTES.filter(r => r.id !== 'ex').map(r =>
+        `<button class="chip rt ${r.id} ${mapRoutes[r.id] ? 'on' : ''}" data-route="${r.id}" aria-pressed="${mapRoutes[r.id]}">${esc(r.n)}</button>`).join('') : ''}
+    </div>
+    <div class="filters" style="margin-top:8px">
+      <span class="maplab">Walk a route:</span>
+      ${ROUTES.map(r => `<button class="chip walkc ${jr && jr.id === r.id ? 'on' : ''}" data-walk="${r.id}">▸ ${esc(r.n)}</button>`).join('')}
+      <span class="gsp"></span>
+      <button class="btn solid sm" id="geoquiz">Where did this happen?</button>
+    </div>`}
     <div class="mapwrap" id="mapwrap" style="margin-top:12px">
       <svg id="mapsvg" class="mapsvg" viewBox="${mapView.x} ${mapView.y} ${mapView.w} ${mapView.w * 0.57}" role="img" aria-label="Schematic map of the biblical world">
         <defs><pattern id="sea" width="14" height="14" patternUnits="userSpaceOnUse">
@@ -567,8 +652,19 @@ function viewMap() {
     </div>
     <div class="legend"><span><span style="width:9px;height:9px;border-radius:50%;background:var(--verd);display:inline-block"></span> visited</span>
       <span><span style="width:9px;height:9px;border-radius:50%;background:var(--gold-dim);display:inline-block"></span> not yet opened</span>
-      ${ROUTES.filter(r => mapRoutes[r.id]).map(r => `<span><span class="swatch ${r.id}"></span> ${esc(r.n.toLowerCase())}</span>`).join('')}
-      <span>${S.visited.length} of ${PLACES.length} explored</span></div>
+      ${ROUTES.filter(routeVisible).map(r => `<span><span class="swatch ${r.id}"></span> ${esc(r.n.toLowerCase())}</span>`).join('')}</div>
+    ${jr ? `<div class="sheet vellum" role="dialog" aria-label="${esc(jr.n)}" id="jsheet">
+      <button class="sheet-x" id="jclose" aria-label="Leave journey">✕</button>
+      <div class="eyebrow">${esc(jr.n)} · stop ${mapJourney.i + 1} of ${jr.stops.length}</div>
+      <h2 style="font-size:22px;margin:6px 0 10px">${esc(PL_BY_ID[stop.p].n)}</h2>
+      <p style="margin:0 0 10px">${esc(stop.note)}</p>
+      <span class="ref">${esc(stop.ref)}</span>
+      <div class="btnrow">
+        <button class="btn ghost sm" id="jprev" ${mapJourney.i === 0 ? 'disabled' : ''}>◂ Back</button>
+        <button class="btn solid sm" id="jnext">${mapJourney.i + 1 >= jr.stops.length ? 'Finish journey' : 'Next stop ▸'}</button>
+        <button class="btn ghost sm" id="jopen">Open this place</button>
+      </div>
+    </div>` : ''}
     ${sel ? `<div class="sheet vellum" role="dialog" aria-label="${esc(sel.n)}" id="mapsheet">
       <button class="sheet-x" id="sheetclose" aria-label="Close details">✕</button>
       <div class="eyebrow">${esc(E_BY_ID[sel.era] ? E_BY_ID[sel.era].name : '')}</div>
@@ -586,21 +682,65 @@ function viewMap() {
   app().querySelectorAll('[data-place]').forEach(g => {
     const act = () => {
       if (mapDrag.moved) return; /* a pan that ended on a pin is not a tap */
+      if (mapQuiz) {
+        if (mapQuiz.done || mapQuiz.answered) return;
+        const r = mapQuiz.rounds[mapQuiz.i];
+        const ok = g.dataset.place === r.pid;
+        recordGeo(r.pid, ok);
+        if (ok) mapQuiz.right++;
+        mapQuiz.answered = { pick: g.dataset.place, ok };
+        celebrate(checkAchievements());
+        render();
+        return;
+      }
+      mapJourney = null;
       mapSel = g.dataset.place; visitPlace(mapSel); celebrate(checkAchievements()); render();
     };
     g.onclick = act;
     g.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); act(); } };
   });
+  app().querySelectorAll('[data-layer]').forEach(b => b.onclick = () => {
+    mapLayers[b.dataset.layer] = !mapLayers[b.dataset.layer]; render();
+  });
   app().querySelectorAll('[data-route]').forEach(b => b.onclick = () => {
     mapRoutes[b.dataset.route] = !mapRoutes[b.dataset.route]; render();
   });
-  const pq = document.getElementById('placequiz');
-  if (pq) pq.onclick = () => startPlaceQuiz(sel);
-  const sx = document.getElementById('sheetclose');
-  if (sx) sx.onclick = () => { mapSel = null; render(); };
-  const sheet = document.getElementById('mapsheet');
-  if (sheet) sheet.onkeydown = ev => { if (ev.key === 'Escape') { mapSel = null; render(); } };
-  wireMapCamera();
+  app().querySelectorAll('[data-walk]').forEach(b => b.onclick = () => {
+    const rid = b.dataset.walk;
+    if (mapJourney && mapJourney.rid === rid) { mapJourney = null; render(); return; }
+    mapJourney = { rid, i: 0 }; mapSel = null; mapQuiz = null;
+    if (rid === 'ex') mapLayers.exile = true; else { mapLayers.paul = true; mapRoutes[rid] = true; }
+    render();
+  });
+  const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  on('geoquiz', startGeoQuiz);
+  on('geoagain', startGeoQuiz);
+  on('geoend', () => { mapQuiz = null; render(); });
+  on('geonext', () => {
+    if (mapQuiz.i + 1 >= mapQuiz.rounds.length) mapQuiz.done = true;
+    else { mapQuiz.i++; mapQuiz.answered = null; }
+    render();
+  });
+  on('jclose', () => { mapJourney = null; render(); });
+  on('jprev', () => { if (mapJourney.i > 0) { mapJourney.i--; render(); } });
+  on('jnext', () => {
+    if (mapJourney.i + 1 >= jr.stops.length) mapJourney = null;
+    else mapJourney.i++;
+    render();
+  });
+  on('jopen', () => {
+    const pid = stop.p;
+    mapJourney = null; mapSel = pid; visitPlace(pid); celebrate(checkAchievements()); render();
+  });
+  on('placequiz', () => startPlaceQuiz(sel));
+  on('sheetclose', () => { mapSel = null; render(); });
+  const sheet = document.getElementById('mapsheet') || document.getElementById('jsheet');
+  if (sheet) sheet.onkeydown = ev => { if (ev.key === 'Escape') { mapSel = null; mapJourney = null; render(); } };
+  const cam = wireMapCamera();
+  if (cam) {
+    if (stop) cam.flyTo(PL_BY_ID[stop.p], 300);
+    else if (mapQuiz && mapQuiz.answered && !mapQuiz.answered.ok) cam.flyTo(PL_BY_ID[mapQuiz.rounds[mapQuiz.i].pid], 420);
+  }
 }
 
 /* Pan/zoom/tooltip wiring. Bails out under the node test stub, which has no
@@ -631,10 +771,30 @@ function wireMapCamera() {
   };
   apply();
 
-  svg.onwheel = e => { e.preventDefault(); zoomAt(e.deltaY < 0 ? 1.25 : 0.8, e.clientX, e.clientY); };
+  /* Animated camera flight (journey mode, wrong-answer reveals). A user
+     gesture cancels it; reduced motion jumps straight to the target. */
+  let flight = 0;
+  const flyTo = (pl, w) => {
+    cancelAnimationFrame(flight);
+    const from = { x: mapView.x, y: mapView.y, w: mapView.w };
+    const to = { x: pl.x - w / 2, y: pl.y - w * RATIO / 2, w };
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      mapView = to; apply(); return;
+    }
+    const t0 = performance.now(), DUR = 650;
+    const step = now => {
+      const t = Math.min(1, (now - t0) / DUR), e2 = 1 - Math.pow(1 - t, 3);
+      mapView = { x: from.x + (to.x - from.x) * e2, y: from.y + (to.y - from.y) * e2, w: from.w + (to.w - from.w) * e2 };
+      apply();
+      if (t < 1) flight = requestAnimationFrame(step);
+    };
+    flight = requestAnimationFrame(step);
+  };
+
+  svg.onwheel = e => { e.preventDefault(); cancelAnimationFrame(flight); zoomAt(e.deltaY < 0 ? 1.25 : 0.8, e.clientX, e.clientY); };
   const ptrs = new Map();
   let pinchD = 0;
-  svg.onpointerdown = e => { ptrs.set(e.pointerId, e); mapDrag.moved = false; pinchD = 0; };
+  svg.onpointerdown = e => { ptrs.set(e.pointerId, e); mapDrag.moved = false; pinchD = 0; cancelAnimationFrame(flight); };
   svg.onpointermove = e => {
     if (!ptrs.has(e.pointerId)) return;
     const prev = ptrs.get(e.pointerId); ptrs.set(e.pointerId, e);
@@ -687,6 +847,7 @@ function wireMapCamera() {
     };
     g.onblur = () => tip.classList.remove('on');
   });
+  return { flyTo };
 }
 
 function startPlaceQuiz(place) {
@@ -950,6 +1111,7 @@ function viewDashboard() {
       <div class="stat"><div class="k">Concepts mastered</div><div class="v">${mastered}<small>/${ALL_CONCEPTS.length}</small></div></div>
       <div class="stat"><div class="k">People studied</div><div class="v">${S.met.length}<small>/${PEOPLE.length}</small></div></div>
       <div class="stat"><div class="k">Places explored</div><div class="v">${S.visited.length}<small>/${PLACES.length}</small></div></div>
+      <div class="stat"><div class="k">Map challenge — places sure</div><div class="v">${geoStats().known}<small>/${PLACES.length}</small></div>${bar(geoStats().known / PLACES.length * 100)}</div>
       <div class="stat"><div class="k">Current streak</div><div class="v">${S.streak.count || 0}</div></div>
     </div>
 

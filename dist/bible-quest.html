@@ -339,6 +339,8 @@ textarea.explain:focus{border-color:var(--gold-dim)}
 .route.j1{stroke:var(--gold-lt)}
 .route.j2{stroke:var(--sky)}
 .route.j3{stroke:var(--verd)}
+.route.ex{stroke:var(--vellum-2)}
+.route.walk{stroke-width:3.25;stroke-dasharray:1 6}
 @keyframes routemarch{to{stroke-dashoffset:-18}}
 .chip.rt.j1.on{border-color:var(--gold-dim);color:var(--gold-lt)}
 .chip.rt.j2.on{background:rgba(140,170,235,.12);border-color:var(--sky);color:var(--sky)}
@@ -347,6 +349,30 @@ textarea.explain:focus{border-color:var(--gold-dim)}
 .legend .swatch.j1{border-color:var(--gold-lt)}
 .legend .swatch.j2{border-color:var(--sky)}
 .legend .swatch.j3{border-color:var(--verd)}
+.legend .swatch.ex{border-color:var(--vellum-2)}
+/* layers, journey mode, geography challenge */
+.mp.loff{display:none}
+.maplab{font-family:var(--ui);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--muted);align-self:center}
+.gsp{flex:1}
+.mapsvg .mp.stop-on .pin{fill:var(--gold-lt);r:calc(9px/var(--k,1))}
+.mapsvg .mp.stop-on .halo,.mapsvg .mp.geo-target .halo{animation:pinpulse 1.5s ease-in-out infinite}
+.mapsvg .mp.geo-target .pin{fill:var(--gold-lt);r:calc(9px/var(--k,1))}
+.mapsvg .mp.geo-miss .pin{fill:var(--rubric);stroke:var(--rubric)}
+.geobanner{display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-top:14px;padding:12px 16px;border:1px solid var(--line);border-radius:var(--r);background:linear-gradient(150deg,rgba(34,48,127,.35),rgba(14,19,48,.6))}
+.geobanner .gq{font-family:var(--ui);font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:var(--gold-dim);white-space:nowrap}
+.geobanner .gtext{font-size:15px;color:#D6D8EC}
+.geobanner .gtext b{color:var(--vellum);font-weight:600}
+.geobanner .ghint{font-family:var(--ui);font-size:11px;color:var(--muted);letter-spacing:.06em}
+.geobanner .gfb{font-family:var(--ui);font-size:12.5px}
+.geobanner .gfb.ok{color:var(--verd)}
+.geobanner .gfb.no{color:var(--rubric)}
+.maphead{display:flex;justify-content:space-between;align-items:flex-start;gap:18px}
+.georing{display:grid;justify-items:center;gap:2px;flex:none;text-align:center}
+.georing svg{width:60px;height:60px}
+.georing .track{fill:none;stroke:rgba(201,162,39,.16);stroke-width:4}
+.georing .prog{fill:none;stroke:var(--gold-lt);stroke-width:4;stroke-linecap:round;transition:stroke-dasharray .6s cubic-bezier(.2,.8,.2,1)}
+.georing text{font-family:var(--display);font-size:15px;fill:var(--gold-lt);text-anchor:middle}
+.georing .cap{font-family:var(--ui);font-size:9px;color:var(--muted);letter-spacing:.06em;line-height:1.5}
 
 /* ---------- people ---------- */
 .tree{display:flex;gap:8px;align-items:center;flex-wrap:wrap;font-family:var(--ui);font-size:12px;color:var(--muted)}
@@ -389,6 +415,8 @@ textarea.explain:focus{border-color:var(--gold-dim)}
 .kv dd{margin:0;color:#D8DAEE}
 .vellum .kv dd{color:#2A2418}
 .vellum .kv dt{color:#7A6A3E}
+.vellum .btn.ghost{color:#3A2E14;border-color:#B9A87C}
+.vellum .btn.ghost:hover{background:rgba(201,162,39,.16);color:#2A2418;border-color:#B9A87C}
 .lvl{display:flex;gap:3px;align-items:center}
 .lvl i{width:15px;height:4px;background:rgba(255,255,255,.13);border-radius:99px;display:block}
 .lvl i.on{background:var(--gold)}
@@ -1262,7 +1290,7 @@ const PLACES = [
  people:['Paul','Barnabas'],events:['Saul sent home to Tarsus for safety','Barnabas fetches Saul to help at Antioch'],books:['act'],ref:'Acts 9:30; 11:25; 22:3'},
 {id:'cyprus',n:'Cyprus',panel:'world',x:592,y:232,era:'paul',
  d:'Barnabas\u2019s home island and the first stop of the first missionary journey, where the proconsul Sergius Paulus believed.',
- people:['Barnabas','Paul','John Mark','Sergius Paulus'],events:['First journey begins here','Elymas the sorcerer opposed','Sergius Paulus believes'],books:['act'],ref:'Acts 4:36; 13:4-12'},
+ people:['Barnabas','Paul','John Mark','Sergius Paulus'],events:['First island stop of the first journey','Elymas the sorcerer opposed','Sergius Paulus believes'],books:['act'],ref:'Acts 4:36; 13:4-12'},
 {id:'lystra',n:'Lystra',panel:'world',x:570,y:168,era:'paul',
  d:'A Galatian town that first hailed Paul as a god and then stoned him \u2014 and later gave him Timothy.',
  people:['Paul','Barnabas','Timothy'],events:['A lame man healed','Crowds try to sacrifice to Paul and Barnabas','Paul stoned and left for dead','Timothy joins Paul'],books:['act','2ti'],ref:'Acts 14:8-20; 16:1-3'},
@@ -1340,13 +1368,42 @@ const PLACES = [
 const ROUTES = [
 {id:'j1',n:'First journey',ref:'Acts 13\u201314',
  d:'Antioch \u2192 Cyprus \u2192 Galatia (Pisidian Antioch, Iconium, Lystra, Derbe) and back to Antioch.',
- pts:[[697,206],[645,228],[592,232],[588,205],[570,168],[612,182],[662,198],[697,206]]},
+ pts:[[697,206],[645,228],[592,232],[588,205],[570,168],[612,182],[662,198],[697,206]],
+ stops:[
+  {p:'antioch',note:'Set apart with Barnabas by the church at Antioch and sent out with John Mark.',ref:'Acts 13:1-3'},
+  {p:'cyprus',note:'Across the island from Salamis to Paphos; Elymas opposed, and the proconsul Sergius Paulus believes.',ref:'Acts 13:4-12'},
+  {p:'lystra',note:'A lame man healed; the crowd hails them as gods, then stones Paul and leaves him for dead.',ref:'Acts 14:8-20'},
+  {p:'antioch',note:'Back to Antioch by the same towns, reporting all that God had done and how a door of faith had opened to the Gentiles.',ref:'Acts 14:26-28'}]},
 {id:'j2',n:'Second journey',ref:'Acts 15:36\u201318:22',
  d:'Overland through Galatia, the night vision at Troas, then Philippi, Thessalonica, Berea, Athens and Corinth, returning by way of Ephesus.',
- pts:[[697,206],[655,175],[570,168],[505,140],[455,122],[411,91],[377,104],[352,122],[400,160],[358,174],[425,182],[483,164],[560,215],[640,230],[697,206]]},
+ pts:[[697,206],[655,175],[570,168],[505,140],[455,122],[411,91],[377,104],[352,122],[400,160],[358,174],[425,182],[483,164],[560,215],[640,230],[697,206]],
+ stops:[
+  {p:'antioch',note:'After the Jerusalem council, Paul sets out again \u2014 this time with Silas.',ref:'Acts 15:36-41'},
+  {p:'lystra',note:'Young Timothy joins the team.',ref:'Acts 16:1-3'},
+  {p:'troas',note:'The night vision: a man of Macedonia begging, \u201cCome over and help us.\u201d',ref:'Acts 16:8-10'},
+  {p:'philippi',note:'Lydia believes; Paul and Silas are jailed, and the jailer\u2019s household is baptised.',ref:'Acts 16:11-40'},
+  {p:'thessalonica',note:'Three sabbaths reasoning in the synagogue before a riot forces them out.',ref:'Acts 17:1-9'},
+  {p:'berea',note:'The Bereans examine the Scriptures daily to test what they hear.',ref:'Acts 17:10-15'},
+  {p:'athens',note:'The Areopagus speech: the God the altar calls unknown, made known.',ref:'Acts 17:16-34'},
+  {p:'corinth',note:'Eighteen months of teaching, tentmaking alongside Priscilla and Aquila.',ref:'Acts 18:1-18'},
+  {p:'ephesus',note:'A brief first visit; Priscilla and Aquila stay on.',ref:'Acts 18:19-21'},
+  {p:'antioch',note:'Home by way of Caesarea to Antioch.',ref:'Acts 18:22'}]},
 {id:'j3',n:'Third journey',ref:'Acts 18:23\u201321:17',
  d:'Through Galatia to the long stay at Ephesus, on to Macedonia and Corinth, then back by Troas and Miletus, bound for Jerusalem.',
- pts:[[697,206],[655,175],[570,168],[483,164],[440,120],[411,91],[377,104],[358,174],[420,150],[455,122],[478,180],[540,225],[615,255],[655,300]]}
+ pts:[[697,206],[655,175],[570,168],[483,164],[440,120],[411,91],[377,104],[358,174],[420,150],[455,122],[478,180],[540,225],[615,255],[655,300]],
+ stops:[
+  {p:'antioch',note:'Out a third time, strengthening the disciples region by region through Galatia.',ref:'Acts 18:23'},
+  {p:'ephesus',note:'Around three years: daily teaching in the hall of Tyrannus, and the silversmiths\u2019 riot.',ref:'Acts 19; 20:31'},
+  {p:'corinth',note:'Three months in Greece \u2014 where Romans is commonly thought to have been written.',ref:'Acts 20:2-3; Romans 16:23'},
+  {p:'troas',note:'A sermon past midnight; Eutychus falls from the window and is restored.',ref:'Acts 20:6-12'},
+  {p:'jerusalem',note:'By Miletus and Caesarea to Jerusalem, despite repeated warnings of what waits there.',ref:'Acts 20:17\u201321:17'}]},
+{id:'ex',n:'Road into exile',ref:'2 Kings 25:8-11',
+ d:'Captives from fallen Jerusalem taken to Babylon. The chart follows the army road north through the Levant and down the Euphrates \u2014 the usual route, since the desert crossing was impassable for a marching column.',
+ pts:[[655,300],[668,268],[690,225],[730,200],[764,187],[820,215],[860,255],[894,291]],
+ stops:[
+  {p:'jerusalem',note:'The city falls to Babylon: the temple burned, the walls broken, the people deported.',ref:'2 Kings 25:8-11'},
+  {p:'babylon',note:'Life by the rivers of Babylon \u2014 Daniel in the court, Ezekiel among the exiles.',ref:'Psalm 137:1; Daniel 1; Ezekiel 1:1'},
+  {p:'susa',note:'Babylon falls to Persia; under the new empire, Susa becomes Esther\u2019s and Nehemiah\u2019s city \u2014 and the exile begins to turn home.',ref:'Esther 1:2; Nehemiah 1:1; Ezra 1'}]}
 ];
 
 /* --------------------------------------------------------------------------
@@ -2479,6 +2536,7 @@ const BLANK = () => ({
   books: {},      // per-book completion checkmarks
   eras: {},       // boss results
   visited: [],    // place ids
+  geo: {},        // place id -> where-did-this-happen record {seen,right,streak}
   met: [],        // people ids
   ach: [],        // achievement ids
   exams: {},      // final + master challenge
@@ -2809,6 +2867,7 @@ const ACHIEVEMENTS = [
   { id: 'a_ot', em: '📚', n: 'Old Testament Scholar', d: 'Reach 75% mastery across the Old Testament.', f: () => testamentMastery('OT') >= 75 },
   { id: 'a_nt', em: '📖', n: 'New Testament Scholar', d: 'Reach 75% mastery across the New Testament.', f: () => testamentMastery('NT') >= 75 },
   { id: 'a_geo', em: '🗺️', n: 'Bible Geography Expert', d: 'Visit every location on the map.', f: () => S.visited.length >= PLACES.length },
+  { id: 'a_georight', em: '🎯', n: 'Well Placed', d: 'Have ten places sure (three straight correct) in the map challenge.', f: () => geoStats().known >= 10 },
   { id: 'a_time', em: '⏳', n: 'Timeline Master', d: 'Score full marks on a timeline ordering challenge.', f: () => !!S.timelineMastered },
   { id: 'a_conn', em: '🧩', n: 'Connection Master', d: 'Answer 25 connection questions correctly.', f: () => countTypeRight('con') >= 25 },
   { id: 'a_streak', em: '🔥', n: 'Seven Day Pilgrim', d: 'Keep a seven day streak.', f: () => (S.streak.count || 0) >= 7 },
@@ -2900,6 +2959,38 @@ function markBookGate(bid, gate) {
 }
 function visitPlace(id) { if (!S.visited.includes(id)) { S.visited.push(id); saveState(); } }
 function meetPerson(id) { if (!S.met.includes(id)) { S.met.push(id); saveState(); } }
+
+/* Geography mastery — the "where did this happen?" challenge. Places are not
+   concepts, so they get their own track rather than fake concept records. */
+function recordGeo(placeId, correct) {
+  if (!S.geo) S.geo = {};
+  const g = S.geo[placeId] || (S.geo[placeId] = { seen: 0, right: 0, streak: 0 });
+  g.seen++;
+  if (correct) { g.right++; g.streak++; } else { g.streak = 0; }
+  saveState();
+  return g;
+}
+function geoStats() {
+  const recs = Object.values(S.geo || {});
+  const seen = recs.reduce((n, g) => n + g.seen, 0);
+  const right = recs.reduce((n, g) => n + g.right, 0);
+  /* A place counts as "known" once it has been answered correctly three
+     times running — same spirit as concept mastery: streaks, not one-offs. */
+  const known = recs.filter(g => g.streak >= 3).length;
+  return { seen, right, known, pct: seen ? Math.round(right / seen * 100) : 0 };
+}
+/* Pick challenge targets, weakest first: never-asked places, then broken
+   streaks, then everything else — shuffled within each band. */
+function geoPickTargets(n) {
+  const band = p => {
+    const g = (S.geo || {})[p.id];
+    return !g ? 0 : g.streak === 0 ? 1 : g.streak < 3 ? 2 : 3;
+  };
+  return PLACES.slice()
+    .map(p => ({ p, k: band(p) + Math.random() * 0.9 }))
+    .sort((a, b) => a.k - b.k)
+    .slice(0, n).map(x => x.p);
+}
 
 function pushLog(entry) {
   S.log.unshift(Object.assign({ at: Date.now() }, entry));
@@ -3413,15 +3504,53 @@ function renderTlChallenge() {
 /* ================================= MAP ================================= */
 let mapSel = null;
 let mapRoutes = { j1: true, j2: true, j3: true };
+let mapLayers = { ot: true, gospels: true, paul: true, exile: true };
+let mapJourney = null;  // { rid, i } while walking a route stop by stop
+let mapQuiz = null;     // { rounds:[{pid, ev}], i, right, answered, done }
 /* Camera and gesture state survive re-renders so selecting a pin or toggling
    a route never loses the player's zoom. */
 let mapView = { x: 0, y: 0, w: 1000 };
 const mapDrag = { moved: false };
 function routePath(r) { return 'M' + r.pts.map(p => p.join(' ')).join(' L '); }
+function placeLayer(p) {
+  return p.era === 'jesus' ? 'gospels'
+    : ['church', 'paul', 'letters', 'revelation'].includes(p.era) ? 'paul' : 'ot';
+}
+const LAYER_NAMES = { ot: 'OT sites', gospels: 'Gospels', paul: 'Paul’s journeys', exile: 'Exile route' };
+function routeVisible(r) {
+  if (mapJourney && mapJourney.rid === r.id) return true;
+  return r.id === 'ex' ? mapLayers.exile : (mapLayers.paul && mapRoutes[r.id]);
+}
+/* Build "where did this happen?" rounds. An event that names its own place
+   would give the answer away, so those are skipped. */
+function startGeoQuiz() {
+  const leaky = (p, ev) => p.n.toLowerCase().split(/[^a-z]+/).filter(w => w.length > 3)
+    .some(w => ev.toLowerCase().includes(w));
+  const rounds = [];
+  geoPickTargets(PLACES.length).forEach(p => {
+    if (rounds.length >= 8) return;
+    const evs = p.events.filter(ev => !leaky(p, ev));
+    if (evs.length) rounds.push({ pid: p.id, ev: evs[Math.floor(Math.random() * evs.length)] });
+  });
+  mapQuiz = { rounds, i: 0, right: 0, answered: null, done: false };
+  mapSel = null; mapJourney = null;
+  render();
+}
 function viewMap() {
+  const jr = mapJourney ? ROUTES.find(r => r.id === mapJourney.rid) : null;
+  const stop = jr ? jr.stops[mapJourney.i] : null;
+  const round = mapQuiz && !mapQuiz.done ? mapQuiz.rounds[mapQuiz.i] : null;
+  const ans = mapQuiz ? mapQuiz.answered : null;
   const pins = PLACES.map((p, i) => {
     const visited = S.visited.includes(p.id);
-    return `<g class="mp ${mapSel === p.id ? 'on' : ''} ${visited ? 'visited' : ''}" data-place="${p.id}" tabindex="0" role="button" aria-label="${esc(p.n)}" style="--pd:${(i % 8) * 0.4}s">
+    const off = !mapQuiz && !mapLayers[placeLayer(p)];
+    const cls = [
+      'mp', mapSel === p.id ? 'on' : '', visited ? 'visited' : '', off ? 'loff' : '',
+      stop && stop.p === p.id ? 'stop-on' : '',
+      ans && round && round.pid === p.id ? 'geo-target' : '',
+      ans && !ans.ok && ans.pick === p.id ? 'geo-miss' : ''
+    ].join(' ');
+    return `<g class="${cls}" data-place="${p.id}" tabindex="${off ? -1 : 0}" role="button" aria-label="${esc(p.n)}" style="--pd:${(i % 8) * 0.4}s">
       <circle class="hit" cx="${p.x}" cy="${p.y}" r="16"/>
       <circle class="halo" cx="${p.x}" cy="${p.y}" r="10"/>
       <circle class="pin" cx="${p.x}" cy="${p.y}" r="5"/>
@@ -3431,16 +3560,63 @@ function viewMap() {
     `<text x="${t.x}" y="${t.y}">${esc(t.n)}</text>`).join('')}</g>
   <g class="lod lod-towns">${MAP_DETAIL.towns.map(t =>
     `<g><circle cx="${t.x}" cy="${t.y}" r="2.5"/><text x="${t.x + 5}" y="${t.y + 3}">${esc(t.n)}</text></g>`).join('')}</g>`;
-  const routes = ROUTES.filter(r => mapRoutes[r.id]).map(r =>
-    `<path class="route ${r.id}" d="${routePath(r)}"><title>${esc(r.n)} — ${esc(r.ref)}</title></path>`).join('');
-  const sel = mapSel ? PL_BY_ID[mapSel] : null;
+  const routes = ROUTES.filter(routeVisible).map(r =>
+    `<path class="route ${r.id} ${jr && jr.id === r.id ? 'walk' : ''}" d="${routePath(r)}"><title>${esc(r.n)} — ${esc(r.ref)}</title></path>`).join('');
+  const sel = !mapJourney && !mapQuiz && mapSel ? PL_BY_ID[mapSel] : null;
+  const gs = geoStats();
+  const ringC = 2 * Math.PI * 20;
+  const ring = `<div class="georing">
+      <svg viewBox="0 0 48 48" role="img" aria-label="${S.visited.length} of ${PLACES.length} places explored">
+        <circle cx="24" cy="24" r="20" class="track"/>
+        <circle cx="24" cy="24" r="20" class="prog" stroke-dasharray="${(S.visited.length / PLACES.length * ringC).toFixed(1)} ${ringC.toFixed(1)}" transform="rotate(-90 24 24)"/>
+        <text x="24" y="29">${S.visited.length}</text>
+      </svg>
+      <div class="cap">of ${PLACES.length} explored${gs.seen ? `<br>challenge ${gs.pct}% · ${gs.known} sure` : ''}</div>
+    </div>`;
+
+  const quizBanner = !mapQuiz ? '' : mapQuiz.done ? `
+    <div class="geobanner" role="status">
+      <div class="gq">Challenge over</div>
+      <div class="gtext"><b>${mapQuiz.right} of ${mapQuiz.rounds.length}</b> placed correctly · lifetime accuracy ${geoStats().pct}%</div>
+      <span class="gsp"></span>
+      <button class="btn solid sm" id="geoagain">Again</button>
+      <button class="btn ghost sm" id="geoend">Close</button>
+    </div>` : `
+    <div class="geobanner" role="status">
+      <div class="gq">Round ${mapQuiz.i + 1}/${mapQuiz.rounds.length} · ${mapQuiz.right} right</div>
+      <div class="gtext">Where did this happen? <b>“${esc(round.ev)}”</b></div>
+      <span class="gsp"></span>
+      ${ans ? `
+        <span class="gfb ${ans.ok ? 'ok' : 'no'}">${ans.ok
+          ? 'Yes — ' + esc(PL_BY_ID[round.pid].n)
+          : 'It happened at ' + esc(PL_BY_ID[round.pid].n) + ' <span class="ref">' + esc(PL_BY_ID[round.pid].ref) + '</span>'}</span>
+        <button class="btn solid sm" id="geonext">${mapQuiz.i + 1 >= mapQuiz.rounds.length ? 'See score' : 'Next'}</button>`
+      : `<span class="ghint">Click the place on the map</span>`}
+      <button class="btn ghost sm" id="geoend">End</button>
+    </div>`;
 
   app().innerHTML = `
-    <div class="eyebrow">Geography</div>
-    <h1 class="page-h">The Bible Map</h1>
+    <div class="maphead">
+      <div>
+        <div class="eyebrow">Geography</div>
+        <h1 class="page-h">The Bible Map</h1>
+      </div>
+      ${ring}
+    </div>
     <p class="lede">A schematic chart, not a survey map — coastlines and positions are stylised and are there to fix relationships in memory. Scroll or pinch to zoom, drag to pan; smaller towns and regions appear as you close in. Tap a place to open it.</p>
-    <div class="filters" style="margin-top:14px">${ROUTES.map(r =>
-      `<button class="chip rt ${r.id} ${mapRoutes[r.id] ? 'on' : ''}" data-route="${r.id}" aria-pressed="${mapRoutes[r.id]}">${esc(r.n)} · ${esc(r.ref)}</button>`).join('')}</div>
+    ${mapQuiz ? quizBanner : `
+    <div class="filters" style="margin-top:14px">
+      ${['ot', 'gospels', 'paul', 'exile'].map(k =>
+        `<button class="chip lyr ${mapLayers[k] ? 'on' : ''}" data-layer="${k}" aria-pressed="${mapLayers[k]}">${LAYER_NAMES[k]}</button>`).join('')}
+      ${mapLayers.paul ? ROUTES.filter(r => r.id !== 'ex').map(r =>
+        `<button class="chip rt ${r.id} ${mapRoutes[r.id] ? 'on' : ''}" data-route="${r.id}" aria-pressed="${mapRoutes[r.id]}">${esc(r.n)}</button>`).join('') : ''}
+    </div>
+    <div class="filters" style="margin-top:8px">
+      <span class="maplab">Walk a route:</span>
+      ${ROUTES.map(r => `<button class="chip walkc ${jr && jr.id === r.id ? 'on' : ''}" data-walk="${r.id}">▸ ${esc(r.n)}</button>`).join('')}
+      <span class="gsp"></span>
+      <button class="btn solid sm" id="geoquiz">Where did this happen?</button>
+    </div>`}
     <div class="mapwrap" id="mapwrap" style="margin-top:12px">
       <svg id="mapsvg" class="mapsvg" viewBox="${mapView.x} ${mapView.y} ${mapView.w} ${mapView.w * 0.57}" role="img" aria-label="Schematic map of the biblical world">
         <defs><pattern id="sea" width="14" height="14" patternUnits="userSpaceOnUse">
@@ -3485,8 +3661,19 @@ function viewMap() {
     </div>
     <div class="legend"><span><span style="width:9px;height:9px;border-radius:50%;background:var(--verd);display:inline-block"></span> visited</span>
       <span><span style="width:9px;height:9px;border-radius:50%;background:var(--gold-dim);display:inline-block"></span> not yet opened</span>
-      ${ROUTES.filter(r => mapRoutes[r.id]).map(r => `<span><span class="swatch ${r.id}"></span> ${esc(r.n.toLowerCase())}</span>`).join('')}
-      <span>${S.visited.length} of ${PLACES.length} explored</span></div>
+      ${ROUTES.filter(routeVisible).map(r => `<span><span class="swatch ${r.id}"></span> ${esc(r.n.toLowerCase())}</span>`).join('')}</div>
+    ${jr ? `<div class="sheet vellum" role="dialog" aria-label="${esc(jr.n)}" id="jsheet">
+      <button class="sheet-x" id="jclose" aria-label="Leave journey">✕</button>
+      <div class="eyebrow">${esc(jr.n)} · stop ${mapJourney.i + 1} of ${jr.stops.length}</div>
+      <h2 style="font-size:22px;margin:6px 0 10px">${esc(PL_BY_ID[stop.p].n)}</h2>
+      <p style="margin:0 0 10px">${esc(stop.note)}</p>
+      <span class="ref">${esc(stop.ref)}</span>
+      <div class="btnrow">
+        <button class="btn ghost sm" id="jprev" ${mapJourney.i === 0 ? 'disabled' : ''}>◂ Back</button>
+        <button class="btn solid sm" id="jnext">${mapJourney.i + 1 >= jr.stops.length ? 'Finish journey' : 'Next stop ▸'}</button>
+        <button class="btn ghost sm" id="jopen">Open this place</button>
+      </div>
+    </div>` : ''}
     ${sel ? `<div class="sheet vellum" role="dialog" aria-label="${esc(sel.n)}" id="mapsheet">
       <button class="sheet-x" id="sheetclose" aria-label="Close details">✕</button>
       <div class="eyebrow">${esc(E_BY_ID[sel.era] ? E_BY_ID[sel.era].name : '')}</div>
@@ -3504,21 +3691,65 @@ function viewMap() {
   app().querySelectorAll('[data-place]').forEach(g => {
     const act = () => {
       if (mapDrag.moved) return; /* a pan that ended on a pin is not a tap */
+      if (mapQuiz) {
+        if (mapQuiz.done || mapQuiz.answered) return;
+        const r = mapQuiz.rounds[mapQuiz.i];
+        const ok = g.dataset.place === r.pid;
+        recordGeo(r.pid, ok);
+        if (ok) mapQuiz.right++;
+        mapQuiz.answered = { pick: g.dataset.place, ok };
+        celebrate(checkAchievements());
+        render();
+        return;
+      }
+      mapJourney = null;
       mapSel = g.dataset.place; visitPlace(mapSel); celebrate(checkAchievements()); render();
     };
     g.onclick = act;
     g.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); act(); } };
   });
+  app().querySelectorAll('[data-layer]').forEach(b => b.onclick = () => {
+    mapLayers[b.dataset.layer] = !mapLayers[b.dataset.layer]; render();
+  });
   app().querySelectorAll('[data-route]').forEach(b => b.onclick = () => {
     mapRoutes[b.dataset.route] = !mapRoutes[b.dataset.route]; render();
   });
-  const pq = document.getElementById('placequiz');
-  if (pq) pq.onclick = () => startPlaceQuiz(sel);
-  const sx = document.getElementById('sheetclose');
-  if (sx) sx.onclick = () => { mapSel = null; render(); };
-  const sheet = document.getElementById('mapsheet');
-  if (sheet) sheet.onkeydown = ev => { if (ev.key === 'Escape') { mapSel = null; render(); } };
-  wireMapCamera();
+  app().querySelectorAll('[data-walk]').forEach(b => b.onclick = () => {
+    const rid = b.dataset.walk;
+    if (mapJourney && mapJourney.rid === rid) { mapJourney = null; render(); return; }
+    mapJourney = { rid, i: 0 }; mapSel = null; mapQuiz = null;
+    if (rid === 'ex') mapLayers.exile = true; else { mapLayers.paul = true; mapRoutes[rid] = true; }
+    render();
+  });
+  const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  on('geoquiz', startGeoQuiz);
+  on('geoagain', startGeoQuiz);
+  on('geoend', () => { mapQuiz = null; render(); });
+  on('geonext', () => {
+    if (mapQuiz.i + 1 >= mapQuiz.rounds.length) mapQuiz.done = true;
+    else { mapQuiz.i++; mapQuiz.answered = null; }
+    render();
+  });
+  on('jclose', () => { mapJourney = null; render(); });
+  on('jprev', () => { if (mapJourney.i > 0) { mapJourney.i--; render(); } });
+  on('jnext', () => {
+    if (mapJourney.i + 1 >= jr.stops.length) mapJourney = null;
+    else mapJourney.i++;
+    render();
+  });
+  on('jopen', () => {
+    const pid = stop.p;
+    mapJourney = null; mapSel = pid; visitPlace(pid); celebrate(checkAchievements()); render();
+  });
+  on('placequiz', () => startPlaceQuiz(sel));
+  on('sheetclose', () => { mapSel = null; render(); });
+  const sheet = document.getElementById('mapsheet') || document.getElementById('jsheet');
+  if (sheet) sheet.onkeydown = ev => { if (ev.key === 'Escape') { mapSel = null; mapJourney = null; render(); } };
+  const cam = wireMapCamera();
+  if (cam) {
+    if (stop) cam.flyTo(PL_BY_ID[stop.p], 300);
+    else if (mapQuiz && mapQuiz.answered && !mapQuiz.answered.ok) cam.flyTo(PL_BY_ID[mapQuiz.rounds[mapQuiz.i].pid], 420);
+  }
 }
 
 /* Pan/zoom/tooltip wiring. Bails out under the node test stub, which has no
@@ -3549,10 +3780,30 @@ function wireMapCamera() {
   };
   apply();
 
-  svg.onwheel = e => { e.preventDefault(); zoomAt(e.deltaY < 0 ? 1.25 : 0.8, e.clientX, e.clientY); };
+  /* Animated camera flight (journey mode, wrong-answer reveals). A user
+     gesture cancels it; reduced motion jumps straight to the target. */
+  let flight = 0;
+  const flyTo = (pl, w) => {
+    cancelAnimationFrame(flight);
+    const from = { x: mapView.x, y: mapView.y, w: mapView.w };
+    const to = { x: pl.x - w / 2, y: pl.y - w * RATIO / 2, w };
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      mapView = to; apply(); return;
+    }
+    const t0 = performance.now(), DUR = 650;
+    const step = now => {
+      const t = Math.min(1, (now - t0) / DUR), e2 = 1 - Math.pow(1 - t, 3);
+      mapView = { x: from.x + (to.x - from.x) * e2, y: from.y + (to.y - from.y) * e2, w: from.w + (to.w - from.w) * e2 };
+      apply();
+      if (t < 1) flight = requestAnimationFrame(step);
+    };
+    flight = requestAnimationFrame(step);
+  };
+
+  svg.onwheel = e => { e.preventDefault(); cancelAnimationFrame(flight); zoomAt(e.deltaY < 0 ? 1.25 : 0.8, e.clientX, e.clientY); };
   const ptrs = new Map();
   let pinchD = 0;
-  svg.onpointerdown = e => { ptrs.set(e.pointerId, e); mapDrag.moved = false; pinchD = 0; };
+  svg.onpointerdown = e => { ptrs.set(e.pointerId, e); mapDrag.moved = false; pinchD = 0; cancelAnimationFrame(flight); };
   svg.onpointermove = e => {
     if (!ptrs.has(e.pointerId)) return;
     const prev = ptrs.get(e.pointerId); ptrs.set(e.pointerId, e);
@@ -3605,6 +3856,7 @@ function wireMapCamera() {
     };
     g.onblur = () => tip.classList.remove('on');
   });
+  return { flyTo };
 }
 
 function startPlaceQuiz(place) {
@@ -3868,6 +4120,7 @@ function viewDashboard() {
       <div class="stat"><div class="k">Concepts mastered</div><div class="v">${mastered}<small>/${ALL_CONCEPTS.length}</small></div></div>
       <div class="stat"><div class="k">People studied</div><div class="v">${S.met.length}<small>/${PEOPLE.length}</small></div></div>
       <div class="stat"><div class="k">Places explored</div><div class="v">${S.visited.length}<small>/${PLACES.length}</small></div></div>
+      <div class="stat"><div class="k">Map challenge — places sure</div><div class="v">${geoStats().known}<small>/${PLACES.length}</small></div>${bar(geoStats().known / PLACES.length * 100)}</div>
       <div class="stat"><div class="k">Current streak</div><div class="v">${S.streak.count || 0}</div></div>
     </div>
 
