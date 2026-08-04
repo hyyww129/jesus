@@ -22,7 +22,7 @@ function load(withUi) {
   if (withUi) stubDom();
   const files = withUi ? FILES.concat('src/ui.js') : FILES;
   const src = files.map(f => fs.readFileSync(path.join(root, f), 'utf8')).join('\n');
-  const names = ['ALL_CONCEPTS','BOOKS','ERAS','PEOPLE','PLACES','ROUTES','TIMELINE','PALACE','ACHIEVEMENTS',
+  const names = ['ALL_CONCEPTS','BOOKS','ERAS','PEOPLE','PLACES','ROUTES','MAP_DETAIL','TIMELINE','PALACE','ACHIEVEMENTS',
     'C_BY_ID','B_BY_ID','E_BY_ID','PL_BY_ID','ERA_ORDER','S',
     'buildQuiz','bossQuiz','finalExamQuiz','masterChallengeQuiz','transferQuiz','pickProbe',
     'recordAnswer','conceptMastery','conceptLevel','conceptsInEra','conceptsInBook',

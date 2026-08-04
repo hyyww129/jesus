@@ -20,7 +20,9 @@ Node 18+ (only used for the build and tests — the game itself has no runtime d
 - **All 66 books**, each with its own page and six completion gates
 - **116 concepts** carrying **405 questions** across 12 formats
 - **Memory engine** — spaced repetition, five knowledge levels, per-concept confidence
-- **40 people**, **41 map locations** with drawn coastlines and Paul's three journey routes, a **34-event timeline** with ordering challenges
+- **40 people**, a pannable, zoomable **map** with 41 locations, drawn coastlines,
+  Paul's three journey routes, and towns and regions that appear as you zoom in,
+  a **34-event timeline** with ordering challenges
 - **13 memory-palace rooms**, daily challenge with streaks, personalised review quests
 - **100-question final exam** and a 40-question cross-book Master Challenge
 

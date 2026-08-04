@@ -72,6 +72,10 @@ test('map pins sit inside their panel and routes stay on the chart', () => {
     assert(r.pts.length >= 4, 'route ' + r.id + ' too few waypoints');
     r.pts.forEach(([x, y]) => assert(x >= 0 && x <= 1000 && y >= 0 && y <= 570, 'route ' + r.id + ' waypoint off the chart'));
   });
+  X.MAP_DETAIL.towns.concat(X.MAP_DETAIL.regions).forEach(t => {
+    assert(t.n && t.ref, 'map detail label missing name or reference');
+    assert(t.x >= 0 && t.x <= 1000 && t.y >= 0 && t.y <= 570, 'map detail ' + t.n + ' off the chart');
+  });
 });
 
 test('every era has concepts and can fill its boss battle', () => {

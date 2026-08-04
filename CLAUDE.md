@@ -115,8 +115,11 @@ spine — roundels that fill with gold as mastery rises. Keep that the one loud 
 - Concept coverage is deepest in Genesis–Kings, the Gospels, Acts and the major letters.
   Conquest, Exile, Return and Revelation have the fewest concepts.
 - Books without their own concepts fall back to their era's pool for quizzes and mastery.
-- The map is schematic, not geographic — but it now draws stylised coastlines and
-  Paul's three journeys. Coordinates live in `PLACES`, journey waypoints in `ROUTES`,
-  both in `core.js`. `test/data.test.js` bounds-checks pins and waypoints.
+- The map is schematic, not geographic — but it now draws stylised coastlines,
+  Paul's three journeys, and supports pinch/scroll zoom and drag pan (camera code in
+  `wireMapCamera`, `ui.js`; it bails out under the node test stub, so keep any new
+  browser-only calls behind that guard). Coordinates live in `PLACES`, journey
+  waypoints in `ROUTES`, zoom-revealed labels in `MAP_DETAIL`, all in `core.js`.
+  `test/data.test.js` bounds-checks pins, waypoints and detail labels.
 - `exp` questions grade on keyword coverage plus an honest self-rating.
 - There is no export/import of a save file yet.

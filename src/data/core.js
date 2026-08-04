@@ -907,6 +907,51 @@ const ROUTES = [
 ];
 
 /* --------------------------------------------------------------------------
+   MAP_DETAIL — decorative labels revealed as the map is zoomed in. These are
+   not quiz content and carry no gameplay; each name is a genuinely attested
+   biblical place (reference kept in `ref` for honesty, not display).
+   -------------------------------------------------------------------------- */
+const MAP_DETAIL = {
+towns:[
+  {n:'Puteoli',x:108,y:100,ref:'Acts 28:13'},
+  {n:'Cenchreae',x:364,y:183,ref:'Acts 18:18'},
+  {n:'Neapolis',x:420,y:101,ref:'Acts 16:11'},
+  {n:'Miletus',x:492,y:180,ref:'Acts 20:15-17'},
+  {n:'Perga',x:606,y:186,ref:'Acts 13:13'},
+  {n:'Attalia',x:614,y:197,ref:'Acts 14:25'},
+  {n:'Iconium',x:592,y:155,ref:'Acts 14:1'},
+  {n:'Derbe',x:601,y:177,ref:'Acts 14:20'},
+  {n:'Salamis',x:603,y:226,ref:'Acts 13:5'},
+  {n:'Paphos',x:578,y:234,ref:'Acts 13:6'},
+  {n:'Fair Havens',x:446,y:234,ref:'Acts 27:8'},
+  {n:'Sidon',x:659,y:268,ref:'Acts 27:3'},
+  {n:'Tyre',x:661,y:287,ref:'Acts 21:3'},
+  {n:'Alexandria',x:528,y:318,ref:'Acts 27:6'},
+  {n:'Hazor',x:172,y:323,ref:'Joshua 11:10'},
+  {n:'Bethsaida',x:213,y:339,ref:'Mark 8:22'},
+  {n:'Cana',x:175,y:357,ref:'John 2:1'},
+  {n:'Magdala',x:183,y:349,ref:'Matthew 15:39'},
+  {n:'Emmaus',x:140,y:459,ref:'Luke 24:13'},
+  {n:'Bethany',x:188,y:474,ref:'John 11:1'},
+  {n:'En-gedi',x:223,y:501,ref:'1 Samuel 24:1'},
+  {n:'Ashkelon',x:95,y:479,ref:'Judges 14:19'},
+  {n:'Gaza',x:99,y:521,ref:'Acts 8:26'},
+  {n:'Lachish',x:128,y:503,ref:'2 Kings 18:14'}
+],
+regions:[
+  {n:'MACEDONIA',x:340,y:68,ref:'Acts 16:9'},
+  {n:'ACHAIA',x:332,y:153,ref:'Acts 18:12'},
+  {n:'GALATIA',x:556,y:138,ref:'Acts 16:6'},
+  {n:'CILICIA',x:628,y:162,ref:'Acts 6:9'},
+  {n:'ARABIA',x:740,y:372,ref:'Galatians 4:25'},
+  {n:'GALILEE',x:126,y:342,ref:'Matthew 4:23'},
+  {n:'SAMARIA',x:108,y:432,ref:'John 4:4'},
+  {n:'JUDEA',x:112,y:462,ref:'Matthew 2:1'},
+  {n:'DECAPOLIS',x:256,y:368,ref:'Mark 5:20'},
+  {n:'NEGEV',x:182,y:540,ref:'Genesis 12:9'}
+]};
+
+/* --------------------------------------------------------------------------
    TIMELINE — ordered. Dates follow common conventions; where scholars and
    traditions differ, the entry says so rather than picking a side silently.
    -------------------------------------------------------------------------- */

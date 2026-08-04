@@ -50,7 +50,7 @@ function renderNav() {
     return `<button class="navbtn ${VIEW.name === item.id ? 'on' : ''}" data-go="${item.id}">
       <span class="ic">${item.ic}</span><span>${item.n}</span>${tag}</button>`;
   }).join('');
-  const mob = ['journey', 'books', 'daily', 'review', 'dashboard'];
+  const mob = ['journey', 'books', 'map', 'daily', 'review', 'dashboard'];
   bar.innerHTML = NAV.filter(i => mob.includes(i.id)).map(i =>
     `<button class="${VIEW.name === i.id ? 'on' : ''}" data-go="${i.id}"><span class="ic">${i.ic}</span>${i.n.split(' ')[0]}</button>`).join('');
 }
@@ -495,15 +495,24 @@ function renderTlChallenge() {
 /* ================================= MAP ================================= */
 let mapSel = null;
 let mapRoutes = { j1: true, j2: true, j3: true };
+/* Camera and gesture state survive re-renders so selecting a pin or toggling
+   a route never loses the player's zoom. */
+let mapView = { x: 0, y: 0, w: 1000 };
+const mapDrag = { moved: false };
 function routePath(r) { return 'M' + r.pts.map(p => p.join(' ')).join(' L '); }
 function viewMap() {
-  const pins = PLACES.map(p => {
+  const pins = PLACES.map((p, i) => {
     const visited = S.visited.includes(p.id);
-    return `<g class="mp ${mapSel === p.id ? 'on' : ''} ${visited ? 'visited' : ''}" data-place="${p.id}" tabindex="0" role="button" aria-label="${esc(p.n)}">
+    return `<g class="mp ${mapSel === p.id ? 'on' : ''} ${visited ? 'visited' : ''}" data-place="${p.id}" tabindex="0" role="button" aria-label="${esc(p.n)}" style="--pd:${(i % 8) * 0.4}s">
       <circle class="hit" cx="${p.x}" cy="${p.y}" r="16"/>
+      <circle class="halo" cx="${p.x}" cy="${p.y}" r="10"/>
       <circle class="pin" cx="${p.x}" cy="${p.y}" r="5"/>
       <text x="${p.x + 9}" y="${p.y + 3.5}">${esc(p.n)}</text></g>`;
   }).join('');
+  const lod = `<g class="lod lod-regions">${MAP_DETAIL.regions.map(t =>
+    `<text x="${t.x}" y="${t.y}">${esc(t.n)}</text>`).join('')}</g>
+  <g class="lod lod-towns">${MAP_DETAIL.towns.map(t =>
+    `<g><circle cx="${t.x}" cy="${t.y}" r="2.5"/><text x="${t.x + 5}" y="${t.y + 3}">${esc(t.n)}</text></g>`).join('')}</g>`;
   const routes = ROUTES.filter(r => mapRoutes[r.id]).map(r =>
     `<path class="route ${r.id}" d="${routePath(r)}"><title>${esc(r.n)} — ${esc(r.ref)}</title></path>`).join('');
   const sel = mapSel ? PL_BY_ID[mapSel] : null;
@@ -511,14 +520,14 @@ function viewMap() {
   app().innerHTML = `
     <div class="eyebrow">Geography</div>
     <h1 class="page-h">The Bible Map</h1>
-    <p class="lede">A schematic chart, not a survey map — coastlines and positions are stylised and are there to fix relationships in memory. Tap a place to open it; toggle Paul’s journeys below.</p>
+    <p class="lede">A schematic chart, not a survey map — coastlines and positions are stylised and are there to fix relationships in memory. Scroll or pinch to zoom, drag to pan; smaller towns and regions appear as you close in. Tap a place to open it.</p>
     <div class="filters" style="margin-top:14px">${ROUTES.map(r =>
       `<button class="chip rt ${r.id} ${mapRoutes[r.id] ? 'on' : ''}" data-route="${r.id}" aria-pressed="${mapRoutes[r.id]}">${esc(r.n)} · ${esc(r.ref)}</button>`).join('')}</div>
-    <div class="mapwrap" style="margin-top:12px">
-      <svg viewBox="0 0 1000 570" role="img" aria-label="Schematic map of the biblical world">
+    <div class="mapwrap" id="mapwrap" style="margin-top:12px">
+      <svg id="mapsvg" class="mapsvg" viewBox="${mapView.x} ${mapView.y} ${mapView.w} ${mapView.w * 0.57}" role="img" aria-label="Schematic map of the biblical world">
         <defs><pattern id="sea" width="14" height="14" patternUnits="userSpaceOnUse">
           <path d="M0 7 Q3.5 4 7 7 T14 7" stroke="rgba(120,150,220,.16)" fill="none" stroke-width="1"/></pattern></defs>
-        <rect width="1000" height="570" fill="url(#sea)"/>
+        <rect class="water" x="-70" y="-40" width="1148" height="660" fill="url(#sea)"/>
         <g class="coast">
           <path d="M60 0 L95 25 Q112 42 126 58 L142 80 Q156 102 174 120 L190 142 Q200 158 191 170 L176 179 Q160 181 150 168 L137 149 Q119 129 104 107 L84 74 Q69 44 54 19 L48 0 Z"/>
           <path d="M150 189 L179 187 L166 211 Z"/>
@@ -546,14 +555,22 @@ function viewMap() {
           <path class="lake" d="M233 486 Q243 482 248 492 Q252 508 247 522 Q240 530 234 522 Q229 506 233 486 Z"/>
           <path class="valley" d="M212 316 Q200 350 230 396 Q222 430 236 468 Q232 500 238 528" />
         </g>
+        ${lod}
         ${pins}
       </svg>
+      <div class="mapctl">
+        <button id="zin" aria-label="Zoom in">+</button>
+        <button id="zout" aria-label="Zoom out">−</button>
+        <button id="zreset" aria-label="Reset view">⌂</button>
+      </div>
+      <div class="maptip" id="maptip" aria-hidden="true"></div>
     </div>
     <div class="legend"><span><span style="width:9px;height:9px;border-radius:50%;background:var(--verd);display:inline-block"></span> visited</span>
       <span><span style="width:9px;height:9px;border-radius:50%;background:var(--gold-dim);display:inline-block"></span> not yet opened</span>
       ${ROUTES.filter(r => mapRoutes[r.id]).map(r => `<span><span class="swatch ${r.id}"></span> ${esc(r.n.toLowerCase())}</span>`).join('')}
       <span>${S.visited.length} of ${PLACES.length} explored</span></div>
-    ${sel ? `<div class="vellum" style="margin-top:18px">
+    ${sel ? `<div class="sheet vellum" role="dialog" aria-label="${esc(sel.n)}" id="mapsheet">
+      <button class="sheet-x" id="sheetclose" aria-label="Close details">✕</button>
       <div class="eyebrow">${esc(E_BY_ID[sel.era] ? E_BY_ID[sel.era].name : '')}</div>
       <h2 style="font-size:22px;margin:6px 0 10px">${esc(sel.n)}</h2>
       <p style="margin:0 0 14px">${esc(sel.d)}</p>
@@ -567,7 +584,10 @@ function viewMap() {
     </div>` : `<div class="empty" style="margin-top:18px">Select a location to open its people, events and references.</div>`}`;
 
   app().querySelectorAll('[data-place]').forEach(g => {
-    const act = () => { mapSel = g.dataset.place; visitPlace(mapSel); celebrate(checkAchievements()); render(); };
+    const act = () => {
+      if (mapDrag.moved) return; /* a pan that ended on a pin is not a tap */
+      mapSel = g.dataset.place; visitPlace(mapSel); celebrate(checkAchievements()); render();
+    };
     g.onclick = act;
     g.onkeydown = ev => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); act(); } };
   });
@@ -576,6 +596,97 @@ function viewMap() {
   });
   const pq = document.getElementById('placequiz');
   if (pq) pq.onclick = () => startPlaceQuiz(sel);
+  const sx = document.getElementById('sheetclose');
+  if (sx) sx.onclick = () => { mapSel = null; render(); };
+  const sheet = document.getElementById('mapsheet');
+  if (sheet) sheet.onkeydown = ev => { if (ev.key === 'Escape') { mapSel = null; render(); } };
+  wireMapCamera();
+}
+
+/* Pan/zoom/tooltip wiring. Bails out under the node test stub, which has no
+   layout — every call below the guard is browser-only. */
+function wireMapCamera() {
+  const svg = document.getElementById('mapsvg');
+  const wrap = document.getElementById('mapwrap');
+  const tip = document.getElementById('maptip');
+  if (!svg || !svg.getBoundingClientRect || !svg.setAttribute) return;
+  const RATIO = 0.57, WMIN = 120, WMAX = 1000;
+
+  const apply = () => {
+    const h = mapView.w * RATIO, k = 1000 / mapView.w;
+    mapView.x = Math.max(-60, Math.min(1060 - mapView.w, mapView.x));
+    mapView.y = Math.max(-35, Math.min(605 - h, mapView.y));
+    svg.setAttribute('viewBox', `${mapView.x} ${mapView.y} ${mapView.w} ${h}`);
+    svg.style.setProperty('--k', k);
+    svg.classList[k >= 1.6 ? 'add' : 'remove']('zr');
+    svg.classList[k >= 2.5 ? 'add' : 'remove']('zt');
+  };
+  const zoomAt = (f, cx, cy) => {
+    const r = svg.getBoundingClientRect();
+    const px = (cx - r.left) / r.width, py = (cy - r.top) / r.height;
+    const w2 = Math.max(WMIN, Math.min(WMAX, mapView.w / f));
+    mapView.x += px * (mapView.w - w2);
+    mapView.y += py * (mapView.w - w2) * RATIO;
+    mapView.w = w2; apply();
+  };
+  apply();
+
+  svg.onwheel = e => { e.preventDefault(); zoomAt(e.deltaY < 0 ? 1.25 : 0.8, e.clientX, e.clientY); };
+  const ptrs = new Map();
+  let pinchD = 0;
+  svg.onpointerdown = e => { ptrs.set(e.pointerId, e); mapDrag.moved = false; pinchD = 0; };
+  svg.onpointermove = e => {
+    if (!ptrs.has(e.pointerId)) return;
+    const prev = ptrs.get(e.pointerId); ptrs.set(e.pointerId, e);
+    if (ptrs.size === 2) {
+      const [a, b] = [...ptrs.values()];
+      const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+      if (pinchD) zoomAt(d / pinchD, (a.clientX + b.clientX) / 2, (a.clientY + b.clientY) / 2);
+      pinchD = d; mapDrag.moved = true;
+    } else {
+      const r = svg.getBoundingClientRect();
+      const dx = e.clientX - prev.clientX, dy = e.clientY - prev.clientY;
+      if (Math.abs(dx) + Math.abs(dy) > 2) mapDrag.moved = true;
+      mapView.x -= dx / r.width * mapView.w;
+      mapView.y -= dy / r.height * mapView.w * RATIO;
+      apply();
+      svg.classList.add('panning');
+    }
+  };
+  const lift = e => {
+    ptrs.delete(e.pointerId); pinchD = 0; svg.classList.remove('panning');
+    /* No click follows when the pointer leaves the svg, so clear the pan
+       flag here; after an in-bounds pointerup the click handler clears it. */
+    if (e.type !== 'pointerup') mapDrag.moved = false;
+  };
+  svg.onpointerup = lift; svg.onpointercancel = lift; svg.onpointerleave = lift;
+  /* Runs after any child pin's click (bubble order), so a pan that ended on a
+     pin suppresses exactly one selection and never sticks. */
+  svg.onclick = () => { mapDrag.moved = false; };
+
+  const ctr = f => () => { const r = svg.getBoundingClientRect(); zoomAt(f, r.left + r.width / 2, r.top + r.height / 2); };
+  document.getElementById('zin').onclick = ctr(1.5);
+  document.getElementById('zout').onclick = ctr(1 / 1.5);
+  document.getElementById('zreset').onclick = () => { mapView = { x: 0, y: 0, w: 1000 }; apply(); };
+
+  const showTip = (pl, cx, cy) => {
+    const r = wrap.getBoundingClientRect();
+    tip.innerHTML = `<b>${esc(pl.n)}</b><span>${esc(E_BY_ID[pl.era] ? E_BY_ID[pl.era].name : '')}</span>`;
+    tip.style.left = Math.min(cx - r.left + 14, r.width - 150) + 'px';
+    tip.style.top = Math.max(cy - r.top - 34, 4) + 'px';
+    tip.classList.add('on');
+  };
+  app().querySelectorAll('[data-place]').forEach(g => {
+    const pl = PL_BY_ID[g.dataset.place];
+    g.onpointerenter = e => { if (!ptrs.size) showTip(pl, e.clientX, e.clientY); };
+    g.onpointermove = e => { if (!ptrs.size) showTip(pl, e.clientX, e.clientY); };
+    g.onpointerleave = () => tip.classList.remove('on');
+    g.onfocus = () => {
+      const r = svg.getBoundingClientRect();
+      showTip(pl, r.left + (pl.x - mapView.x) / mapView.w * r.width, r.top + (pl.y - mapView.y) / (mapView.w * RATIO) * r.height);
+    };
+    g.onblur = () => tip.classList.remove('on');
+  });
 }
 
 function startPlaceQuiz(place) {

@@ -280,14 +280,44 @@ textarea.explain:focus{border-color:var(--gold-dim)}
 
 /* ---------- map ---------- */
 .mapwrap{position:relative;border:1px solid var(--line);border-radius:var(--r);background:linear-gradient(160deg,#131A46,#090C1E);overflow:hidden}
-.mapwrap svg{display:block;width:100%;height:auto}
+.mapwrap svg{display:block;width:100%;height:auto;touch-action:none;cursor:grab;user-select:none;-webkit-user-select:none}
+.mapsvg.panning{cursor:grabbing}
 .mp{cursor:pointer}
-.mp circle.hit{fill:transparent}
-.mp .pin{fill:var(--gold-dim);stroke:var(--gold);stroke-width:1;transition:.2s}
-.mp:hover .pin,.mp.on .pin{fill:var(--gold-lt);r:7}
-.mp text{font-family:var(--ui);font-size:9px;fill:#B9BCD6;letter-spacing:.08em;pointer-events:none}
+.mp circle.hit{fill:transparent;r:max(7px,calc(16px/var(--k,1)))}
+.mp .pin{fill:var(--gold-dim);stroke:var(--gold);stroke-width:1;transition:.2s;r:calc(5px/var(--k,1))}
+.mp:hover .pin,.mp.on .pin,.mp:focus-visible .pin{fill:var(--gold-lt);r:calc(8px/var(--k,1))}
+.mp text{font-family:var(--ui);font-size:calc(9.5px/var(--k,1));fill:#B9BCD6;letter-spacing:.08em;pointer-events:none}
 .mp:hover text,.mp.on text{fill:var(--gold-lt)}
 .mp.visited .pin{fill:var(--verd);stroke:var(--verd)}
+/* gentle pulse marking pins not yet explored */
+.mp .halo{fill:none;stroke:var(--gold);stroke-width:1.5;opacity:0;pointer-events:none;transform-box:fill-box;transform-origin:center;r:calc(10px/var(--k,1))}
+.mp:not(.visited) .halo{animation:pinpulse 3.4s ease-in-out infinite;animation-delay:var(--pd,0s)}
+@keyframes pinpulse{0%,100%{opacity:0;transform:scale(.5)}45%{opacity:.4;transform:scale(1)}}
+/* ambient water drift — pattern is 14 units wide, so a 28-unit loop is seamless */
+.water{animation:waterdrift 36s linear infinite}
+@keyframes waterdrift{to{transform:translateX(28px)}}
+/* detail revealed on zoom: regions from ~1.6x, towns from ~2.5x */
+.lod{opacity:0;transition:opacity .45s;pointer-events:none}
+.mapsvg.zr .lod-regions{opacity:1}
+.mapsvg.zt .lod-towns{opacity:1}
+.lod-towns circle{fill:var(--vellum-dim);r:calc(2.5px/var(--k,1))}
+.lod-towns text{font-family:var(--ui);font-size:calc(8px/var(--k,1));fill:var(--vellum-dim);letter-spacing:.06em}
+.lod-regions text{font-family:var(--display);font-size:calc(10px/var(--k,1));fill:rgba(201,162,39,.5);letter-spacing:.35em}
+/* strokes keep their screen weight at every zoom */
+.coast path,.coast circle,.route,.inset-geo path,.mapsvg line{vector-effect:non-scaling-stroke}
+/* zoom controls + tooltip */
+.mapctl{position:absolute;top:10px;right:10px;display:grid;gap:6px;z-index:5}
+.mapctl button{width:32px;height:32px;border-radius:var(--r);border:1px solid var(--line);background:rgba(9,12,30,.82);color:var(--gold-lt);font-family:var(--ui);font-size:16px;line-height:1;display:grid;place-items:center;transition:.15s}
+.mapctl button:hover{border-color:var(--gold-dim);background:rgba(34,48,127,.85)}
+.maptip{position:absolute;left:0;top:0;pointer-events:none;opacity:0;transform:translateY(4px);transition:opacity .15s,transform .15s;background:rgba(9,12,30,.92);border:1px solid var(--gold-dim);border-radius:var(--r);padding:6px 10px;z-index:6;max-width:200px}
+.maptip.on{opacity:1;transform:none}
+.maptip b{display:block;font-family:var(--ui);font-size:12px;font-weight:600;color:var(--gold-lt);letter-spacing:.04em}
+.maptip span{font-family:var(--ui);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+/* place details as a bottom sheet — overlays the page instead of pushing it down */
+.sheet{position:fixed;left:50%;bottom:12px;transform:translateX(-50%);width:min(720px,calc(100vw - 20px));max-height:min(48vh,430px);overflow-y:auto;z-index:80;animation:sheetup .38s cubic-bezier(.2,.9,.2,1) both}
+@keyframes sheetup{from{transform:translate(-50%,112%)}to{transform:translate(-50%,0)}}
+.sheet-x{position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;border:1px solid #B9A87C;background:none;color:#3A2E14;font-size:13px;line-height:1;display:grid;place-items:center;transition:.15s}
+.sheet-x:hover{background:rgba(201,162,39,.16)}
 /* landmasses and coastlines */
 .coast path,.coast circle{fill:rgba(239,230,204,.05);stroke:rgba(201,162,39,.35);stroke-width:1.5;stroke-linejoin:round}
 .inset-geo .inset-sea{fill:rgba(120,150,220,.15);stroke:rgba(140,170,235,.35);stroke-width:1.2}
@@ -347,6 +377,8 @@ textarea.explain:focus{border-color:var(--gold-dim)}
 .kv{display:grid;grid-template-columns:120px minmax(0,1fr);gap:6px 14px;font-size:14px}
 .kv dt{font-family:var(--ui);font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold-dim);padding-top:4px}
 .kv dd{margin:0;color:#D8DAEE}
+.vellum .kv dd{color:#2A2418}
+.vellum .kv dt{color:#7A6A3E}
 .lvl{display:flex;gap:3px;align-items:center}
 .lvl i{width:15px;height:4px;background:rgba(255,255,255,.13);border-radius:99px;display:block}
 .lvl i.on{background:var(--gold)}
@@ -372,6 +404,7 @@ textarea.explain:focus{border-color:var(--gold-dim)}
   .matchgrid{grid-template-columns:1fr}
   .kv{grid-template-columns:1fr}
   .kv dd{margin-bottom:8px}
+  .sheet{bottom:calc(58px + env(safe-area-inset-bottom,0px));max-height:44vh}
 }
 /* screen-change fade — applied by render() only when the view actually switches */
 .viewfade{animation:viewfade .28s ease both}
@@ -379,6 +412,6 @@ textarea.explain:focus{border-color:var(--gold-dim)}
 
 @media (prefers-reduced-motion:reduce){
   *{animation-duration:.001ms !important;transition-duration:.001ms !important}
-  .route{animation:none}
+  .route,.water,.mp:not(.visited) .halo{animation:none}
   .era-card:hover,.pcard:hover,.room:hover,.bookrow:hover{transform:none}
 }
