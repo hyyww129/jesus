@@ -41,6 +41,7 @@ const BLANK = () => ({
   exams: {},      // final + master challenge
   daily: {},      // date -> true
   reader: null,   // last scripture reader position {b, c}
+  drilled: [],    // 'bookId:chapter' keys of generated scripture drills
   log: []         // recent activity, capped
 });
 
@@ -78,6 +79,7 @@ async function loadState() {
     // No saved progress yet, or storage unavailable in this environment.
     if (!window.storage) memoryOnly = true;
   }
+  restoreDrills();
   newSession();
 }
 function saveState() {
@@ -265,11 +267,15 @@ function shuffle(a) {
 }
 
 /* ------------------------------------------------------------ groupings -- */
-function conceptsInEra(eid) { return ALL_CONCEPTS.filter(c => c.e === eid).map(c => c.id); }
-function conceptsInBook(bid) { return ALL_CONCEPTS.filter(c => c.b === bid).map(c => c.id); }
+/* Hand-authored concepts only — generated scripture drills (c.gen) stay out
+   of era progression, book gates, boss battles and the exams. They still
+   flow through mastery, the review queue and the daily set once studied. */
+function curatedConcepts() { return ALL_CONCEPTS.filter(c => !c.gen); }
+function conceptsInEra(eid) { return curatedConcepts().filter(c => c.e === eid).map(c => c.id); }
+function conceptsInBook(bid) { return curatedConcepts().filter(c => c.b === bid).map(c => c.id); }
 function conceptsUpTo(eid) {
   const n = ERA_ORDER.indexOf(eid);
-  return ALL_CONCEPTS.filter(c => ERA_ORDER.indexOf(c.e) <= n).map(c => c.id);
+  return curatedConcepts().filter(c => ERA_ORDER.indexOf(c.e) <= n).map(c => c.id);
 }
 function seenConcepts() { return Object.keys(S.c).filter(id => S.c[id].seen > 0 && C_BY_ID[id]); }
 
@@ -303,12 +309,13 @@ function bookProgress(bid) {
   return { done, gates: gates.length, pct: Math.min(100, pct), complete: done === gates.length && cm >= 75 };
 }
 
+/* Headline aggregates cover the curated curriculum only — generated drills
+   are extra practice and must not move (or dilute) the overall numbers. */
 function overallMastery() {
-  const all = ALL_CONCEPTS.map(c => c.id);
-  return avgMastery(all);
+  return avgMastery(curatedConcepts().map(c => c.id));
 }
 function testamentMastery(t) {
-  const ids = ALL_CONCEPTS.filter(c => B_BY_ID[c.b] && B_BY_ID[c.b].t === t).map(c => c.id);
+  const ids = curatedConcepts().filter(c => B_BY_ID[c.b] && B_BY_ID[c.b].t === t).map(c => c.id);
   return avgMastery(ids);
 }
 
@@ -338,7 +345,7 @@ function strongConcepts(n) {
     .sort((a, b) => b.m - a.m).slice(0, n || 5);
 }
 function unlockedConcepts() {
-  return ALL_CONCEPTS.filter(c => eraUnlocked(c.e)).map(c => c.id);
+  return curatedConcepts().filter(c => eraUnlocked(c.e)).map(c => c.id);
 }
 
 /* 5 old + 3 weak + 2 new, exactly as the daily brief promises. */
@@ -425,7 +432,7 @@ function finalExamQuiz() {
   });
   let q = shuffle(parts);
   if (q.length < 100) {
-    q = q.concat(buildQuiz(ALL_CONCEPTS.map(c => c.id), 100 - q.length, { exclude: used }));
+    q = q.concat(buildQuiz(curatedConcepts().map(c => c.id), 100 - q.length, { exclude: used }));
   }
   return shuffle(q).slice(0, 100);
 }
@@ -433,8 +440,8 @@ function finalExamQuiz() {
 function masterChallengeQuiz() {
   const hard = ['con', 'ord', 'mat', 'scn', 'cse', 'exp', 'bok'];
   const used = new Set();
-  let q = buildQuiz(ALL_CONCEPTS.map(c => c.id), 40, { types: hard, minLevel: 4, exclude: used });
-  if (q.length < 40) q = q.concat(buildQuiz(ALL_CONCEPTS.map(c => c.id), 40 - q.length, { types: hard, exclude: used }));
+  let q = buildQuiz(curatedConcepts().map(c => c.id), 40, { types: hard, minLevel: 4, exclude: used });
+  if (q.length < 40) q = q.concat(buildQuiz(curatedConcepts().map(c => c.id), 40 - q.length, { types: hard, exclude: used }));
   return shuffle(q).slice(0, 40);
 }
 
@@ -460,6 +467,126 @@ function markBookGate(bid, gate) {
 }
 function visitPlace(id) { if (!S.visited.includes(id)) { S.visited.push(id); saveState(); } }
 function setReaderPos(b, c) { S.reader = { b, c }; saveState(); }
+
+/* ------------------------------------------------- scripture drills ----- */
+/* Concepts generated from the KJV text itself. Everything is deterministic —
+   the same chapter always yields the same probes in the same order, so
+   recorded answers stay aligned across sessions. Registered drills join the
+   real mastery engine (levels, spaced repetition, review queue); the curated
+   pools above keep them out of bosses and exams. */
+const DRILL_STOP = new Set(('the and that shall unto with for his they them thou thee thy have from were will not but was all are which when their your this out upon him her hath than then into also came come said saith went even more they what who whom whose there here where because before after against among over under about every any some very much many'
+).split(' '));
+function drillWords(text) { return text.replace(/[^A-Za-z\s']/g, ' ').split(/\s+/).filter(Boolean); }
+function drillKeyWord(text) {
+  let best = '';
+  drillWords(text).forEach(w => {
+    if (!DRILL_STOP.has(w.toLowerCase()) && w.length > best.length) best = w;
+  });
+  return best;
+}
+function drillId(b, c) { return 'kjv_' + b + '_' + c; }
+
+function makeDrillConcept(b, c) {
+  const bk = B_BY_ID[b], verses = KJV[b][c - 1];
+  const name = bk.name + ' ' + c;
+  const at = v => name + ':' + v;
+  const clip = (t, n) => t.length > n ? t.slice(0, n).replace(/\s+\S*$/, '') + '…' : t;
+  /* verses ranked longest-first; ties keep canonical order */
+  const ranked = verses.map((t, i) => ({ t, i }))
+    .sort((a, b2) => b2.t.length - a.t.length || a.i - b2.i);
+  const p = [];
+
+  /* fill-in-the-blank from the most substantial verses */
+  const keyPool = ranked.map(x => drillKeyWord(x.t)).filter(w => w.length >= 4);
+  ranked.slice(0, 4).forEach(x => {
+    const word = drillKeyWord(x.t);
+    if (word.length < 4 || drillWords(x.t).length < 6) return;
+    const blanked = x.t.replace(new RegExp('\\b' + word + '\\b'), '____');
+    if (blanked === x.t) return;
+    const distract = [];
+    for (const w of keyPool) {
+      if (w.toLowerCase() !== word.toLowerCase() && !distract.some(d => d.toLowerCase() === w.toLowerCase())) distract.push(w);
+      if (distract.length === 3) break;
+    }
+    if (distract.length < 3) return;
+    const o = distract.slice();
+    o.splice(x.i % 4 > 3 ? 3 : x.i % 4, 0, word);
+    p.push({ t: 'fil', l: 2, q: 'Fill the blank — ' + at(x.i + 1) + ': “' + blanked + '”',
+      o, a: o.indexOf(word), w: 'The verse reads “' + clip(x.t, 120) + '” (' + at(x.i + 1) + ').' });
+  });
+
+  /* which book is this from */
+  const bi = BOOKS.indexOf(bk);
+  const bookOpts = [bk.name];
+  [bi - 1, bi + 1, (bi + 17) % 66, bi - 2, bi + 2].forEach(j => {
+    if (bookOpts.length < 4 && j >= 0 && j < 66 && !bookOpts.includes(BOOKS[j].name)) bookOpts.push(BOOKS[j].name);
+  });
+  ranked.slice(0, 2).forEach((x, k) => {
+    const o = bookOpts.slice(1);
+    o.splice((c + k) % 4 > 3 ? 3 : (c + k) % 4, 0, bk.name);
+    p.push({ t: 'bok', l: 2, q: 'Which book does this come from? “' + clip(x.t, 140) + '”',
+      o, a: o.indexOf(bk.name), w: 'It is ' + at(x.i + 1) + '.' });
+  });
+
+  /* true/false against a neighbouring chapter */
+  const nc = c > 1 ? c - 1 : (c < bk.ch ? c + 1 : 0);
+  if (c % 2 === 0 || !nc) {
+    const x = ranked[Math.min(4, ranked.length - 1)];
+    p.push({ t: 'tf', l: 2, q: 'True or false — this line is from ' + name + ': “' + clip(x.t, 140) + '”',
+      o: ['True', 'False'], a: 0, w: 'It is ' + at(x.i + 1) + '.' });
+  } else {
+    const nv = KJV[b][nc - 1];
+    const foreign = nv.slice().sort((a, b2) => b2.length - a.length)[0];
+    p.push({ t: 'tf', l: 2, q: 'True or false — this line is from ' + name + ': “' + clip(foreign, 140) + '”',
+      o: ['True', 'False'], a: 1, w: 'It is from ' + bk.name + ' ' + nc + ', the neighbouring chapter.' });
+  }
+
+  /* put consecutive verses in order */
+  if (verses.length >= 4) {
+    const start = Math.floor((verses.length - 4) / 2);
+    const items = verses.slice(start, start + 4).map(t => clip(t, 52));
+    if (new Set(items).size === 4) {
+      p.push({ t: 'ord', l: 3, q: 'Put these lines from ' + name + ' in the order they occur.',
+        it: items, w: 'They run ' + at(start + 1) + '–' + (start + 4) + '.' });
+    }
+  }
+
+  /* memorisation: honest recall of the opening verse */
+  const v1 = verses[0];
+  const keys = [];
+  drillWords(v1).forEach(w => {
+    const lw = w.toLowerCase();
+    if (w.length >= 4 && !DRILL_STOP.has(lw) && !keys.includes(lw) && keys.length < 4) keys.push(lw);
+  });
+  p.push({ t: 'exp', l: 5, q: 'From memory: how does ' + name + ' open? Give the sense of verse 1 in its own words.',
+    keys: keys.length ? keys : [drillWords(v1)[0].toLowerCase()], model: v1 });
+
+  return { id: drillId(b, c), b, e: bk.eras[0], topic: name + ' — the text', d: 2, gen: true,
+    claim: 'text', ref: name,
+    sum: 'Drilled straight from the King James text of ' + name + '. Every question here is generated from the chapter itself.',
+    p };
+}
+
+function registerDrill(b, c) {
+  const id = drillId(b, c);
+  if (C_BY_ID[id]) return C_BY_ID[id];
+  if (!B_BY_ID[b] || !KJV[b] || !KJV[b][c - 1]) return null;
+  const concept = makeDrillConcept(b, c);
+  ALL_CONCEPTS.push(concept);
+  C_BY_ID[id] = concept;
+  const key = b + ':' + c;
+  if (!S.drilled) S.drilled = [];
+  if (!S.drilled.includes(key)) { S.drilled.push(key); saveState(); }
+  return concept;
+}
+/* Re-register everything the player has drilled, so records in S.c stay
+   attached to live concepts after a reload. */
+function restoreDrills() {
+  (S.drilled || []).forEach(k => {
+    const [b, c] = k.split(':');
+    if (B_BY_ID[b] && KJV[b] && KJV[b][+c - 1] && !C_BY_ID[drillId(b, +c)]) registerDrill(b, +c);
+  });
+}
 
 /* ------------------------------------------------ reference resolution -- */
 /* Resolve a normalised book key ("gen", "psalms", "1corinthians", a prefix)

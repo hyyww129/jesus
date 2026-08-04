@@ -404,6 +404,15 @@ textarea.explain:focus{border-color:var(--gold-dim)}
 .reader .vv.vhl{background:rgba(201,162,39,.28);border-radius:2px;padding:1px 4px;margin-left:-4px}
 .vres .nm{font-size:14px;line-height:1.55}
 .vres mark{background:rgba(201,162,39,.3);color:var(--gold-lt);border-radius:2px;padding:0 1px}
+/* memorisation mode */
+.memhead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap}
+.memdots{display:flex;gap:5px}
+.memdots span{width:22px;height:5px;border-radius:3px;background:var(--line-soft)}
+.memdots span.on{background:var(--gold)}
+.memtext{max-width:720px}
+.memblank{display:inline;border:none;background:none;padding:0 1px;margin:0;color:#8A6A10;font-family:inherit;font-size:inherit;letter-spacing:.12em;border-bottom:1px solid #8A6A10;cursor:pointer;line-height:inherit}
+.memblank:hover{color:var(--gold);border-color:var(--gold)}
+.mempeek{color:#9E2F26}
 /* inline "Read it" passages */
 .passage{margin:0 0 12px}
 .passage[hidden]{display:none}

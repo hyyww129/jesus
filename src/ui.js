@@ -976,6 +976,26 @@ function wireReadIt() {
   });
 }
 let readResults = null; // { q, list, total } while showing search results
+let readMem = null;     // { b, c, level } memorisation mode, level 1..5 hides more
+const MEM_FRAC = [0, 0.2, 0.4, 0.6, 0.8, 1];
+/* Stable per-word hide order so raising the level only ever hides more. */
+function memHash(i) { let h = (i * 2654435761) % 2147483647; return (h < 0 ? h + 2147483647 : h) / 2147483647; }
+function memChapterHTML(b, c, level, revealAll) {
+  const frac = MEM_FRAC[level] || 0;
+  let wi = 0;
+  return KJV[b][c - 1].map((vt, vidx) => {
+    const toks = vt.split(/(\s+)/).map(tok => {
+      if (/^\s+$/.test(tok) || !/[A-Za-z]/.test(tok)) return esc(tok);
+      const word = tok, core = word.replace(/[^A-Za-z']/g, '');
+      const hideable = core.length >= 3;
+      const hide = hideable && !revealAll && memHash(wi) < frac;
+      wi++;
+      if (!hide) return esc(word);
+      return `<button class="memblank" data-word="${esc(word)}" aria-label="hidden word, click to reveal">${'·'.repeat(Math.min(core.length, 9))}</button>`;
+    }).join('');
+    return `<p class="vv" id="v${vidx + 1}"><sup class="vn">${vidx + 1}</sup>${toks}</p>`;
+  }).join('');
+}
 
 /* Parse "John 3:16", "Gen 1", "1 Cor 13", "Song of Songs 2". Chapter defaults
    to 1; verse optional. Returns {b, c, v} or null. */
@@ -1032,6 +1052,7 @@ function viewRead() {
   const arg = VIEW.arg;
   let mode = 'books', b = null, c = 0, focusV = null;
   if (arg === 'search' && readResults) mode = 'search';
+  else if (arg === 'mem' && readMem && KJV[readMem.b]) { mode = 'mem'; b = readMem.b; c = readMem.c; }
   else if (arg && arg !== 'books' && arg !== 'search') {
     const parts = arg.split(':');
     b = parts[0];
@@ -1066,7 +1087,7 @@ function viewRead() {
         `<button class="bookrow vres" data-rgo="${x.b}:${x.c}:${x.v}">
           <div><div class="nm">${markMatches(x.t, r.q)}</div><div class="sm">${esc(B_BY_ID[x.b].name)} ${x.c}:${x.v}</div></div>
         </button>`).join('') : '<div class="empty">No verses contain that. Try fewer or different words.</div>'}`;
-  } else {
+  } else if (mode === 'text') {
     const bk = B_BY_ID[b], prev = chapterNav(b, c, -1), next = chapterNav(b, c, 1);
     setReaderPos(b, c);
     const navRow = pos => `<div class="btnrow" style="justify-content:space-between;${pos === 'top' ? 'margin:14px 0 0' : ''}">
@@ -1080,8 +1101,31 @@ function viewRead() {
         <h2 style="font-size:24px;margin:6px 0 14px">${esc(bk.name)} ${c}</h2>
         ${KJV[b][c - 1].map((vt, i) =>
           `<p class="vv ${focusV === i + 1 ? 'vhl' : ''}" id="v${i + 1}"><sup class="vn">${i + 1}</sup>${esc(vt)}</p>`).join('')}
-      </div>${navRow('bottom')}
-      <div class="meta" style="font-family:var(--ui);font-size:11px;color:var(--muted);margin-top:10px">← and → move a chapter. Your place is kept.</div>`;
+      </div>
+      <div class="btnrow" style="margin-top:12px">
+        <button class="btn solid sm" data-drill="${b}:${c}">Drill this chapter</button>
+        <button class="btn ghost sm" data-mem="${b}:${c}">Memorise this chapter</button>
+      </div>
+      ${navRow('bottom')}
+      <div class="meta" style="font-family:var(--ui);font-size:11px;color:var(--muted);margin-top:10px">← and → move a chapter. Drill turns this chapter into generated questions that feed your mastery. Your place is kept.</div>`;
+  } else if (mode === 'mem') {
+    const bk = B_BY_ID[b], lvl = readMem.level, frac = MEM_FRAC[lvl];
+    body = `<div class="crumb"><button data-rgo="${b}:${c}">${esc(bk.name)} ${c}</button> / Memorise</div>
+      <div class="memhead">
+        <div>
+          <div class="eyebrow">Memorisation · ${Math.round(frac * 100)}% hidden</div>
+          <h2 style="font-size:22px;margin:6px 0 0">${esc(bk.name)} ${c}</h2>
+        </div>
+        <div class="memdots">${[1, 2, 3, 4, 5].map(i => `<span class="${i <= lvl ? 'on' : ''}"></span>`).join('')}</div>
+      </div>
+      <div class="btnrow" style="margin:12px 0">
+        <button class="btn ghost sm" id="memless" ${lvl <= 1 ? 'disabled' : ''}>◂ Show more</button>
+        <button class="btn solid sm" id="memmore" ${lvl >= 5 ? 'disabled' : ''}>Hide more ▸</button>
+        <button class="btn ghost sm" id="memreveal">Reveal all</button>
+        <button class="btn ghost sm" data-drill="${b}:${c}">Test me on it</button>
+      </div>
+      <div class="vellum reader memtext">${memChapterHTML(b, c, lvl, false)}</div>
+      <div class="meta" style="font-family:var(--ui);font-size:11px;color:var(--muted);margin-top:10px">Tap any hidden word to peek. Raise the level to hide more, until you can carry the whole chapter.</div>`;
   }
 
   app().innerHTML = `
@@ -1107,6 +1151,29 @@ function viewRead() {
   const sb = document.getElementById('rsearch'); if (sb) sb.onclick = doSearch;
   const qi = document.getElementById('rquery'); if (qi) qi.onkeydown = ev => { if (ev.key === 'Enter') doSearch(); };
   const ji = document.getElementById('rjump'); if (ji) ji.onkeydown = ev => { if (ev.key === 'Enter') doJump(); };
+  app().querySelectorAll('[data-drill]').forEach(el => el.onclick = () => {
+    const [db, dc] = el.dataset.drill.split(':');
+    const concept = registerDrill(db, +dc);
+    if (!concept) return toast('Could not build a drill for that chapter.');
+    readMem = null;
+    startQuiz('concept:' + concept.id);
+  });
+  app().querySelectorAll('[data-mem]').forEach(el => el.onclick = () => {
+    const [mb, mc] = el.dataset.mem.split(':');
+    readMem = { b: mb, c: +mc, level: 1 };
+    go('read', 'mem');
+  });
+  const memMore = document.getElementById('memmore');
+  if (memMore) memMore.onclick = () => { readMem.level = Math.min(5, readMem.level + 1); render(); };
+  const memLess = document.getElementById('memless');
+  if (memLess) memLess.onclick = () => { readMem.level = Math.max(1, readMem.level - 1); render(); };
+  const memReveal = document.getElementById('memreveal');
+  if (memReveal) memReveal.onclick = () => {
+    app().querySelectorAll('.memtext').forEach(t => t.innerHTML = memChapterHTML(readMem.b, readMem.c, readMem.level, true));
+  };
+  app().querySelectorAll('.memblank').forEach(el => el.onclick = () => {
+    el.outerHTML = '<span class="mempeek">' + el.dataset.word + '</span>';
+  });
   if (mode === 'text') {
     document.onkeydown = ev => {
       if (/INPUT|TEXTAREA|SELECT/.test(ev.target && ev.target.tagName)) return;
@@ -1396,11 +1463,13 @@ function studyPlanHtml() {
 /* ============================== DASHBOARD ============================== */
 function viewDashboard() {
   const om = overallMastery();
-  const mastered = ALL_CONCEPTS.filter(c => conceptLevel(c.id) === 5).length;
+  const curated = curatedConcepts();
+  const mastered = curated.filter(c => conceptLevel(c.id) === 5).length;
+  const drilledCount = (S.drilled || []).length;
   const booksDone = BOOKS.filter(b => bookProgress(b.id).complete).length;
   const weak = reviewQueue(5), strong = strongConcepts(5);
   const levelCounts = [0, 0, 0, 0, 0, 0];
-  ALL_CONCEPTS.forEach(c => levelCounts[conceptLevel(c.id)]++);
+  curated.forEach(c => levelCounts[conceptLevel(c.id)]++);
 
   app().innerHTML = `
     <div class="eyebrow">Progress</div>
@@ -1411,7 +1480,8 @@ function viewDashboard() {
       <div class="stat"><div class="k">Old Testament</div><div class="v">${testamentMastery('OT')}<small>%</small></div>${bar(testamentMastery('OT'))}</div>
       <div class="stat"><div class="k">New Testament</div><div class="v">${testamentMastery('NT')}<small>%</small></div>${bar(testamentMastery('NT'))}</div>
       <div class="stat"><div class="k">Books complete</div><div class="v">${booksDone}<small>/66</small></div>${bar((booksDone / 66) * 100)}</div>
-      <div class="stat"><div class="k">Concepts mastered</div><div class="v">${mastered}<small>/${ALL_CONCEPTS.length}</small></div></div>
+      <div class="stat"><div class="k">Concepts mastered</div><div class="v">${mastered}<small>/${curated.length}</small></div></div>
+      <div class="stat"><div class="k">Chapters drilled</div><div class="v">${drilledCount}</div><div class="k" style="margin-top:6px">generated from the KJV text</div></div>
       <div class="stat"><div class="k">People studied</div><div class="v">${S.met.length}<small>/${PEOPLE.length}</small></div></div>
       <div class="stat"><div class="k">Places explored</div><div class="v">${S.visited.length}<small>/${PLACES.length}</small></div></div>
       <div class="stat"><div class="k">Map challenge — places sure</div><div class="v">${geoStats().known}<small>/${PLACES.length}</small></div>${bar(geoStats().known / PLACES.length * 100)}</div>
@@ -1422,7 +1492,7 @@ function viewDashboard() {
     <div class="sec-h">The five levels of knowledge</div>
     <div class="grid g3">${[1, 2, 3, 4, 5].map(l => `<div class="stat">
       <div class="k">Level ${l} — ${LEVEL_NAMES[l]}</div><div class="v">${levelCounts[l]}</div>
-      ${bar((levelCounts[l] / ALL_CONCEPTS.length) * 100)}</div>`).join('')}</div>
+      ${bar((levelCounts[l] / curated.length) * 100)}</div>`).join('')}</div>
 
     <div class="sec-h">Stage by stage</div>
     <div>${ERAS.map(e => `<button class="bookrow" data-era="${e.id}">
@@ -1493,7 +1563,7 @@ function viewAbout() {
     <div class="panel"><dl class="kv">
       <dt>Stages</dt><dd>${ERAS.length}, from Creation to Revelation, each ending in a boss battle</dd>
       <dt>Books</dt><dd>All ${BOOKS.length}, each with its own page and six completion gates</dd>
-      <dt>Concepts</dt><dd>${ALL_CONCEPTS.length} tracked concepts carrying ${ALL_CONCEPTS.reduce((n, c) => n + c.p.length, 0)} distinct questions</dd>
+      <dt>Concepts</dt><dd>${curatedConcepts().length} tracked concepts carrying ${curatedConcepts().reduce((n, c) => n + c.p.length, 0)} distinct questions, plus generated drills for any of the 1,189 chapters</dd>
       <dt>Formats</dt><dd>${Object.keys(TYPE_NAMES).length} question types, including ordering, matching and written explanation</dd>
       <dt>People</dt><dd>${PEOPLE.length} with family, places, books and events</dd>
       <dt>Places</dt><dd>${PLACES.length} on a schematic map</dd>

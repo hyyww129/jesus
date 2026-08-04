@@ -147,6 +147,17 @@ spine — roundels that fill with gold as mastery rises. Keep that the one loud 
   figure; to give them emblems, add one line picking parts (or add a part to
   `PORTRAIT_PARTS` with a layer: `bg` behind the figure, `ov` on the robe, `fg`
   held in front). Portrait colours are token values; keep them that way.
+- Scripture drills are **generated from the KJV text**, not authored: `makeDrillConcept`
+  / `registerDrill` in `engine.js` turn any chapter into a concept (`gen:true`, fill-in-
+  the-blank, which-book, verse-order, and an `exp` recall probe). Generation is
+  deterministic so saved answers stay aligned. Registered drills flow through mastery,
+  the review queue and the daily set, but `curatedConcepts()` keeps them out of era
+  progression, book gates, boss battles and the exams — so they can't inflate the
+  hand-built curriculum. Drilled chapters live in `S.drilled` and are re-registered at
+  boot by `restoreDrills` (called from `loadState`). The reader's "Drill this chapter"
+  and progressive "Memorise this chapter" modes (`viewRead`, `memChapterHTML`) are the
+  entry points. `test/data.test.js` sweeps all 1,189 chapters; `test/mastery.test.js`
+  proves a drill earns levels and survives a reload.
 - The scripture reader (`viewRead` in `ui.js`) reads `KJV` directly: book list →
   chapter grid → vellum text, whole-Bible search (`bibleSearch`), reference jump
   (`parseRef` — extend it rather than adding a second parser), last position in

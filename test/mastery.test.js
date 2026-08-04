@@ -64,4 +64,22 @@ test('who-am-I keeps its own mastery track, separate from geography', () => {
   assert(picks.length === 8 && !picks.some(p => p.id === 'moses'), 'practised person crowded out fresh ones');
 });
 
+test('a generated scripture drill feeds the mastery engine like any concept', () => {
+  const d = X.registerDrill('psa', 23);
+  const id = d.id;
+  /* it earns levels through the normal machinery */
+  X.recordAnswer(id, 0, 'right');
+  assert(X.conceptLevel(id) >= 2, 'a right answer on a drill did not raise its level');
+  assert(X.S.c[id] && X.S.c[id].seen >= 1, 'drill answer not recorded in S.c');
+  /* and it is remembered for re-registration after a reload */
+  assert((X.S.drilled || []).includes('psa:23'), 'drilled chapter not remembered in S.drilled');
+  /* simulate a fresh load: drop the live concept, then restore from S.drilled */
+  const idx = X.ALL_CONCEPTS.findIndex(c => c.id === id);
+  X.ALL_CONCEPTS.splice(idx, 1);
+  delete X.C_BY_ID[id];
+  X.restoreDrills();
+  assert(X.C_BY_ID[id], 'restoreDrills did not rebuild the drilled chapter');
+  assert(X.S.c[id].seen >= 1, 'progress lost across the simulated reload');
+});
+
 done();

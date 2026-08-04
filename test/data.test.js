@@ -130,6 +130,43 @@ test('every ref field resolves to real KJV text', () => {
   });
 });
 
+test('generated scripture drills are well-formed and deterministic for every chapter', () => {
+  const CHOICE = new Set(['mc', 'tf', 'who', 'nxt', 'cse', 'scn', 'con', 'bok', 'fil']);
+  X.BOOKS.forEach(bk => {
+    for (let c = 1; c <= bk.ch; c++) {
+      const d = X.makeDrillConcept(bk.id, c);
+      assert(d.gen === true && d.claim === 'text' && d.b === bk.id, bk.id + ' ' + c + ' drill mis-tagged');
+      assert(d.p.length >= 3, bk.id + ' ' + c + ' produced only ' + d.p.length + ' probes');
+      d.p.forEach(p => {
+        if (CHOICE.has(p.t)) {
+          assert(new Set(p.o).size === p.o.length, bk.id + ' ' + c + ' ' + p.t + ' has duplicate options');
+          assert(p.a >= 0 && p.a < p.o.length, bk.id + ' ' + c + ' ' + p.t + ' answer index out of range');
+        }
+        if (p.t === 'ord') assert(new Set(p.it).size === p.it.length, bk.id + ' ' + c + ' ord has duplicate items');
+        if (p.t === 'exp') assert(p.keys.length && p.model, bk.id + ' ' + c + ' exp missing keys/model');
+      });
+      /* same chapter must always generate the same drill, or saved answers drift */
+      assert(JSON.stringify(X.makeDrillConcept(bk.id, c)) === JSON.stringify(d), bk.id + ' ' + c + ' drill is non-deterministic');
+    }
+  });
+});
+
+test('registered drills join mastery but stay out of the curated pools', () => {
+  const before = X.ALL_CONCEPTS.length;
+  const overallBefore = X.overallMastery();
+  const d = X.registerDrill('jon', 2);
+  assert(X.overallMastery() === overallBefore, 'registering a drill moved the headline mastery number');
+  assert(d && X.C_BY_ID['kjv_jon_2'] === d, 'drill not registered into C_BY_ID');
+  assert(X.ALL_CONCEPTS.length === before + 1, 'drill not added to ALL_CONCEPTS');
+  assert(X.registerDrill('jon', 2) === d, 'registerDrill is not idempotent');
+  const genId = d.id;
+  assert(!X.curatedConcepts().some(c => c.id === genId), 'gen drill leaked into curated concepts');
+  assert(!X.conceptsInEra(d.e).includes(genId), 'gen drill leaked into its era pool');
+  assert(!X.finalExamQuiz().some(q => q.cid === genId), 'gen drill leaked into the final exam');
+  assert(!X.masterChallengeQuiz().some(q => q.cid === genId), 'gen drill leaked into the master challenge');
+  X.ERAS.forEach(e => assert(!X.bossQuiz(e.id).some(q => q.cid === genId), 'gen drill leaked into a boss battle'));
+});
+
 test('every era has a guide who exists, with a line and a reference', () => {
   X.ERAS.forEach(e => {
     const g = X.GUIDES[e.id];

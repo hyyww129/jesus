@@ -21,6 +21,9 @@ Node 18+ (only used for the build and tests — the game itself has no runtime d
 - **116 concepts** carrying **405 questions** across 12 formats
 - **The full KJV on board** — a scripture reader with chapter navigation, whole-Bible
   search, reference jump ("John 3:16"), and a remembered reading position
+- **Generated scripture drills** — pick any chapter and drill it: fill-in-the-blank,
+  which-book, verse-ordering and a progressive memorisation mode, all built from the
+  KJV text itself and fed into the same mastery engine (kept out of the exams)
 - **Memory engine** — spaced repetition, five knowledge levels, per-concept confidence
 - **42 people**, each with an illuminated-manuscript portrait drawn in code,
   an era **guide** who introduces every stage in their own recorded voice, and a
