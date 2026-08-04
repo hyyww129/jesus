@@ -93,6 +93,25 @@ test('map pins sit inside their panel and routes stay on the chart', () => {
   });
 });
 
+test('the KJV text is complete and keyed to the book ids', () => {
+  assert(Object.keys(X.KJV).length === 66, 'KJV should carry 66 books');
+  let verses = 0;
+  X.BOOKS.forEach(b => {
+    const book = X.KJV[b.id];
+    assert(book, 'KJV missing book ' + b.id);
+    assert(book.length === b.ch, b.id + ': KJV has ' + book.length + ' chapters, core.js says ' + b.ch);
+    book.forEach((c, ci) => {
+      assert(c.length > 0, b.id + ' chapter ' + (ci + 1) + ' has no verses');
+      c.forEach((v, vi) => assert(typeof v === 'string' && v.trim(), b.id + ' ' + (ci + 1) + ':' + (vi + 1) + ' empty'));
+      verses += c.length;
+    });
+  });
+  assert(verses === 31102, 'expected 31,102 verses, got ' + verses);
+  assert(X.KJV.gen[0][0].indexOf('In the beginning') === 0, 'Genesis 1:1 wrong');
+  assert(X.KJV.joh[2][15].indexOf('For God so loved the world') === 0, 'John 3:16 wrong');
+  assert(X.KJV.psa.length === 150, 'Psalms should have 150 chapters');
+});
+
 test('every era has a guide who exists, with a line and a reference', () => {
   X.ERAS.forEach(e => {
     const g = X.GUIDES[e.id];

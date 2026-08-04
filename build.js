@@ -11,6 +11,7 @@ const SOURCES = {
     'src/data/core.js',
     'src/data/concepts-ot.js',
     'src/data/concepts-nt.js',
+    'src/data/kjv.js',
     'src/engine.js',
     'src/portraits.js',
     'src/ui.js'
