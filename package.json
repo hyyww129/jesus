@@ -1,0 +1,12 @@
+{
+  "name": "bible-quest",
+  "version": "1.0.0",
+  "description": "Bible Quest — a mastery-based scripture learning game. Zero dependencies.",
+  "private": true,
+  "scripts": {
+    "build": "node build.js",
+    "test": "node test/data.test.js && node test/mastery.test.js && node test/views.test.js",
+    "check": "npm test && npm run build",
+    "serve": "node build.js && node -e \"require('http').createServer((q,s)=>{s.writeHead(200,{'Content-Type':'text/html'});s.end(require('fs').readFileSync('dist/bible-quest.html'))}).listen(8080,()=>console.log('http://localhost:8080'))\""
+  }
+}
