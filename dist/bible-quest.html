@@ -340,6 +340,7 @@ textarea.explain:focus{border-color:var(--gold-dim)}
 .route.j2{stroke:var(--sky)}
 .route.j3{stroke:var(--verd)}
 .route.ex{stroke:var(--vellum-2)}
+.route.tr{stroke:var(--gold-lt)}
 .route.walk{stroke-width:3.25;stroke-dasharray:1 6}
 @keyframes routemarch{to{stroke-dashoffset:-18}}
 .chip.rt.j1.on{border-color:var(--gold-dim);color:var(--gold-lt)}
@@ -385,6 +386,20 @@ textarea.explain:focus{border-color:var(--gold-dim)}
 .pcard:hover .portrait{filter:drop-shadow(0 3px 6px rgba(0,0,0,.5)) drop-shadow(0 0 8px rgba(235,206,122,.35))}
 .phead{display:flex;gap:20px;align-items:center;margin-top:4px}
 .phead .phero .portrait{width:104px;height:104px;filter:drop-shadow(0 6px 14px rgba(0,0,0,.55))}
+/* era guides — a person introduces the stage in their own (recorded) voice */
+.guide{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding-top:10px;border-top:1px solid var(--line-soft)}
+.guide .portrait{width:36px;height:36px;flex:none}
+.gq{font-family:var(--body);font-style:italic;font-size:13.5px;color:#C9CCE3;line-height:1.55}
+.gref{display:block;font-family:var(--ui);font-style:normal;font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-dim);margin-top:4px}
+.guidebar{display:flex;gap:16px;align-items:flex-start;margin-top:16px}
+.guidebar .gport .portrait{width:72px;height:72px;flex:none;filter:drop-shadow(0 4px 10px rgba(0,0,0,.5))}
+.guidebar .gq{font-size:16px}
+.guidebar .gref{font-size:10px;margin-top:6px}
+/* who am I challenge */
+.whocard{margin-top:18px;display:grid;gap:16px;justify-items:center;padding:26px}
+.whocard .whoport .portrait{width:150px;height:150px;filter:drop-shadow(0 8px 18px rgba(0,0,0,.6))}
+.whocard .opts{width:min(440px,100%)}
+.whocard .feedback{width:min(440px,100%);margin-top:4px}
 .pcard .nm{font-family:var(--display);font-size:15px;color:var(--vellum);letter-spacing:.06em}
 .pcard .rl{font-family:var(--ui);font-size:11px;color:var(--gold-dim);margin-top:3px}
 
@@ -1232,7 +1247,75 @@ const PEOPLE = [
 {id:'john_a',n:'John',role:'Apostle and visionary',era:'jesus',fam:{parents:['Zebedee'],spouse:'',children:[]},
  books:['joh','act','1jo','2jo','3jo','rev'],places:['Galilee','Jerusalem','Patmos','Ephesus'],
  events:['Called with his brother James','Present at the transfiguration','Ran to the empty tomb','Went with Peter in Acts','Received the vision on Patmos'],
- lesson:'Called a son of thunder, remembered for writing about love.',ref:'Gospels; Revelation 1'}
+ lesson:'Called a son of thunder, remembered for writing about love.',ref:'Gospels; Revelation 1'},
+{id:'jonah',n:'Jonah',role:'Prophet who ran',era:'minorprophets',fam:{parents:['Amittai'],spouse:'',children:[]},
+ books:['jon'],places:['Joppa','Nineveh'],
+ events:['Called to warn Nineveh','Fled by ship from Joppa','Swallowed by a great fish','Preached, and Nineveh repented','Sulked over the withered plant'],
+ lesson:'God’s mercy reached the city his prophet wanted destroyed.',ref:'Jonah 1–4; 2 Kings 14:25'}
+];
+
+/* --------------------------------------------------------------------------
+   GUIDES — one person introduces each era on the journey, first person,
+   limited to what the text records about them. References given.
+   -------------------------------------------------------------------------- */
+const GUIDES = {
+creation:{p:'noah',ref:'Genesis 6–9',
+ line:'God told me to build an ark long before any rain fell. We went in, the flood came, and afterwards the rainbow carried a promise: never again.'},
+patriarchs:{p:'abraham',ref:'Genesis 12:1-9; Hebrews 11:13',
+ line:'I left Ur for a land I had never seen, on nothing but a promise — land, offspring, blessing for every family on earth. I died still trusting it.'},
+exodus:{p:'moses',ref:'Exodus 3–20',
+ line:'At the burning bush I argued that I could not speak. God sent me anyway — through ten plagues, out of Egypt, to the mountain where he gave the law.'},
+conquest:{p:'joshua',ref:'Numbers 14:6-9; Joshua 1:9; 3–6',
+ line:'I had scouted this land forty years before we crossed the Jordan. Be strong and courageous, God said — the promise was finally being kept.'},
+judges:{p:'deborah',ref:'Judges 4–5',
+ line:'In my days the roads stood empty and the villages were afraid, until God gave Sisera into our hands. I judged Israel under a palm tree.'},
+united:{p:'david',ref:'1 Samuel 16–17; 2 Samuel 5; Psalm 51',
+ line:'I kept sheep, felled a giant, dodged a king’s spear, and wore the crown. The kingdom rose — and my own failures taught me how much I needed mercy.'},
+divided:{p:'elijah',ref:'1 Kings 18–19',
+ line:'The people limped between two opinions, so I asked for fire on Carmel. The Lord answered with flame — and later, with a low whisper.'},
+exile:{p:'daniel',ref:'Daniel 1; 3; 6',
+ line:'They carried us to Babylon as boys and renamed us. I kept praying toward Jerusalem anyway — through kings and dreams, my friends’ furnace, and a night with lions.'},
+return:{p:'nehemiah',ref:'Nehemiah 1–2; 4:17; 6:15',
+ line:'The wine I served the king became a request: send me home to rebuild the walls. We built with tools in one hand and weapons in the other — fifty-two days, and they stood.'},
+wisdom:{p:'solomon',ref:'1 Kings 3–4; Proverbs 1:1',
+ line:'When God offered me anything, I asked for a hearing heart. The wisdom books that bear my name keep circling one question: what actually lasts?'},
+majorprophets:{p:'isaiah',ref:'Isaiah 6',
+ line:'In the year King Uzziah died I saw the Lord, high and lifted up, and a burning coal touched my lips. After that, speaking for him was settled.'},
+minorprophets:{p:'jonah',ref:'Jonah 1–4',
+ line:'I am proof the prophets did not choose their messages. I ran from Nineveh by sea; God brought me back by fish, and the city I resented repented.'},
+jesus:{p:'mary',ref:'Luke 1–2; John 2; John 19:25',
+ line:'An angel told me the child was from God. I treasured it all — shepherds at the manger, teachers amazed at twelve, water made wine — and I stood at the cross.'},
+church:{p:'peter',ref:'Matthew 26:69-75; John 21; Acts 2',
+ line:'I denied him three times, and he still told me to feed his sheep. At Pentecost I stood up with the Eleven, and about three thousand believed.'},
+paul:{p:'paul',ref:'Acts 9; 13–28; 2 Corinthians 11:23-27',
+ line:'I was on the road to arrest Christians when the risen Jesus stopped me. After that: three journeys, many prisons, and churches from Antioch toward Rome.'},
+letters:{p:'timothy',ref:'1 Timothy 1:2; 2 Timothy 1:7',
+ line:'Paul called me his true son in the faith. The letters kept young churches on course — two are addressed to me, still telling me not to be timid.'},
+revelation:{p:'john_a',ref:'Revelation 1:9-11; 21:4',
+ line:'I was on Patmos because of the word of God when a voice said: write what you see. What I saw ends with every tear wiped away.'}
+};
+
+/* --------------------------------------------------------------------------
+   TRAILS — "follow their footsteps": personal roads walked stop by stop on
+   the map, same shape as ROUTES. Paul's footsteps are his three ROUTES.
+   -------------------------------------------------------------------------- */
+const TRAILS = [
+{id:'t_abraham',n:'Abraham’s road',person:'abraham',ref:'Genesis 11:31–13:18',
+ d:'From Ur up the Euphrates to Haran, then south into Canaan, down to Egypt in famine, and back to the land of promise.',
+ pts:[[934,329],[880,260],[820,212],[764,187],[730,200],[697,225],[668,270],[655,300],[615,320],[577,331],[615,318],[655,300]],
+ stops:[
+  {p:'ur',note:'Terah took the family out of Ur of the Chaldeans, headed for Canaan.',ref:'Genesis 11:31'},
+  {p:'haran',note:'They settled in Haran instead — and there the call came: leave, for a land I will show you.',ref:'Genesis 11:31–12:4'},
+  {p:'shechem',note:'At Shechem, the first stop in Canaan, God said “to your offspring I will give this land” — and Abram built an altar.',ref:'Genesis 12:6-7'},
+  {p:'egypt',note:'Famine drove the household down to Egypt, where fear over Sarai nearly wrecked everything.',ref:'Genesis 12:10-20'},
+  {p:'hebron',note:'Back in the land, Abram settled by the oaks of Mamre at Hebron and built another altar.',ref:'Genesis 13:18'}]},
+{id:'t_joseph',n:'Joseph’s descent',person:'joseph',ref:'Genesis 37; 39–41',
+ d:'Sent from Hebron to find his brothers, sold at Dothan, and carried down to Egypt — where the pit led, eventually, to the palace.',
+ pts:[[655,300],[662,278],[650,290],[630,312],[600,322],[577,331]],
+ stops:[
+  {p:'hebron',note:'Jacob sent Joseph from the valley of Hebron to check on his brothers and the flocks.',ref:'Genesis 37:12-14'},
+  {p:'shechem',note:'He looked for them at Shechem and was pointed on to Dothan — where they sold him to traders bound for Egypt.',ref:'Genesis 37:15-28'},
+  {p:'egypt',note:'Slave, prisoner, dream-reader, and then second over Egypt: “you meant evil against me, but God meant it for good.”',ref:'Genesis 39–41; 50:20'}]}
 ];
 
 /* --------------------------------------------------------------------------
@@ -2543,6 +2626,7 @@ const BLANK = () => ({
   eras: {},       // boss results
   visited: [],    // place ids
   geo: {},        // place id -> where-did-this-happen record {seen,right,streak}
+  who: {},        // person id -> who-am-I record {seen,right,streak}
   met: [],        // people ids
   ach: [],        // achievement ids
   exams: {},      // final + master challenge
@@ -2874,6 +2958,7 @@ const ACHIEVEMENTS = [
   { id: 'a_nt', em: '📖', n: 'New Testament Scholar', d: 'Reach 75% mastery across the New Testament.', f: () => testamentMastery('NT') >= 75 },
   { id: 'a_geo', em: '🗺️', n: 'Bible Geography Expert', d: 'Visit every location on the map.', f: () => S.visited.length >= PLACES.length },
   { id: 'a_georight', em: '🎯', n: 'Well Placed', d: 'Have ten places sure (three straight correct) in the map challenge.', f: () => geoStats().known >= 10 },
+  { id: 'a_whoami', em: '👁️', n: 'Known by Sight', d: 'Have ten people sure in the Who am I challenge.', f: () => whoStats().known >= 10 },
   { id: 'a_time', em: '⏳', n: 'Timeline Master', d: 'Score full marks on a timeline ordering challenge.', f: () => !!S.timelineMastered },
   { id: 'a_conn', em: '🧩', n: 'Connection Master', d: 'Answer 25 connection questions correctly.', f: () => countTypeRight('con') >= 25 },
   { id: 'a_streak', em: '🔥', n: 'Seven Day Pilgrim', d: 'Keep a seven day streak.', f: () => (S.streak.count || 0) >= 7 },
@@ -2966,37 +3051,44 @@ function markBookGate(bid, gate) {
 function visitPlace(id) { if (!S.visited.includes(id)) { S.visited.push(id); saveState(); } }
 function meetPerson(id) { if (!S.met.includes(id)) { S.met.push(id); saveState(); } }
 
-/* Geography mastery — the "where did this happen?" challenge. Places are not
-   concepts, so they get their own track rather than fake concept records. */
-function recordGeo(placeId, correct) {
-  if (!S.geo) S.geo = {};
-  const g = S.geo[placeId] || (S.geo[placeId] = { seen: 0, right: 0, streak: 0 });
+/* Recognition tracks — the map's "where did this happen?" and the people
+   "who am I?" challenges. Places and people are not concepts, so each gets
+   its own track rather than fake concept records. Three straight correct
+   answers mark an item "sure"; a miss resets its streak — the same spirit
+   as concept mastery: streaks, not one-offs. */
+function trackRecord(store, id, correct) {
+  if (!S[store]) S[store] = {};
+  const g = S[store][id] || (S[store][id] = { seen: 0, right: 0, streak: 0 });
   g.seen++;
   if (correct) { g.right++; g.streak++; } else { g.streak = 0; }
   saveState();
   return g;
 }
-function geoStats() {
-  const recs = Object.values(S.geo || {});
+function trackStats(store) {
+  const recs = Object.values(S[store] || {});
   const seen = recs.reduce((n, g) => n + g.seen, 0);
   const right = recs.reduce((n, g) => n + g.right, 0);
-  /* A place counts as "known" once it has been answered correctly three
-     times running — same spirit as concept mastery: streaks, not one-offs. */
   const known = recs.filter(g => g.streak >= 3).length;
   return { seen, right, known, pct: seen ? Math.round(right / seen * 100) : 0 };
 }
-/* Pick challenge targets, weakest first: never-asked places, then broken
-   streaks, then everything else — shuffled within each band. */
-function geoPickTargets(n) {
+/* Pick challenge targets, weakest first: never-asked, then broken streaks,
+   then everything else — shuffled within each band. */
+function trackPickTargets(store, list, n) {
   const band = p => {
-    const g = (S.geo || {})[p.id];
+    const g = (S[store] || {})[p.id];
     return !g ? 0 : g.streak === 0 ? 1 : g.streak < 3 ? 2 : 3;
   };
-  return PLACES.slice()
+  return list.slice()
     .map(p => ({ p, k: band(p) + Math.random() * 0.9 }))
     .sort((a, b) => a.k - b.k)
     .slice(0, n).map(x => x.p);
 }
+function recordGeo(placeId, correct) { return trackRecord('geo', placeId, correct); }
+function geoStats() { return trackStats('geo'); }
+function geoPickTargets(n) { return trackPickTargets('geo', PLACES, n); }
+function recordWho(personId, correct) { return trackRecord('who', personId, correct); }
+function whoStats() { return trackStats('who'); }
+function whoPickTargets(n) { return trackPickTargets('who', PEOPLE, n); }
 
 function pushLog(entry) {
   S.log.unshift(Object.assign({ at: Date.now() }, entry));
@@ -3083,7 +3175,8 @@ const PORTRAIT_PARTS = {
   clothbolt:{ z: 'fg', d: `<g fill="${PP_PURPLE}" stroke="${PP_INK}" stroke-width=".8"><rect x="14" y="70" width="22" height="5" rx="2"/><rect x="16" y="76" width="22" height="5" rx="2"/><rect x="14" y="82" width="22" height="5" rx="2"/></g>` },
   eagle:   { z: 'fg', d: `<g fill="${PP_GOLDD}" stroke="${PP_GOLD}" stroke-width="1"><path d="M78 62 q-10 -2 -14 6 q8 -2 10 2 q-6 4 -4 10 q6 -6 10 -6 q4 0 6 -4 q-2 -6 -8 -8 z"/><circle cx="79" cy="61" r="2.5" fill="${PP_GOLD}"/></g>` },
   fruit:   { z: 'fg', d: `<g><circle cx="77" cy="72" r="6" fill="${PP_VERM}" stroke="${PP_GOLDD}"/><path d="M77 66 q1 -4 4 -5" stroke="${PP_VERD}" fill="none" stroke-width="1.5"/><path d="M77 64 q4 -2 6 1 q-4 2 -6 -1 z" fill="${PP_VERD}"/></g>` },
-  sprig:   { z: 'fg', d: `<g stroke="${PP_VERD}" fill="${PP_VERD}"><path d="M24 86 q0 -14 4 -22" fill="none" stroke-width="2"/><path d="M26 74 q-8 -2 -10 -8 q8 0 10 8 z M28 66 q8 -2 10 -8 q-8 0 -10 8 z"/></g>` }
+  sprig:   { z: 'fg', d: `<g stroke="${PP_VERD}" fill="${PP_VERD}"><path d="M24 86 q0 -14 4 -22" fill="none" stroke-width="2"/><path d="M26 74 q-8 -2 -10 -8 q8 0 10 8 z M28 66 q8 -2 10 -8 q-8 0 -10 8 z"/></g>` },
+  greatfish:{ z: 'fg', d: `<g><path d="M12 76 q12 -12 26 -3 q-5 9 -16 9 q-6 0 -10 -6 z" fill="${PP_SKY}" stroke="${PP_LAPIS2}" stroke-width="1"/><path d="M38 73 l9 -7 l-2 11 z" fill="${PP_SKY}"/><circle cx="20" cy="73" r="1.5" fill="${PP_INK}"/><path d="M12 88 q6 -4 12 0 q6 4 12 0 q6 -4 12 0" fill="none" stroke="${PP_SKY}" stroke-width="1.5" opacity=".7"/></g>` }
 };
 
 /* Head styles, drawn after the head circle. */
@@ -3145,7 +3238,8 @@ const PERSON_ART = {
   barnabas: { hd: ['hair', 'beard'], parts: ['coins'] },
   lydia:    { hd: ['veilPurple'], robe: PP_PURPLE, parts: ['clothbolt'] },
   timothy:  { hd: ['hair'], parts: ['scroll'] },
-  john_a:   { hd: ['hair'], parts: ['eagle'] }
+  john_a:   { hd: ['hair'], parts: ['eagle'] },
+  jonah:    { hd: ['hair', 'beard'], parts: ['greatfish'] }
 };
 
 function portraitSVG(p) {
@@ -3243,6 +3337,7 @@ function viewJourney() {
   const rows = ERAS.map((e, i) => {
     const m = eraMastery(e.id), unlocked = eraUnlocked(e.id), passed = eraRec(e.id).passed;
     const bookNames = e.books.map(b => B_BY_ID[b] && B_BY_ID[b].name).filter(Boolean);
+    const g = GUIDES[e.id], gp = g && P_BY_ID[g.p];
     return `<div class="era ${passed ? 'done' : ''} ${unlocked ? '' : 'locked'}">
       <div class="roundel"><div class="fill" style="--h:${m}%;--i:${i}"></div><span class="initial">${e.initial}</span></div>
       <button class="era-card" data-era="${e.id}" ${unlocked ? '' : 'disabled'}>
@@ -3250,6 +3345,7 @@ function viewJourney() {
         <div class="meta">${esc(e.span)} — ${esc(e.blurb)}</div>
         ${unlocked ? bar(m) : ''}
         <div class="books">${bookNames.slice(0, 6).join(' · ')}${bookNames.length > 6 ? ' · +' + (bookNames.length - 6) : ''}</div>
+        ${unlocked && gp ? `<span class="guide">${portraitSVG(gp)}<span class="gq">“${esc(g.line)}”<span class="gref">— ${esc(gp.n)} · ${esc(g.ref)}</span></span></span>` : ''}
       </button></div>`;
   }).join('');
 
@@ -3278,10 +3374,19 @@ function viewEra(eid) {
       <div>${bar(cm)}</div><div class="pc">${cm}%</div></button>`;
   }).join('');
 
+  const g = GUIDES[eid], gp = g && P_BY_ID[g.p];
   app().innerHTML = `
     <div class="crumb"><button data-go="journey">Journey</button> / ${esc(e.name)}</div>
     <h1 class="page-h">${esc(e.name)}</h1>
     <p class="lede">${esc(e.blurb)}</p>
+    ${gp ? `<div class="panel guidebar">
+      <span class="gport">${portraitSVG(gp)}</span>
+      <div>
+        <div class="gq">“${esc(g.line)}”</div>
+        <div class="gref">— ${esc(gp.n)}, ${esc(gp.role)} · <span class="ref">${esc(g.ref)}</span></div>
+        <button class="btn ghost sm" data-person="${gp.id}" style="margin-top:8px">About ${esc(gp.n)}</button>
+      </div>
+    </div>` : ''}
     <div class="grid g3" style="margin-top:20px">
       <div class="stat"><div class="k">Stage mastery</div><div class="v">${m}<small>%</small></div>${bar(m)}</div>
       <div class="stat"><div class="k">Boss battle</div><div class="v">${er.passed ? 'Passed' : er.attempts ? er.best + '%' : '—'}</div>
@@ -3704,8 +3809,9 @@ function startGeoQuiz() {
   mapSel = null; mapJourney = null;
   render();
 }
+function walkable(id) { return ROUTES.find(r => r.id === id) || TRAILS.find(t => t.id === id); }
 function viewMap() {
-  const jr = mapJourney ? ROUTES.find(r => r.id === mapJourney.rid) : null;
+  const jr = mapJourney ? walkable(mapJourney.rid) : null;
   const stop = jr ? jr.stops[mapJourney.i] : null;
   const round = mapQuiz && !mapQuiz.done ? mapQuiz.rounds[mapQuiz.i] : null;
   const ans = mapQuiz ? mapQuiz.answered : null;
@@ -3729,7 +3835,8 @@ function viewMap() {
   <g class="lod lod-towns">${MAP_DETAIL.towns.map(t =>
     `<g><circle cx="${t.x}" cy="${t.y}" r="2.5"/><text x="${t.x + 5}" y="${t.y + 3}">${esc(t.n)}</text></g>`).join('')}</g>`;
   const routes = ROUTES.filter(routeVisible).map(r =>
-    `<path class="route ${r.id} ${jr && jr.id === r.id ? 'walk' : ''}" d="${routePath(r)}"><title>${esc(r.n)} — ${esc(r.ref)}</title></path>`).join('');
+    `<path class="route ${r.id} ${jr && jr.id === r.id ? 'walk' : ''}" d="${routePath(r)}"><title>${esc(r.n)} — ${esc(r.ref)}</title></path>`).join('')
+    + (jr && TRAILS.includes(jr) ? `<path class="route tr walk" d="${routePath(jr)}"><title>${esc(jr.n)} — ${esc(jr.ref)}</title></path>` : '');
   const sel = !mapJourney && !mapQuiz && mapSel ? PL_BY_ID[mapSel] : null;
   const gs = geoStats();
   const ringC = 2 * Math.PI * 20;
@@ -3784,6 +3891,11 @@ function viewMap() {
       ${ROUTES.map(r => `<button class="chip walkc ${jr && jr.id === r.id ? 'on' : ''}" data-walk="${r.id}">▸ ${esc(r.n)}</button>`).join('')}
       <span class="gsp"></span>
       <button class="btn solid sm" id="geoquiz">Where did this happen?</button>
+    </div>
+    <div class="filters" style="margin-top:8px">
+      <span class="maplab">Follow footsteps:</span>
+      ${TRAILS.map(t => `<button class="chip walkc ${jr && jr.id === t.id ? 'on' : ''}" data-walk="${t.id}">☙ ${esc(t.n)}</button>`).join('')}
+      <button class="chip walkc ${jr && jr.id.startsWith('j') ? 'on' : ''}" data-walk="j1" data-chain="1">☙ Paul — the three journeys</button>
     </div>`}
     <div class="mapwrap" id="mapwrap" style="margin-top:12px">
       <svg id="mapsvg" class="mapsvg" viewBox="${mapView.x} ${mapView.y} ${mapView.w} ${mapView.w * 0.57}" role="img" aria-label="Schematic map of the biblical world">
@@ -3838,7 +3950,9 @@ function viewMap() {
       <span class="ref">${esc(stop.ref)}</span>
       <div class="btnrow">
         <button class="btn ghost sm" id="jprev" ${mapJourney.i === 0 ? 'disabled' : ''}>◂ Back</button>
-        <button class="btn solid sm" id="jnext">${mapJourney.i + 1 >= jr.stops.length ? 'Finish journey' : 'Next stop ▸'}</button>
+        <button class="btn solid sm" id="jnext">${mapJourney.i + 1 >= jr.stops.length
+          ? (mapJourney.chain && { j1: 'j2', j2: 'j3' }[jr.id] ? 'Next journey ▸' : 'Finish journey')
+          : 'Next stop ▸'}</button>
         <button class="btn ghost sm" id="jopen">Open this place</button>
       </div>
     </div>` : ''}
@@ -3885,8 +3999,9 @@ function viewMap() {
   app().querySelectorAll('[data-walk]').forEach(b => b.onclick = () => {
     const rid = b.dataset.walk;
     if (mapJourney && mapJourney.rid === rid) { mapJourney = null; render(); return; }
-    mapJourney = { rid, i: 0 }; mapSel = null; mapQuiz = null;
-    if (rid === 'ex') mapLayers.exile = true; else { mapLayers.paul = true; mapRoutes[rid] = true; }
+    mapJourney = { rid, i: 0, chain: !!b.dataset.chain }; mapSel = null; mapQuiz = null;
+    if (rid === 'ex') mapLayers.exile = true;
+    else if (mapRoutes.hasOwnProperty(rid)) { mapLayers.paul = true; mapRoutes[rid] = true; }
     render();
   });
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
@@ -3901,8 +4016,10 @@ function viewMap() {
   on('jclose', () => { mapJourney = null; render(); });
   on('jprev', () => { if (mapJourney.i > 0) { mapJourney.i--; render(); } });
   on('jnext', () => {
-    if (mapJourney.i + 1 >= jr.stops.length) mapJourney = null;
-    else mapJourney.i++;
+    if (mapJourney.i + 1 >= jr.stops.length) {
+      const nxt = mapJourney.chain ? { j1: 'j2', j2: 'j3' }[jr.id] : null;
+      mapJourney = nxt ? { rid: nxt, i: 0, chain: true } : null;
+    } else mapJourney.i++;
     render();
   });
   on('jopen', () => {
@@ -4076,6 +4193,77 @@ function renderMini() {
 }
 
 /* ================================ PEOPLE ================================ */
+/* ------------------------- WHO AM I? (portraits) ------------------------- */
+let whoQuiz = null; // { rounds:[{pid, opts}], i, right, answered, done }
+function startWhoQuiz() {
+  const rounds = whoPickTargets(8).map(t => {
+    const pool = shuffle(PEOPLE.filter(x => x.id !== t.id));
+    const sameEra = pool.filter(x => x.era === t.era).slice(0, 3);
+    const opts = shuffle([t].concat(sameEra.concat(pool.filter(x => !sameEra.includes(x))).slice(0, 3)).map(x => x.id));
+    return { pid: t.id, opts };
+  });
+  whoQuiz = { rounds, i: 0, right: 0, answered: null, done: false };
+  VIEW = { name: 'who' }; window.scrollTo(0, 0); render();
+}
+function viewWho() {
+  if (!whoQuiz) return go('people');
+  const q = whoQuiz, ws = whoStats();
+  if (q.done) {
+    app().innerHTML = `
+      <div class="eyebrow">Character challenge</div>
+      <h1 class="page-h">Who am I?</h1>
+      <div class="panel" style="margin-top:20px;text-align:center;padding:30px">
+        <div class="eyebrow">Challenge over</div>
+        <div style="font-family:var(--display);font-size:34px;color:var(--gold-lt);margin:10px 0">${q.right} / ${q.rounds.length}</div>
+        <div style="font-family:var(--ui);font-size:12px;color:var(--muted)">Lifetime accuracy ${ws.pct}% · ${ws.known} of ${PEOPLE.length} people sure</div>
+        <div class="btnrow" style="justify-content:center;margin-top:18px">
+          <button class="btn solid" id="whoagain">Again</button>
+          <button class="btn ghost" data-go="people">Back to people</button>
+        </div>
+      </div>`;
+    const ag = document.getElementById('whoagain'); if (ag) ag.onclick = startWhoQuiz;
+    wireDelegates();
+    return;
+  }
+  const round = q.rounds[q.i], target = P_BY_ID[round.pid], ans = q.answered;
+  app().innerHTML = `
+    <div class="eyebrow">Character challenge · round ${q.i + 1} of ${q.rounds.length} · ${q.right} right</div>
+    <h1 class="page-h">Who am I?</h1>
+    <div class="whocard panel">
+      <span class="whoport">${portraitSVG(target)}</span>
+      <div class="opts" style="margin-top:4px">${round.opts.map(pid => {
+        const o = P_BY_ID[pid];
+        const cls = ans ? (pid === round.pid ? 'right' : pid === ans.pick ? 'wrong' : '') : '';
+        return `<button class="opt ${cls}" data-who="${pid}" ${ans ? 'disabled' : ''}>
+          <span class="ltr">${esc(o.n[0])}</span><span>${esc(o.n)}</span></button>`;
+      }).join('')}</div>
+      ${ans ? `<div class="feedback ${ans.ok ? 'ok' : 'no'}">
+        <div class="fh">${ans.ok ? 'Correct' : 'Not quite'}</div>
+        <div class="why">${esc(target.n)} — ${esc(target.role)}. ${esc(target.lesson)}</div>
+        <div class="foot"><span class="ref">${esc(target.ref)}</span></div>
+      </div>
+      <div class="btnrow"><button class="btn solid" id="whonext">${q.i + 1 >= q.rounds.length ? 'See score' : 'Next portrait'}</button></div>` : ''}
+    </div>
+    <div class="btnrow"><button class="btn ghost sm" id="whoquit">Leave challenge</button></div>`;
+  app().querySelectorAll('[data-who]').forEach(b => b.onclick = () => {
+    if (whoQuiz.answered) return;
+    const ok = b.dataset.who === round.pid;
+    recordWho(round.pid, ok);
+    if (ok) whoQuiz.right++;
+    whoQuiz.answered = { pick: b.dataset.who, ok };
+    celebrate(checkAchievements());
+    render();
+  });
+  const nx = document.getElementById('whonext');
+  if (nx) nx.onclick = () => {
+    if (whoQuiz.i + 1 >= whoQuiz.rounds.length) whoQuiz.done = true;
+    else { whoQuiz.i++; whoQuiz.answered = null; }
+    render();
+  };
+  const qt = document.getElementById('whoquit');
+  if (qt) qt.onclick = () => { whoQuiz = null; go('people'); };
+}
+
 function viewPeople() {
   const chain = ['abraham', 'isaac', 'jacob', 'joseph'];
   app().innerHTML = `
@@ -4088,6 +4276,8 @@ function viewPeople() {
         `${i ? '<span>↓</span>' : ''}<button class="btn ghost sm" data-person="${id}"><b>${esc(P_BY_ID[id].n)}</b></button>`).join('')}</div>
       <div style="font-family:var(--ui);font-size:12px;color:var(--muted);margin-top:10px">Four generations carrying one promise, from Genesis 12 to Genesis 50.</div>
     </div>
+    <div class="btnrow" style="margin-top:16px"><button class="btn solid sm" id="whostart">Who am I? — portrait challenge</button>
+      ${whoStats().seen ? `<span class="pill">accuracy ${whoStats().pct}% · ${whoStats().known} sure</span>` : ''}</div>
     <div class="sec-h">The database — ${S.met.length} of ${PEOPLE.length} studied</div>
     <div class="grid g3">${PEOPLE.map(p => `<button class="pcard" data-person="${p.id}">
       <span class="prow">${portraitSVG(p)}<span>
@@ -4096,6 +4286,8 @@ function viewPeople() {
         <span class="rl" style="color:var(--muted)">${esc(E_BY_ID[p.era] ? E_BY_ID[p.era].name : '')}</span>
       </span></span>
     </button>`).join('')}</div>`;
+  const ws = document.getElementById('whostart');
+  if (ws) ws.onclick = startWhoQuiz;
 }
 
 function viewPerson(id) {
@@ -4296,6 +4488,7 @@ function viewDashboard() {
       <div class="stat"><div class="k">People studied</div><div class="v">${S.met.length}<small>/${PEOPLE.length}</small></div></div>
       <div class="stat"><div class="k">Places explored</div><div class="v">${S.visited.length}<small>/${PLACES.length}</small></div></div>
       <div class="stat"><div class="k">Map challenge — places sure</div><div class="v">${geoStats().known}<small>/${PLACES.length}</small></div>${bar(geoStats().known / PLACES.length * 100)}</div>
+      <div class="stat"><div class="k">Who am I — people sure</div><div class="v">${whoStats().known}<small>/${PEOPLE.length}</small></div>${bar(whoStats().known / PEOPLE.length * 100)}</div>
       <div class="stat"><div class="k">Current streak</div><div class="v">${S.streak.count || 0}</div></div>
     </div>
 
@@ -4499,6 +4692,7 @@ function render() {
   const v = VIEW.name;
   if (v === 'quiz') { renderQuiz(); if (!Q.answered && Q.i < Q.list.length) bindQuizInteractions(); }
   else if (v === 'mini') renderMini();
+  else if (v === 'who') viewWho();
   else if (v === 'journey') viewJourney();
   else if (v === 'era') viewEra(VIEW.arg);
   else if (v === 'books') viewBooks();

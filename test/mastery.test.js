@@ -54,4 +54,14 @@ test('geography challenge keeps its own mastery track', () => {
   assert(!picks.some(p => p.id === 'jericho'), 'practised place crowded out fresh ones');
 });
 
+test('who-am-I keeps its own mastery track, separate from geography', () => {
+  X.recordWho('moses', true); X.recordWho('moses', true); X.recordWho('moses', true);
+  assert(X.whoStats().known === 1, 'three straight rights should mark a person sure');
+  assert(X.whoStats().seen === 3 && X.geoStats().seen === 4, 'who and geo tracks bled together');
+  const g = X.recordWho('moses', false);
+  assert(g.streak === 0 && X.whoStats().known === 0, 'a miss must reset the person streak');
+  const picks = X.whoPickTargets(8);
+  assert(picks.length === 8 && !picks.some(p => p.id === 'moses'), 'practised person crowded out fresh ones');
+});
+
 done();

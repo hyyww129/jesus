@@ -68,7 +68,8 @@ const PORTRAIT_PARTS = {
   clothbolt:{ z: 'fg', d: `<g fill="${PP_PURPLE}" stroke="${PP_INK}" stroke-width=".8"><rect x="14" y="70" width="22" height="5" rx="2"/><rect x="16" y="76" width="22" height="5" rx="2"/><rect x="14" y="82" width="22" height="5" rx="2"/></g>` },
   eagle:   { z: 'fg', d: `<g fill="${PP_GOLDD}" stroke="${PP_GOLD}" stroke-width="1"><path d="M78 62 q-10 -2 -14 6 q8 -2 10 2 q-6 4 -4 10 q6 -6 10 -6 q4 0 6 -4 q-2 -6 -8 -8 z"/><circle cx="79" cy="61" r="2.5" fill="${PP_GOLD}"/></g>` },
   fruit:   { z: 'fg', d: `<g><circle cx="77" cy="72" r="6" fill="${PP_VERM}" stroke="${PP_GOLDD}"/><path d="M77 66 q1 -4 4 -5" stroke="${PP_VERD}" fill="none" stroke-width="1.5"/><path d="M77 64 q4 -2 6 1 q-4 2 -6 -1 z" fill="${PP_VERD}"/></g>` },
-  sprig:   { z: 'fg', d: `<g stroke="${PP_VERD}" fill="${PP_VERD}"><path d="M24 86 q0 -14 4 -22" fill="none" stroke-width="2"/><path d="M26 74 q-8 -2 -10 -8 q8 0 10 8 z M28 66 q8 -2 10 -8 q-8 0 -10 8 z"/></g>` }
+  sprig:   { z: 'fg', d: `<g stroke="${PP_VERD}" fill="${PP_VERD}"><path d="M24 86 q0 -14 4 -22" fill="none" stroke-width="2"/><path d="M26 74 q-8 -2 -10 -8 q8 0 10 8 z M28 66 q8 -2 10 -8 q-8 0 -10 8 z"/></g>` },
+  greatfish:{ z: 'fg', d: `<g><path d="M12 76 q12 -12 26 -3 q-5 9 -16 9 q-6 0 -10 -6 z" fill="${PP_SKY}" stroke="${PP_LAPIS2}" stroke-width="1"/><path d="M38 73 l9 -7 l-2 11 z" fill="${PP_SKY}"/><circle cx="20" cy="73" r="1.5" fill="${PP_INK}"/><path d="M12 88 q6 -4 12 0 q6 4 12 0 q6 -4 12 0" fill="none" stroke="${PP_SKY}" stroke-width="1.5" opacity=".7"/></g>` }
 };
 
 /* Head styles, drawn after the head circle. */
@@ -130,7 +131,8 @@ const PERSON_ART = {
   barnabas: { hd: ['hair', 'beard'], parts: ['coins'] },
   lydia:    { hd: ['veilPurple'], robe: PP_PURPLE, parts: ['clothbolt'] },
   timothy:  { hd: ['hair'], parts: ['scroll'] },
-  john_a:   { hd: ['hair'], parts: ['eagle'] }
+  john_a:   { hd: ['hair'], parts: ['eagle'] },
+  jonah:    { hd: ['hair', 'beard'], parts: ['greatfish'] }
 };
 
 function portraitSVG(p) {

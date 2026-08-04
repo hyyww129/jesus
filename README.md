@@ -20,9 +20,12 @@ Node 18+ (only used for the build and tests — the game itself has no runtime d
 - **All 66 books**, each with its own page and six completion gates
 - **116 concepts** carrying **405 questions** across 12 formats
 - **Memory engine** — spaced repetition, five knowledge levels, per-concept confidence
-- **40 people**, each with an illuminated-manuscript portrait drawn in code,
-  a pannable, zoomable **map** with 41 locations, drawn coastlines,
+- **42 people**, each with an illuminated-manuscript portrait drawn in code,
+  an era **guide** who introduces every stage in their own recorded voice, and a
+  portrait-based **Who am I?** challenge with its own mastery track
+- A pannable, zoomable **map** with 41 locations, drawn coastlines,
   era layers, four walkable routes (Paul's three journeys and the road into exile),
+  follow-their-footsteps trails (Abraham to Canaan, Joseph to Egypt),
   a "where did this happen?" challenge with its own mastery track, and towns and
   regions that appear as you zoom in, a **34-event timeline** with ordering challenges
 - **13 memory-palace rooms**, daily challenge with streaks, personalised review quests

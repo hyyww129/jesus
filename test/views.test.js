@@ -25,6 +25,16 @@ test('every person gets a well-formed illuminated portrait', () => {
 test('renders every palace room', () => X.PALACE.forEach(r => X.go('room', r.id)));
 test('timeline ordering challenge starts', () => { X.go('timeline'); X.startTlChallenge(); });
 test('map place quiz starts', () => X.startPlaceQuiz(X.PL_BY_ID['jerusalem']));
+test('who am I challenge starts with 8 rounds of 4 distinct options', () => {
+  X.startWhoQuiz(); /* also renders the who view against the stub */
+  const q = X.getWho();
+  assert(q && q.rounds.length === 8, 'expected 8 rounds');
+  q.rounds.forEach(r => {
+    assert(new Set(r.opts).size === 4, 'options not distinct');
+    assert(r.opts.includes(r.pid), 'target missing from its own options');
+    r.opts.forEach(pid => assert(X.P_BY_ID[pid], 'option is not a real person: ' + pid));
+  });
+});
 
 function play(spec) {
   X.startQuiz(spec);

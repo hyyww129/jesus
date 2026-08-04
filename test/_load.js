@@ -22,15 +22,15 @@ function load(withUi) {
   if (withUi) stubDom();
   const files = withUi ? FILES.concat('src/portraits.js', 'src/ui.js') : FILES;
   const src = files.map(f => fs.readFileSync(path.join(root, f), 'utf8')).join('\n');
-  const names = ['ALL_CONCEPTS','BOOKS','ERAS','PEOPLE','PLACES','ROUTES','MAP_DETAIL','TIMELINE','PALACE','ACHIEVEMENTS',
+  const names = ['ALL_CONCEPTS','BOOKS','ERAS','PEOPLE','PLACES','ROUTES','TRAILS','GUIDES','MAP_DETAIL','TIMELINE','PALACE','ACHIEVEMENTS',
     'C_BY_ID','B_BY_ID','E_BY_ID','PL_BY_ID','ERA_ORDER','S',
     'buildQuiz','bossQuiz','finalExamQuiz','masterChallengeQuiz','transferQuiz','pickProbe',
     'recordAnswer','conceptMastery','conceptLevel','conceptsInEra','conceptsInBook',
     'dailySet','reviewQueue','checkAchievements','eraMastery','bookProgress','avgMastery',
-    'recordGeo','geoStats','geoPickTargets']
-    .concat(withUi ? ['go','render','startQuiz','startTlChallenge','startPlaceQuiz','renderResults','portraitSVG','PERSON_ART','PORTRAIT_PARTS','P_BY_ID'] : []);
+    'recordGeo','geoStats','geoPickTargets','recordWho','whoStats','whoPickTargets']
+    .concat(withUi ? ['go','render','startQuiz','startTlChallenge','startPlaceQuiz','renderResults','portraitSVG','PERSON_ART','PORTRAIT_PARTS','P_BY_ID','startWhoQuiz'] : []);
   const exp = names.map(n => `${n}: typeof ${n} !== 'undefined' ? ${n} : undefined`).join(',');
-  return eval(src + `\n;({${exp}, setQ: v => { Q = v; }, getQ: () => Q, nextQuestion: typeof nextQuestion !== 'undefined' ? nextQuestion : null})`);
+  return eval(src + `\n;({${exp}, setQ: v => { Q = v; }, getQ: () => Q, getWho: () => (typeof whoQuiz !== 'undefined' ? whoQuiz : null), nextQuestion: typeof nextQuestion !== 'undefined' ? nextQuestion : null})`);
 }
 
 let failures = 0;

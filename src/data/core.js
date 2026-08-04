@@ -755,7 +755,75 @@ const PEOPLE = [
 {id:'john_a',n:'John',role:'Apostle and visionary',era:'jesus',fam:{parents:['Zebedee'],spouse:'',children:[]},
  books:['joh','act','1jo','2jo','3jo','rev'],places:['Galilee','Jerusalem','Patmos','Ephesus'],
  events:['Called with his brother James','Present at the transfiguration','Ran to the empty tomb','Went with Peter in Acts','Received the vision on Patmos'],
- lesson:'Called a son of thunder, remembered for writing about love.',ref:'Gospels; Revelation 1'}
+ lesson:'Called a son of thunder, remembered for writing about love.',ref:'Gospels; Revelation 1'},
+{id:'jonah',n:'Jonah',role:'Prophet who ran',era:'minorprophets',fam:{parents:['Amittai'],spouse:'',children:[]},
+ books:['jon'],places:['Joppa','Nineveh'],
+ events:['Called to warn Nineveh','Fled by ship from Joppa','Swallowed by a great fish','Preached, and Nineveh repented','Sulked over the withered plant'],
+ lesson:'God’s mercy reached the city his prophet wanted destroyed.',ref:'Jonah 1–4; 2 Kings 14:25'}
+];
+
+/* --------------------------------------------------------------------------
+   GUIDES — one person introduces each era on the journey, first person,
+   limited to what the text records about them. References given.
+   -------------------------------------------------------------------------- */
+const GUIDES = {
+creation:{p:'noah',ref:'Genesis 6–9',
+ line:'God told me to build an ark long before any rain fell. We went in, the flood came, and afterwards the rainbow carried a promise: never again.'},
+patriarchs:{p:'abraham',ref:'Genesis 12:1-9; Hebrews 11:13',
+ line:'I left Ur for a land I had never seen, on nothing but a promise — land, offspring, blessing for every family on earth. I died still trusting it.'},
+exodus:{p:'moses',ref:'Exodus 3–20',
+ line:'At the burning bush I argued that I could not speak. God sent me anyway — through ten plagues, out of Egypt, to the mountain where he gave the law.'},
+conquest:{p:'joshua',ref:'Numbers 14:6-9; Joshua 1:9; 3–6',
+ line:'I had scouted this land forty years before we crossed the Jordan. Be strong and courageous, God said — the promise was finally being kept.'},
+judges:{p:'deborah',ref:'Judges 4–5',
+ line:'In my days the roads stood empty and the villages were afraid, until God gave Sisera into our hands. I judged Israel under a palm tree.'},
+united:{p:'david',ref:'1 Samuel 16–17; 2 Samuel 5; Psalm 51',
+ line:'I kept sheep, felled a giant, dodged a king’s spear, and wore the crown. The kingdom rose — and my own failures taught me how much I needed mercy.'},
+divided:{p:'elijah',ref:'1 Kings 18–19',
+ line:'The people limped between two opinions, so I asked for fire on Carmel. The Lord answered with flame — and later, with a low whisper.'},
+exile:{p:'daniel',ref:'Daniel 1; 3; 6',
+ line:'They carried us to Babylon as boys and renamed us. I kept praying toward Jerusalem anyway — through kings and dreams, my friends’ furnace, and a night with lions.'},
+return:{p:'nehemiah',ref:'Nehemiah 1–2; 4:17; 6:15',
+ line:'The wine I served the king became a request: send me home to rebuild the walls. We built with tools in one hand and weapons in the other — fifty-two days, and they stood.'},
+wisdom:{p:'solomon',ref:'1 Kings 3–4; Proverbs 1:1',
+ line:'When God offered me anything, I asked for a hearing heart. The wisdom books that bear my name keep circling one question: what actually lasts?'},
+majorprophets:{p:'isaiah',ref:'Isaiah 6',
+ line:'In the year King Uzziah died I saw the Lord, high and lifted up, and a burning coal touched my lips. After that, speaking for him was settled.'},
+minorprophets:{p:'jonah',ref:'Jonah 1–4',
+ line:'I am proof the prophets did not choose their messages. I ran from Nineveh by sea; God brought me back by fish, and the city I resented repented.'},
+jesus:{p:'mary',ref:'Luke 1–2; John 2; John 19:25',
+ line:'An angel told me the child was from God. I treasured it all — shepherds at the manger, teachers amazed at twelve, water made wine — and I stood at the cross.'},
+church:{p:'peter',ref:'Matthew 26:69-75; John 21; Acts 2',
+ line:'I denied him three times, and he still told me to feed his sheep. At Pentecost I stood up with the Eleven, and about three thousand believed.'},
+paul:{p:'paul',ref:'Acts 9; 13–28; 2 Corinthians 11:23-27',
+ line:'I was on the road to arrest Christians when the risen Jesus stopped me. After that: three journeys, many prisons, and churches from Antioch toward Rome.'},
+letters:{p:'timothy',ref:'1 Timothy 1:2; 2 Timothy 1:7',
+ line:'Paul called me his true son in the faith. The letters kept young churches on course — two are addressed to me, still telling me not to be timid.'},
+revelation:{p:'john_a',ref:'Revelation 1:9-11; 21:4',
+ line:'I was on Patmos because of the word of God when a voice said: write what you see. What I saw ends with every tear wiped away.'}
+};
+
+/* --------------------------------------------------------------------------
+   TRAILS — "follow their footsteps": personal roads walked stop by stop on
+   the map, same shape as ROUTES. Paul's footsteps are his three ROUTES.
+   -------------------------------------------------------------------------- */
+const TRAILS = [
+{id:'t_abraham',n:'Abraham’s road',person:'abraham',ref:'Genesis 11:31–13:18',
+ d:'From Ur up the Euphrates to Haran, then south into Canaan, down to Egypt in famine, and back to the land of promise.',
+ pts:[[934,329],[880,260],[820,212],[764,187],[730,200],[697,225],[668,270],[655,300],[615,320],[577,331],[615,318],[655,300]],
+ stops:[
+  {p:'ur',note:'Terah took the family out of Ur of the Chaldeans, headed for Canaan.',ref:'Genesis 11:31'},
+  {p:'haran',note:'They settled in Haran instead — and there the call came: leave, for a land I will show you.',ref:'Genesis 11:31–12:4'},
+  {p:'shechem',note:'At Shechem, the first stop in Canaan, God said “to your offspring I will give this land” — and Abram built an altar.',ref:'Genesis 12:6-7'},
+  {p:'egypt',note:'Famine drove the household down to Egypt, where fear over Sarai nearly wrecked everything.',ref:'Genesis 12:10-20'},
+  {p:'hebron',note:'Back in the land, Abram settled by the oaks of Mamre at Hebron and built another altar.',ref:'Genesis 13:18'}]},
+{id:'t_joseph',n:'Joseph’s descent',person:'joseph',ref:'Genesis 37; 39–41',
+ d:'Sent from Hebron to find his brothers, sold at Dothan, and carried down to Egypt — where the pit led, eventually, to the palace.',
+ pts:[[655,300],[662,278],[650,290],[630,312],[600,322],[577,331]],
+ stops:[
+  {p:'hebron',note:'Jacob sent Joseph from the valley of Hebron to check on his brothers and the flocks.',ref:'Genesis 37:12-14'},
+  {p:'shechem',note:'He looked for them at Shechem and was pointed on to Dothan — where they sold him to traders bound for Egypt.',ref:'Genesis 37:15-28'},
+  {p:'egypt',note:'Slave, prisoner, dream-reader, and then second over Egypt: “you meant evil against me, but God meant it for good.”',ref:'Genesis 39–41; 50:20'}]}
 ];
 
 /* --------------------------------------------------------------------------

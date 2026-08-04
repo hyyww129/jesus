@@ -35,6 +35,7 @@ const BLANK = () => ({
   eras: {},       // boss results
   visited: [],    // place ids
   geo: {},        // place id -> where-did-this-happen record {seen,right,streak}
+  who: {},        // person id -> who-am-I record {seen,right,streak}
   met: [],        // people ids
   ach: [],        // achievement ids
   exams: {},      // final + master challenge
@@ -366,6 +367,7 @@ const ACHIEVEMENTS = [
   { id: 'a_nt', em: '📖', n: 'New Testament Scholar', d: 'Reach 75% mastery across the New Testament.', f: () => testamentMastery('NT') >= 75 },
   { id: 'a_geo', em: '🗺️', n: 'Bible Geography Expert', d: 'Visit every location on the map.', f: () => S.visited.length >= PLACES.length },
   { id: 'a_georight', em: '🎯', n: 'Well Placed', d: 'Have ten places sure (three straight correct) in the map challenge.', f: () => geoStats().known >= 10 },
+  { id: 'a_whoami', em: '👁️', n: 'Known by Sight', d: 'Have ten people sure in the Who am I challenge.', f: () => whoStats().known >= 10 },
   { id: 'a_time', em: '⏳', n: 'Timeline Master', d: 'Score full marks on a timeline ordering challenge.', f: () => !!S.timelineMastered },
   { id: 'a_conn', em: '🧩', n: 'Connection Master', d: 'Answer 25 connection questions correctly.', f: () => countTypeRight('con') >= 25 },
   { id: 'a_streak', em: '🔥', n: 'Seven Day Pilgrim', d: 'Keep a seven day streak.', f: () => (S.streak.count || 0) >= 7 },
@@ -458,37 +460,44 @@ function markBookGate(bid, gate) {
 function visitPlace(id) { if (!S.visited.includes(id)) { S.visited.push(id); saveState(); } }
 function meetPerson(id) { if (!S.met.includes(id)) { S.met.push(id); saveState(); } }
 
-/* Geography mastery — the "where did this happen?" challenge. Places are not
-   concepts, so they get their own track rather than fake concept records. */
-function recordGeo(placeId, correct) {
-  if (!S.geo) S.geo = {};
-  const g = S.geo[placeId] || (S.geo[placeId] = { seen: 0, right: 0, streak: 0 });
+/* Recognition tracks — the map's "where did this happen?" and the people
+   "who am I?" challenges. Places and people are not concepts, so each gets
+   its own track rather than fake concept records. Three straight correct
+   answers mark an item "sure"; a miss resets its streak — the same spirit
+   as concept mastery: streaks, not one-offs. */
+function trackRecord(store, id, correct) {
+  if (!S[store]) S[store] = {};
+  const g = S[store][id] || (S[store][id] = { seen: 0, right: 0, streak: 0 });
   g.seen++;
   if (correct) { g.right++; g.streak++; } else { g.streak = 0; }
   saveState();
   return g;
 }
-function geoStats() {
-  const recs = Object.values(S.geo || {});
+function trackStats(store) {
+  const recs = Object.values(S[store] || {});
   const seen = recs.reduce((n, g) => n + g.seen, 0);
   const right = recs.reduce((n, g) => n + g.right, 0);
-  /* A place counts as "known" once it has been answered correctly three
-     times running — same spirit as concept mastery: streaks, not one-offs. */
   const known = recs.filter(g => g.streak >= 3).length;
   return { seen, right, known, pct: seen ? Math.round(right / seen * 100) : 0 };
 }
-/* Pick challenge targets, weakest first: never-asked places, then broken
-   streaks, then everything else — shuffled within each band. */
-function geoPickTargets(n) {
+/* Pick challenge targets, weakest first: never-asked, then broken streaks,
+   then everything else — shuffled within each band. */
+function trackPickTargets(store, list, n) {
   const band = p => {
-    const g = (S.geo || {})[p.id];
+    const g = (S[store] || {})[p.id];
     return !g ? 0 : g.streak === 0 ? 1 : g.streak < 3 ? 2 : 3;
   };
-  return PLACES.slice()
+  return list.slice()
     .map(p => ({ p, k: band(p) + Math.random() * 0.9 }))
     .sort((a, b) => a.k - b.k)
     .slice(0, n).map(x => x.p);
 }
+function recordGeo(placeId, correct) { return trackRecord('geo', placeId, correct); }
+function geoStats() { return trackStats('geo'); }
+function geoPickTargets(n) { return trackPickTargets('geo', PLACES, n); }
+function recordWho(personId, correct) { return trackRecord('who', personId, correct); }
+function whoStats() { return trackStats('who'); }
+function whoPickTargets(n) { return trackPickTargets('who', PEOPLE, n); }
 
 function pushLog(entry) {
   S.log.unshift(Object.assign({ at: Date.now() }, entry));

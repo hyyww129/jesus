@@ -127,6 +127,11 @@ spine — roundels that fill with gold as mastery rises. Keep that the one loud 
   `MAP_DETAIL`, all in `core.js`. `test/data.test.js` bounds-checks pins, waypoints,
   stops and detail labels; `test/mastery.test.js` covers the geo track.
 - `exp` questions grade on keyword coverage plus an honest self-rating.
+- Era guides live in `GUIDES` (core.js): one person per era, first-person lines
+  restricted to what the text records about them, each with a reference —
+  `test/data.test.js` enforces coverage. Footsteps trails live in `TRAILS`
+  (same shape as `ROUTES`); the Who am I challenge records into `S.who` via
+  `recordWho`/`whoStats` (same track machinery as geography).
 - Every person has an illuminated portrait built from the parts kit in
   `src/portraits.js`. A new person without a `PERSON_ART` entry gets the plain
   figure; to give them emblems, add one line picking parts (or add a part to

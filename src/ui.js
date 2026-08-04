@@ -66,6 +66,7 @@ function viewJourney() {
   const rows = ERAS.map((e, i) => {
     const m = eraMastery(e.id), unlocked = eraUnlocked(e.id), passed = eraRec(e.id).passed;
     const bookNames = e.books.map(b => B_BY_ID[b] && B_BY_ID[b].name).filter(Boolean);
+    const g = GUIDES[e.id], gp = g && P_BY_ID[g.p];
     return `<div class="era ${passed ? 'done' : ''} ${unlocked ? '' : 'locked'}">
       <div class="roundel"><div class="fill" style="--h:${m}%;--i:${i}"></div><span class="initial">${e.initial}</span></div>
       <button class="era-card" data-era="${e.id}" ${unlocked ? '' : 'disabled'}>
@@ -73,6 +74,7 @@ function viewJourney() {
         <div class="meta">${esc(e.span)} — ${esc(e.blurb)}</div>
         ${unlocked ? bar(m) : ''}
         <div class="books">${bookNames.slice(0, 6).join(' · ')}${bookNames.length > 6 ? ' · +' + (bookNames.length - 6) : ''}</div>
+        ${unlocked && gp ? `<span class="guide">${portraitSVG(gp)}<span class="gq">“${esc(g.line)}”<span class="gref">— ${esc(gp.n)} · ${esc(g.ref)}</span></span></span>` : ''}
       </button></div>`;
   }).join('');
 
@@ -101,10 +103,19 @@ function viewEra(eid) {
       <div>${bar(cm)}</div><div class="pc">${cm}%</div></button>`;
   }).join('');
 
+  const g = GUIDES[eid], gp = g && P_BY_ID[g.p];
   app().innerHTML = `
     <div class="crumb"><button data-go="journey">Journey</button> / ${esc(e.name)}</div>
     <h1 class="page-h">${esc(e.name)}</h1>
     <p class="lede">${esc(e.blurb)}</p>
+    ${gp ? `<div class="panel guidebar">
+      <span class="gport">${portraitSVG(gp)}</span>
+      <div>
+        <div class="gq">“${esc(g.line)}”</div>
+        <div class="gref">— ${esc(gp.n)}, ${esc(gp.role)} · <span class="ref">${esc(g.ref)}</span></div>
+        <button class="btn ghost sm" data-person="${gp.id}" style="margin-top:8px">About ${esc(gp.n)}</button>
+      </div>
+    </div>` : ''}
     <div class="grid g3" style="margin-top:20px">
       <div class="stat"><div class="k">Stage mastery</div><div class="v">${m}<small>%</small></div>${bar(m)}</div>
       <div class="stat"><div class="k">Boss battle</div><div class="v">${er.passed ? 'Passed' : er.attempts ? er.best + '%' : '—'}</div>
@@ -527,8 +538,9 @@ function startGeoQuiz() {
   mapSel = null; mapJourney = null;
   render();
 }
+function walkable(id) { return ROUTES.find(r => r.id === id) || TRAILS.find(t => t.id === id); }
 function viewMap() {
-  const jr = mapJourney ? ROUTES.find(r => r.id === mapJourney.rid) : null;
+  const jr = mapJourney ? walkable(mapJourney.rid) : null;
   const stop = jr ? jr.stops[mapJourney.i] : null;
   const round = mapQuiz && !mapQuiz.done ? mapQuiz.rounds[mapQuiz.i] : null;
   const ans = mapQuiz ? mapQuiz.answered : null;
@@ -552,7 +564,8 @@ function viewMap() {
   <g class="lod lod-towns">${MAP_DETAIL.towns.map(t =>
     `<g><circle cx="${t.x}" cy="${t.y}" r="2.5"/><text x="${t.x + 5}" y="${t.y + 3}">${esc(t.n)}</text></g>`).join('')}</g>`;
   const routes = ROUTES.filter(routeVisible).map(r =>
-    `<path class="route ${r.id} ${jr && jr.id === r.id ? 'walk' : ''}" d="${routePath(r)}"><title>${esc(r.n)} — ${esc(r.ref)}</title></path>`).join('');
+    `<path class="route ${r.id} ${jr && jr.id === r.id ? 'walk' : ''}" d="${routePath(r)}"><title>${esc(r.n)} — ${esc(r.ref)}</title></path>`).join('')
+    + (jr && TRAILS.includes(jr) ? `<path class="route tr walk" d="${routePath(jr)}"><title>${esc(jr.n)} — ${esc(jr.ref)}</title></path>` : '');
   const sel = !mapJourney && !mapQuiz && mapSel ? PL_BY_ID[mapSel] : null;
   const gs = geoStats();
   const ringC = 2 * Math.PI * 20;
@@ -607,6 +620,11 @@ function viewMap() {
       ${ROUTES.map(r => `<button class="chip walkc ${jr && jr.id === r.id ? 'on' : ''}" data-walk="${r.id}">▸ ${esc(r.n)}</button>`).join('')}
       <span class="gsp"></span>
       <button class="btn solid sm" id="geoquiz">Where did this happen?</button>
+    </div>
+    <div class="filters" style="margin-top:8px">
+      <span class="maplab">Follow footsteps:</span>
+      ${TRAILS.map(t => `<button class="chip walkc ${jr && jr.id === t.id ? 'on' : ''}" data-walk="${t.id}">☙ ${esc(t.n)}</button>`).join('')}
+      <button class="chip walkc ${jr && jr.id.startsWith('j') ? 'on' : ''}" data-walk="j1" data-chain="1">☙ Paul — the three journeys</button>
     </div>`}
     <div class="mapwrap" id="mapwrap" style="margin-top:12px">
       <svg id="mapsvg" class="mapsvg" viewBox="${mapView.x} ${mapView.y} ${mapView.w} ${mapView.w * 0.57}" role="img" aria-label="Schematic map of the biblical world">
@@ -661,7 +679,9 @@ function viewMap() {
       <span class="ref">${esc(stop.ref)}</span>
       <div class="btnrow">
         <button class="btn ghost sm" id="jprev" ${mapJourney.i === 0 ? 'disabled' : ''}>◂ Back</button>
-        <button class="btn solid sm" id="jnext">${mapJourney.i + 1 >= jr.stops.length ? 'Finish journey' : 'Next stop ▸'}</button>
+        <button class="btn solid sm" id="jnext">${mapJourney.i + 1 >= jr.stops.length
+          ? (mapJourney.chain && { j1: 'j2', j2: 'j3' }[jr.id] ? 'Next journey ▸' : 'Finish journey')
+          : 'Next stop ▸'}</button>
         <button class="btn ghost sm" id="jopen">Open this place</button>
       </div>
     </div>` : ''}
@@ -708,8 +728,9 @@ function viewMap() {
   app().querySelectorAll('[data-walk]').forEach(b => b.onclick = () => {
     const rid = b.dataset.walk;
     if (mapJourney && mapJourney.rid === rid) { mapJourney = null; render(); return; }
-    mapJourney = { rid, i: 0 }; mapSel = null; mapQuiz = null;
-    if (rid === 'ex') mapLayers.exile = true; else { mapLayers.paul = true; mapRoutes[rid] = true; }
+    mapJourney = { rid, i: 0, chain: !!b.dataset.chain }; mapSel = null; mapQuiz = null;
+    if (rid === 'ex') mapLayers.exile = true;
+    else if (mapRoutes.hasOwnProperty(rid)) { mapLayers.paul = true; mapRoutes[rid] = true; }
     render();
   });
   const on = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
@@ -724,8 +745,10 @@ function viewMap() {
   on('jclose', () => { mapJourney = null; render(); });
   on('jprev', () => { if (mapJourney.i > 0) { mapJourney.i--; render(); } });
   on('jnext', () => {
-    if (mapJourney.i + 1 >= jr.stops.length) mapJourney = null;
-    else mapJourney.i++;
+    if (mapJourney.i + 1 >= jr.stops.length) {
+      const nxt = mapJourney.chain ? { j1: 'j2', j2: 'j3' }[jr.id] : null;
+      mapJourney = nxt ? { rid: nxt, i: 0, chain: true } : null;
+    } else mapJourney.i++;
     render();
   });
   on('jopen', () => {
@@ -899,6 +922,77 @@ function renderMini() {
 }
 
 /* ================================ PEOPLE ================================ */
+/* ------------------------- WHO AM I? (portraits) ------------------------- */
+let whoQuiz = null; // { rounds:[{pid, opts}], i, right, answered, done }
+function startWhoQuiz() {
+  const rounds = whoPickTargets(8).map(t => {
+    const pool = shuffle(PEOPLE.filter(x => x.id !== t.id));
+    const sameEra = pool.filter(x => x.era === t.era).slice(0, 3);
+    const opts = shuffle([t].concat(sameEra.concat(pool.filter(x => !sameEra.includes(x))).slice(0, 3)).map(x => x.id));
+    return { pid: t.id, opts };
+  });
+  whoQuiz = { rounds, i: 0, right: 0, answered: null, done: false };
+  VIEW = { name: 'who' }; window.scrollTo(0, 0); render();
+}
+function viewWho() {
+  if (!whoQuiz) return go('people');
+  const q = whoQuiz, ws = whoStats();
+  if (q.done) {
+    app().innerHTML = `
+      <div class="eyebrow">Character challenge</div>
+      <h1 class="page-h">Who am I?</h1>
+      <div class="panel" style="margin-top:20px;text-align:center;padding:30px">
+        <div class="eyebrow">Challenge over</div>
+        <div style="font-family:var(--display);font-size:34px;color:var(--gold-lt);margin:10px 0">${q.right} / ${q.rounds.length}</div>
+        <div style="font-family:var(--ui);font-size:12px;color:var(--muted)">Lifetime accuracy ${ws.pct}% · ${ws.known} of ${PEOPLE.length} people sure</div>
+        <div class="btnrow" style="justify-content:center;margin-top:18px">
+          <button class="btn solid" id="whoagain">Again</button>
+          <button class="btn ghost" data-go="people">Back to people</button>
+        </div>
+      </div>`;
+    const ag = document.getElementById('whoagain'); if (ag) ag.onclick = startWhoQuiz;
+    wireDelegates();
+    return;
+  }
+  const round = q.rounds[q.i], target = P_BY_ID[round.pid], ans = q.answered;
+  app().innerHTML = `
+    <div class="eyebrow">Character challenge · round ${q.i + 1} of ${q.rounds.length} · ${q.right} right</div>
+    <h1 class="page-h">Who am I?</h1>
+    <div class="whocard panel">
+      <span class="whoport">${portraitSVG(target)}</span>
+      <div class="opts" style="margin-top:4px">${round.opts.map(pid => {
+        const o = P_BY_ID[pid];
+        const cls = ans ? (pid === round.pid ? 'right' : pid === ans.pick ? 'wrong' : '') : '';
+        return `<button class="opt ${cls}" data-who="${pid}" ${ans ? 'disabled' : ''}>
+          <span class="ltr">${esc(o.n[0])}</span><span>${esc(o.n)}</span></button>`;
+      }).join('')}</div>
+      ${ans ? `<div class="feedback ${ans.ok ? 'ok' : 'no'}">
+        <div class="fh">${ans.ok ? 'Correct' : 'Not quite'}</div>
+        <div class="why">${esc(target.n)} — ${esc(target.role)}. ${esc(target.lesson)}</div>
+        <div class="foot"><span class="ref">${esc(target.ref)}</span></div>
+      </div>
+      <div class="btnrow"><button class="btn solid" id="whonext">${q.i + 1 >= q.rounds.length ? 'See score' : 'Next portrait'}</button></div>` : ''}
+    </div>
+    <div class="btnrow"><button class="btn ghost sm" id="whoquit">Leave challenge</button></div>`;
+  app().querySelectorAll('[data-who]').forEach(b => b.onclick = () => {
+    if (whoQuiz.answered) return;
+    const ok = b.dataset.who === round.pid;
+    recordWho(round.pid, ok);
+    if (ok) whoQuiz.right++;
+    whoQuiz.answered = { pick: b.dataset.who, ok };
+    celebrate(checkAchievements());
+    render();
+  });
+  const nx = document.getElementById('whonext');
+  if (nx) nx.onclick = () => {
+    if (whoQuiz.i + 1 >= whoQuiz.rounds.length) whoQuiz.done = true;
+    else { whoQuiz.i++; whoQuiz.answered = null; }
+    render();
+  };
+  const qt = document.getElementById('whoquit');
+  if (qt) qt.onclick = () => { whoQuiz = null; go('people'); };
+}
+
 function viewPeople() {
   const chain = ['abraham', 'isaac', 'jacob', 'joseph'];
   app().innerHTML = `
@@ -911,6 +1005,8 @@ function viewPeople() {
         `${i ? '<span>↓</span>' : ''}<button class="btn ghost sm" data-person="${id}"><b>${esc(P_BY_ID[id].n)}</b></button>`).join('')}</div>
       <div style="font-family:var(--ui);font-size:12px;color:var(--muted);margin-top:10px">Four generations carrying one promise, from Genesis 12 to Genesis 50.</div>
     </div>
+    <div class="btnrow" style="margin-top:16px"><button class="btn solid sm" id="whostart">Who am I? — portrait challenge</button>
+      ${whoStats().seen ? `<span class="pill">accuracy ${whoStats().pct}% · ${whoStats().known} sure</span>` : ''}</div>
     <div class="sec-h">The database — ${S.met.length} of ${PEOPLE.length} studied</div>
     <div class="grid g3">${PEOPLE.map(p => `<button class="pcard" data-person="${p.id}">
       <span class="prow">${portraitSVG(p)}<span>
@@ -919,6 +1015,8 @@ function viewPeople() {
         <span class="rl" style="color:var(--muted)">${esc(E_BY_ID[p.era] ? E_BY_ID[p.era].name : '')}</span>
       </span></span>
     </button>`).join('')}</div>`;
+  const ws = document.getElementById('whostart');
+  if (ws) ws.onclick = startWhoQuiz;
 }
 
 function viewPerson(id) {
@@ -1119,6 +1217,7 @@ function viewDashboard() {
       <div class="stat"><div class="k">People studied</div><div class="v">${S.met.length}<small>/${PEOPLE.length}</small></div></div>
       <div class="stat"><div class="k">Places explored</div><div class="v">${S.visited.length}<small>/${PLACES.length}</small></div></div>
       <div class="stat"><div class="k">Map challenge — places sure</div><div class="v">${geoStats().known}<small>/${PLACES.length}</small></div>${bar(geoStats().known / PLACES.length * 100)}</div>
+      <div class="stat"><div class="k">Who am I — people sure</div><div class="v">${whoStats().known}<small>/${PEOPLE.length}</small></div>${bar(whoStats().known / PEOPLE.length * 100)}</div>
       <div class="stat"><div class="k">Current streak</div><div class="v">${S.streak.count || 0}</div></div>
     </div>
 
@@ -1322,6 +1421,7 @@ function render() {
   const v = VIEW.name;
   if (v === 'quiz') { renderQuiz(); if (!Q.answered && Q.i < Q.list.length) bindQuizInteractions(); }
   else if (v === 'mini') renderMini();
+  else if (v === 'who') viewWho();
   else if (v === 'journey') viewJourney();
   else if (v === 'era') viewEra(VIEW.arg);
   else if (v === 'books') viewBooks();

@@ -81,6 +81,25 @@ test('map pins sit inside their panel and routes stay on the chart', () => {
     assert(t.n && t.ref, 'map detail label missing name or reference');
     assert(t.x >= 0 && t.x <= 1000 && t.y >= 0 && t.y <= 570, 'map detail ' + t.n + ' off the chart');
   });
+  X.TRAILS.forEach(t => {
+    assert(t.id && t.n && t.ref && t.person, 'trail ' + t.id + ' incomplete');
+    assert(X.PEOPLE.some(p => p.id === t.person), 'trail ' + t.id + ' names unknown person ' + t.person);
+    assert(t.stops.length >= 3, 'trail ' + t.id + ' needs at least 3 stops');
+    t.pts.forEach(([x, y]) => assert(x >= 0 && x <= 1000 && y >= 0 && y <= 570, 'trail ' + t.id + ' waypoint off the chart'));
+    t.stops.forEach(s => {
+      assert(X.PL_BY_ID[s.p], 'trail ' + t.id + ' stop at unknown place ' + s.p);
+      assert(s.note && s.ref, 'trail ' + t.id + ' stop ' + s.p + ' missing note or reference');
+    });
+  });
+});
+
+test('every era has a guide who exists, with a line and a reference', () => {
+  X.ERAS.forEach(e => {
+    const g = X.GUIDES[e.id];
+    assert(g, 'era without a guide: ' + e.id);
+    assert(X.PEOPLE.some(p => p.id === g.p), 'guide for ' + e.id + ' is unknown person ' + g.p);
+    assert(g.line && g.line.length > 30 && g.ref, 'guide for ' + e.id + ' missing line or reference');
+  });
 });
 
 test('every era has concepts and can fill its boss battle', () => {
