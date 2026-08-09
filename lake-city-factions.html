@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Los Santos RP — Turf Map</title>
+<title>Lake City Factions — Turf Map</title>
 <style>
 :root{
   --water:#0d1420;
@@ -21,7 +21,7 @@
 html,body{height:100%; overflow:hidden; background:var(--water); color:var(--ink); font-family:var(--body); font-size:14px;}
 button{font-family:var(--body); cursor:pointer;}
 button:disabled{opacity:.45; cursor:default;}
-button:focus-visible, input:focus-visible, select:focus-visible{outline:2px solid var(--blue); outline-offset:2px;}
+button:focus-visible, input:focus-visible{outline:2px solid var(--blue); outline-offset:2px;}
 
 #map{position:fixed; inset:0; width:100%; height:100%; display:block; touch-action:none; cursor:grab; background:var(--water);}
 #map.dragging{cursor:grabbing;}
@@ -36,15 +36,10 @@ button:focus-visible, input:focus-visible, select:focus-visible{outline:2px soli
 .turf:hover polygon{fill-opacity:.46;}
 .turf.sel polygon{fill-opacity:.52; stroke-width:4;}
 .turf text{pointer-events:none; text-anchor:middle;}
-.turf .tname{font-family:var(--disp); font-weight:700; letter-spacing:.1em; fill:#f4f7fa;
+.turf .tname{font-family:var(--disp); font-weight:700; letter-spacing:.1em;
   font-size:calc(15px * var(--wpp,1));
-  paint-order:stroke; stroke:rgba(5,9,14,.85); stroke-width:calc(3px * var(--wpp,1));}
-.turf .towner{font-family:var(--body); font-weight:600; letter-spacing:.16em;
-  font-size:calc(9.5px * var(--wpp,1));
-  paint-order:stroke; stroke:rgba(5,9,14,.85); stroke-width:calc(2.5px * var(--wpp,1));}
+  paint-order:stroke; stroke:rgba(5,9,14,.88); stroke-width:calc(3.2px * var(--wpp,1));}
 .turf.nolabel text{display:none;}
-#turfLayer.focus .turf.dim{opacity:.13;}
-.turf{transition:opacity .2s;}
 
 /* draw preview */
 #drawLayer polyline{fill:rgba(143,208,244,.15); stroke:var(--blue); stroke-width:2;
@@ -69,26 +64,26 @@ button:focus-visible, input:focus-visible, select:focus-visible{outline:2px soli
 
 /* ---------- panel ---------- */
 #panel{
-  position:fixed; top:14px; left:14px; bottom:14px; width:274px; z-index:20;
+  position:fixed; top:14px; left:14px; width:250px; z-index:20;
+  max-height:calc(100vh - 28px);
   background:var(--panel); border:1px solid var(--line); border-radius:12px;
-  backdrop-filter:blur(6px); display:flex; flex-direction:column; overflow:hidden;
+  backdrop-filter:blur(6px); display:flex; flex-direction:column; overflow:hidden auto;
   box-shadow:0 8px 30px rgba(0,0,0,.45);
 }
-#panel.closed{display:none;}
 
 .brand{padding:14px 16px 12px; border-bottom:1px solid var(--line);
   background:linear-gradient(180deg, rgba(245,197,66,.05), transparent);}
 .stars{display:flex; gap:5px; margin-bottom:6px;}
 .stars svg{display:block;}
-.brand h1{font-family:var(--disp); font-weight:700; font-size:24px; letter-spacing:.08em; line-height:1; text-transform:uppercase;}
+.brand h1{font-family:var(--disp); font-weight:700; font-size:23px; letter-spacing:.06em; line-height:1.05; text-transform:uppercase;}
 .brand .sub{display:flex; align-items:center; gap:8px; margin-top:7px;}
 .brand .sub span{font-family:var(--disp); font-weight:600; font-size:12px; letter-spacing:.32em; color:var(--gold); text-transform:uppercase; white-space:nowrap;}
 .brand .stripe{height:3px; flex:1; background:var(--gold); opacity:.5; border-radius:2px;}
 
 .actions{display:flex; gap:8px; padding:12px 14px;}
 .btn{
-  flex:1; padding:9px 10px; border-radius:8px; border:1px solid var(--line);
-  background:var(--panel2); color:var(--ink); font-weight:600; font-size:12.5px;
+  flex:1; padding:10px 10px; border-radius:8px; border:1px solid var(--line);
+  background:var(--panel2); color:var(--ink); font-weight:600; font-size:13px;
   transition:border-color .15s, background .15s;
 }
 .btn:hover{border-color:#38485c;}
@@ -96,57 +91,19 @@ button:focus-visible, input:focus-visible, select:focus-visible{outline:2px soli
 .btn.danger{color:#ff8a90; border-color:#4a2830;}
 .btn.small{flex:0 0 auto; padding:6px 10px; font-size:11.5px;}
 
-.sectlbl{padding:4px 16px 6px; font-family:var(--disp); font-weight:600; font-size:11.5px; letter-spacing:.28em; color:var(--mut); text-transform:uppercase; display:flex; justify-content:space-between; align-items:baseline;}
-.sectlbl em{font-style:normal; letter-spacing:.05em; font-family:var(--body); font-size:10.5px;}
-
-#gangList{overflow-y:auto; flex:1; padding:0 8px 8px; min-height:60px;}
-.gang{
-  display:flex; align-items:center; gap:10px; padding:8px 8px; border-radius:8px;
-  cursor:pointer; border:1px solid transparent;
-}
-.gang:hover{background:rgba(255,255,255,.04);}
-.gang.active{background:#18222e; border-color:#2c3e52;}
-.gang .sw{width:13px; height:13px; border-radius:4px; flex:0 0 auto; box-shadow:0 0 0 1.5px rgba(0,0,0,.5) inset;}
-.gang .fn{font-family:var(--disp); font-weight:600; font-size:15.5px; letter-spacing:.05em; flex:1; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
-.gang .fm{font-size:10.5px; color:var(--mut); white-space:nowrap;}
-
-/* new gang form */
-#gangForm{display:none; padding:10px 14px 12px; border-top:1px solid var(--line); background:var(--panel2);}
-#gangForm.open{display:block;}
-#gangForm input[type=text]{
-  width:100%; padding:8px 10px; border-radius:7px; border:1px solid var(--line);
-  background:#0c1119; color:var(--ink); font-size:13px; margin-bottom:8px;
-}
-.swrow{display:flex; gap:6px; align-items:center; margin-bottom:10px; flex-wrap:wrap;}
-.swopt{width:20px; height:20px; border-radius:6px; border:2px solid transparent; padding:0;}
-.swopt.on{border-color:#fff;}
-.swrow input[type=color]{width:26px; height:24px; border:none; background:none; padding:0; cursor:pointer;}
+.sectlbl{font-family:var(--disp); font-weight:600; font-size:11.5px; letter-spacing:.28em; color:var(--mut); text-transform:uppercase;}
 
 /* selected turf card */
 #turfCard{display:none; border-top:1px solid var(--line); padding:12px 14px; background:var(--panel2);}
 #turfCard.open{display:block;}
 #turfCard .row{display:flex; gap:8px; margin-bottom:8px; align-items:center;}
-#turfCard input[type=text], #turfCard select{
+#turfCard input[type=text]{
   flex:1; padding:7px 9px; border-radius:7px; border:1px solid var(--line);
   background:#0c1119; color:var(--ink); font-size:13px; min-width:0;
 }
 #turfCard .meta{font-size:11px; color:var(--mut); margin-bottom:8px;}
 
-.foot{padding:10px 14px 12px; border-top:1px solid var(--line);}
-.foot .btnrow{display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap;}
-.foot .btnrow:last-of-type{margin-bottom:0;}
-.foot .btnrow .btn.small{flex:1;}
-.foot .hint{margin-top:8px; font-size:10.5px; line-height:1.5; color:#5f6c7b;}
-
 /* ---------- floating ---------- */
-#openPanel{
-  position:fixed; top:14px; left:14px; z-index:19; display:none;
-  padding:9px 14px; border-radius:9px; border:1px solid var(--line);
-  background:var(--panel); color:var(--ink); font-weight:600; font-size:12.5px;
-  backdrop-filter:blur(6px);
-}
-#openPanel.show{display:block;}
-
 #zoomctl{position:fixed; right:14px; bottom:18px; z-index:20; display:flex; flex-direction:column; gap:6px;}
 #zoomctl button{
   width:38px; height:38px; border-radius:9px; border:1px solid var(--line);
@@ -162,9 +119,9 @@ button:focus-visible, input:focus-visible, select:focus-visible{outline:2px soli
 }
 #hud.show{display:flex;}
 #hud .msg{font-size:12.5px; color:var(--blue); font-weight:600;}
-#hud input[type=text], #hud select{
+#hud input[type=text]{
   padding:7px 9px; border-radius:7px; border:1px solid var(--line);
-  background:#0c1119; color:var(--ink); font-size:13px; max-width:170px;
+  background:#0c1119; color:var(--ink); font-size:13px; max-width:180px;
 }
 
 #tooltip{
@@ -173,14 +130,13 @@ button:focus-visible, input:focus-visible, select:focus-visible{outline:2px soli
   padding:7px 10px; font-size:12px; box-shadow:0 6px 20px rgba(0,0,0,.5); max-width:220px;
 }
 #tooltip .tt-name{font-family:var(--disp); font-weight:700; font-size:15px; letter-spacing:.06em;}
-#tooltip .tt-gang{display:flex; align-items:center; gap:6px; margin-top:3px; color:var(--mut); font-size:11px;}
-#tooltip .tt-gang i{width:9px; height:9px; border-radius:3px; display:inline-block;}
+#tooltip .tt-sub{display:flex; align-items:center; gap:6px; margin-top:3px; color:var(--mut); font-size:11px;}
+#tooltip .tt-sub i{width:9px; height:9px; border-radius:3px; display:inline-block;}
 
 @media (max-width:680px){
-  #panel{top:auto; left:10px; right:10px; bottom:10px; width:auto; max-height:46vh;}
+  #panel{top:auto; left:10px; right:10px; bottom:10px; width:auto; max-height:44vh;}
   .brand h1{font-size:20px;}
   #zoomctl{bottom:auto; top:14px;}
-  #openPanel{top:auto; bottom:12px; left:12px;}
 }
 @media (prefers-reduced-motion: reduce){
   *{transition:none !important;}
@@ -199,40 +155,26 @@ button:focus-visible, input:focus-visible, select:focus-visible{outline:2px soli
 <div id="dropzone">
   <div class="dz" role="button" tabindex="0" aria-label="Load a map image">
     <div class="dz-title">Load your map image</div>
-    <p>Drop your GTA V map image anywhere on this page,<br>click here to browse, or paste it (Ctrl/⌘+V).</p>
-    <p class="dz-sub">The image never leaves this page. <b>Save as HTML</b> then bakes it in as base64,
-    giving you a single self-contained file with your gangs and turfs inside.</p>
+    <p>Drop your map image anywhere on this page,<br>click here to browse, or paste it (Ctrl/⌘+V).</p>
+    <p class="dz-sub">The image stays on your device. The 💾 button (bottom right)
+    saves a copy of this file with the map and your turfs baked in.</p>
   </div>
 </div>
 
 <aside id="panel">
   <div class="brand">
     <div class="stars" id="stars"></div>
-    <h1>Los Santos RP</h1>
+    <h1>Lake City Factions</h1>
     <div class="sub"><span>Turf Map</span><div class="stripe"></div></div>
   </div>
 
   <div class="actions">
-    <button class="btn primary" id="btnClaim">✚ Claim turf</button>
-    <button class="btn" id="btnNewGang">Add gang</button>
+    <button class="btn primary" id="btnCreate">✚ Create</button>
   </div>
-
-  <div id="gangForm">
-    <input type="text" id="gfName" placeholder="Gang name" maxlength="28">
-    <div class="swrow" id="gfSwatches"></div>
-    <div style="display:flex; gap:8px;">
-      <button class="btn primary" id="gfAdd">Add gang</button>
-      <button class="btn" id="gfCancel">Cancel</button>
-    </div>
-  </div>
-
-  <div class="sectlbl"><span>Gangs</span><em id="statline"></em></div>
-  <div id="gangList"></div>
 
   <div id="turfCard">
-    <div class="sectlbl" style="padding:0 0 8px;"><span>Selected turf</span></div>
+    <div class="sectlbl" style="padding:0 0 8px; display:block;">Selected turf</div>
     <div class="row"><input type="text" id="tcName" maxlength="30" aria-label="Turf name"></div>
-    <div class="row"><select id="tcGang" aria-label="Owning gang"></select></div>
     <div class="meta" id="tcMeta"></div>
     <div class="row" style="margin-bottom:0;">
       <button class="btn small" id="tcCenter">Center</button>
@@ -240,36 +182,19 @@ button:focus-visible, input:focus-visible, select:focus-visible{outline:2px soli
       <button class="btn small" id="tcClose" style="margin-left:auto;" aria-label="Close">✕</button>
     </div>
   </div>
-
-  <div class="foot">
-    <div class="btnrow">
-      <button class="btn primary" id="btnSaveHtml">Save as HTML</button>
-    </div>
-    <div class="btnrow">
-      <button class="btn small" id="btnExport">Export JSON</button>
-      <button class="btn small" id="btnImport">Import</button>
-      <button class="btn small" id="btnImage">Replace map</button>
-      <button class="btn small" id="btnHide">Hide</button>
-    </div>
-    <div class="hint">Scroll to zoom · drag to pan · tap a turf for details.<br>
-    Nothing survives a refresh on its own — <b>Save as HTML</b> writes a new copy of this
-    file with the map image and all turfs embedded.</div>
-  </div>
 </aside>
-
-<button id="openPanel">☰ Map key</button>
 
 <div id="zoomctl">
   <button id="zin" aria-label="Zoom in">+</button>
   <button id="zout" aria-label="Zoom out">−</button>
   <button id="zhome" aria-label="Reset view">⌂</button>
+  <button id="zsave" aria-label="Save map file" title="Save map file">💾</button>
 </div>
 
 <div id="hud"></div>
 <div id="tooltip"></div>
 
 <input type="file" id="fileImage" accept="image/*" style="display:none;">
-<input type="file" id="fileImport" accept=".json,application/json" style="display:none;">
 
 <!--TURFDATA--><script type="application/json" id="save"></script><!--/TURFDATA-->
 
@@ -278,24 +203,16 @@ button:focus-visible, input:focus-visible, select:focus-visible{outline:2px soli
 "use strict";
 
 /* Captured before any dynamic DOM work: this is the file's own source,
-   used by "Save as HTML" to regenerate a self-contained copy. */
+   used by the save button to regenerate a self-contained copy. */
 const PRISTINE = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
 const MARK_A = '<!--TURFDATA-->', MARK_B = '<!--/TURFDATA-->';
 
 /* ================= state ================= */
 const state = {
   img:null,             /* {data, w, h} */
-  gangs: [
-    {id:'g1', name:'Families',            color:'#2ecc5e'},
-    {id:'g2', name:'Ballas',              color:'#9a5cf5'},
-    {id:'g3', name:'Vagos',               color:'#f5c542'},
-    {id:'g4', name:'Varrios Los Aztecas', color:'#35d0e0'},
-    {id:'g5', name:'The Lost MC',         color:'#8d97a5'},
-    {id:'g6', name:'Marabunta Grande',    color:'#3b6ff5'},
-  ],
-  turfs: [],
-  focus:null, selected:null,
-  drawing:false, pts:[], naming:false,
+  turfs: [],            /* {id, name, color, pts} */
+  selected:null,
+  drawing:false, naming:false, pendingName:'', pts:[],
 };
 let uid = 100;
 
@@ -403,7 +320,6 @@ $('fileImage').addEventListener('change', e=>{
   loadImageFile(e.target.files[0]);
   e.target.value='';
 });
-$('btnImage').addEventListener('click', ()=> $('fileImage').click());
 const dz = document.querySelector('#dropzone .dz');
 dz.addEventListener('click', ()=> $('fileImage').click());
 dz.addEventListener('keydown', e=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); $('fileImage').click(); } });
@@ -421,7 +337,6 @@ addEventListener('paste', e=>{
 });
 
 /* ================= helpers ================= */
-const gangById = id => state.gangs.find(g=>g.id===id);
 function centroid(pts){
   let x=0,y=0; for(const p of pts){x+=p[0];y+=p[1];}
   return [x/pts.length, y/pts.length];
@@ -446,30 +361,37 @@ function bbox(pts){
 }
 function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function nextUid(){
-  for(const o of state.gangs.concat(state.turfs)){
-    const m = /^[gt](\d+)$/.exec(o.id);
+  for(const o of state.turfs){
+    const m = /^t(\d+)$/.exec(o.id);
     if(m) uid = Math.max(uid, +m[1]+1);
   }
   return uid;
 }
+/* every turf gets its own color: golden-angle hue walk, so the sequence
+   stays visually distinct however many turfs there are */
+function hsl2hex(h, s, l){
+  const f = n=>{
+    const k=(n+h/30)%12;
+    const c=l - s*Math.min(l,1-l)*Math.max(-1, Math.min(k-3, 9-k, 1));
+    return Math.round(255*c).toString(16).padStart(2,'0');
+  };
+  return '#'+f(0)+f(8)+f(4);
+}
+function autoColor(seed){ return hsl2hex((seed*137.508)%360, 0.72, 0.55); }
 
 /* ================= render turfs ================= */
 function renderTurfs(){
   const layer = $('turfLayer');
   layer.innerHTML='';
   turfEls = [];
-  layer.classList.toggle('focus', !!state.focus);
   for(const t of state.turfs){
-    const gang = gangById(t.gang);
-    const grp = el('g',{class:'turf'+(state.selected===t.id?' sel':'')+(state.focus && state.focus!==t.gang?' dim':'')}, layer);
+    const grp = el('g',{class:'turf'+(state.selected===t.id?' sel':'')}, layer);
     grp.dataset.id = t.id;
     el('polygon',{points:t.pts.map(p=>p.join(',')).join(' '),
-      fill:gang?gang.color:'#888', stroke:gang?gang.color:'#888'}, grp);
+      fill:t.color, stroke:t.color}, grp);
     const [cx,cy] = centroid(t.pts);
-    const n = el('text',{x:cx, y:cy, class:'tname'}, grp); n.textContent = t.name.toUpperCase();
-    /* dy in em so the offset tracks the zoom-scaled font size */
-    const o = el('text',{x:cx, y:cy, dy:'1.4em', class:'towner', fill:gang?gang.color:'#aaa'}, grp);
-    o.textContent = gang ? gang.name.toUpperCase() : 'UNCLAIMED';
+    const n = el('text',{x:cx, y:cy, class:'tname', fill:t.color}, grp);
+    n.textContent = t.name.toUpperCase();
     const b = bbox(t.pts);
     turfEls.push({el:grp, w:b.maxx-b.minx});
 
@@ -478,16 +400,13 @@ function renderTurfs(){
     grp.addEventListener('pointerleave', hideTip);
   }
   apply();
-  renderGangs();
 }
 
 /* tooltip */
 const tip = $('tooltip');
 function showTip(t){
-  const g = gangById(t.gang);
   tip.innerHTML = '<div class="tt-name">'+esc(t.name)+'</div>'
-    +'<div class="tt-gang"><i style="background:'+(g?g.color:'#888')+'"></i>'
-    +esc(g?g.name:'Unclaimed')+' · '+areaLabel(t.pts)+'</div>';
+    +'<div class="tt-sub"><i style="background:'+t.color+'"></i>'+areaLabel(t.pts)+'</div>';
   tip.style.display='block';
 }
 function moveTip(e){
@@ -496,27 +415,6 @@ function moveTip(e){
 }
 function hideTip(){ tip.style.display='none'; }
 
-/* ================= gangs panel ================= */
-function renderGangs(){
-  const list = $('gangList');
-  list.innerHTML='';
-  for(const g of state.gangs){
-    const n = state.turfs.filter(t=>t.gang===g.id).length;
-    const row = document.createElement('div');
-    row.className = 'gang'+(state.focus===g.id?' active':'');
-    row.innerHTML = '<span class="sw" style="background:'+g.color+'"></span>'
-      +'<span class="fn">'+esc(g.name)+'</span>'
-      +'<span class="fm">'+n+' turf'+(n===1?'':'s')+'</span>';
-    row.addEventListener('click', ()=>{
-      state.focus = state.focus===g.id ? null : g.id;
-      renderTurfs();
-    });
-    list.appendChild(row);
-  }
-  $('statline').textContent = state.gangs.length+(state.gangs.length===1?' gang · ':' gangs · ')
-    + state.turfs.length+(state.turfs.length===1?' turf':' turfs');
-}
-
 /* ================= selection card ================= */
 function selectTurf(id){
   state.selected = id;
@@ -524,13 +422,6 @@ function selectTurf(id){
   if(!t){ $('turfCard').classList.remove('open'); renderTurfs(); return; }
   $('turfCard').classList.add('open');
   $('tcName').value = t.name;
-  const sel = $('tcGang');
-  sel.innerHTML='';
-  for(const g of state.gangs){
-    const o = document.createElement('option');
-    o.value=g.id; o.textContent=g.name; if(g.id===t.gang) o.selected=true;
-    sel.appendChild(o);
-  }
   $('tcMeta').textContent = areaLabel(t.pts)+' · '+t.pts.length+' corner points';
   renderTurfs();
 }
@@ -542,10 +433,6 @@ function closeCard(){
 $('tcName').addEventListener('input', e=>{
   const t = state.turfs.find(t=>t.id===state.selected);
   if(t){ t.name = e.target.value || 'Turf'; renderTurfs(); }
-});
-$('tcGang').addEventListener('change', e=>{
-  const t = state.turfs.find(t=>t.id===state.selected);
-  if(t){ t.gang = e.target.value; renderTurfs(); }
 });
 $('tcDelete').addEventListener('click', ()=>{
   state.turfs = state.turfs.filter(t=>t.id!==state.selected);
@@ -559,79 +446,57 @@ $('tcCenter').addEventListener('click', ()=>{
   fitBounds(b.minx, b.miny, b.maxx, b.maxy, 0.35);
 });
 
-/* ================= add gang ================= */
-const PRESETS=['#ef4b52','#f5a524','#2ecc5e','#38a3f5','#9a5cf5','#f5c542','#f472b6','#22d3ee'];
-let gfColor = PRESETS[0];
-(function buildSwatches(){
-  const row = $('gfSwatches');
-  PRESETS.forEach((c,i)=>{
-    const b=document.createElement('button');
-    b.className='swopt'+(i===0?' on':'');
-    b.style.background=c;
-    b.setAttribute('aria-label','color '+c);
-    b.addEventListener('click',()=>{
-      gfColor=c;
-      row.querySelectorAll('.swopt').forEach(x=>x.classList.remove('on'));
-      b.classList.add('on');
-    });
-    row.appendChild(b);
-  });
-  const custom=document.createElement('input');
-  custom.type='color'; custom.value='#ffffff';
-  custom.setAttribute('aria-label','custom color');
-  custom.addEventListener('input',e=>{
-    gfColor=e.target.value;
-    row.querySelectorAll('.swopt').forEach(x=>x.classList.remove('on'));
-  });
-  row.appendChild(custom);
-})();
-$('btnNewGang').addEventListener('click', ()=>{
-  $('gangForm').classList.toggle('open');
-  if($('gangForm').classList.contains('open')) $('gfName').focus();
-});
-$('gfCancel').addEventListener('click', ()=> $('gangForm').classList.remove('open'));
-$('gfAdd').addEventListener('click', ()=>{
-  const name = $('gfName').value.trim();
-  if(!name) { $('gfName').focus(); return; }
-  state.gangs.push({id:'g'+(uid++), name, color:gfColor});
-  $('gfName').value='';
-  $('gangForm').classList.remove('open');
-  renderGangs();
-});
-
 /* ================= HUD ================= */
 const hud = $('hud');
 function setHud(html){ hud.innerHTML=html; hud.classList.add('show'); }
 function hideHud(){ hud.classList.remove('show'); hud.innerHTML=''; }
 let flashTimer=null;
 function flash(msg){
-  if(state.drawing) return;
+  if(state.drawing || state.naming) return;
   setHud('<span class="msg">'+esc(msg)+'</span>');
   clearTimeout(flashTimer);
   flashTimer = setTimeout(hideHud, 2600);
 }
 
-/* ================= claiming (drawing) ================= */
-$('btnClaim').addEventListener('click', startDraw);
-function startDraw(){
-  if(state.drawing) return;
+/* ================= creating a turf =================
+   Create -> type the name -> tap corners freely (pan/zoom still live)
+   -> Save closes the shape; Cancel throws it away. */
+$('btnCreate').addEventListener('click', startNaming);
+function startNaming(){
+  if(state.drawing || state.naming) return;
   if(!state.img){ flash('Load a map image first — drop it on the page.'); $('fileImage').click(); return; }
   clearTimeout(flashTimer);
-  state.drawing=true; state.naming=false; state.pts=[];
-  svg.classList.add('drawing');
-  drawHudPoints();
-}
-function drawHudPoints(){
-  setHud('<span class="msg">Tap the map to drop corner points ('+state.pts.length+')</span>'
-    +'<button class="btn small" id="hUndo">Undo</button>'
-    +'<button class="btn small" id="hCancel">Cancel</button>'
-    +'<button class="btn small primary" id="hFinish"'+(state.pts.length<3?' disabled':'')+'>Finish</button>');
-  $('hUndo').onclick = ()=>{ state.pts.pop(); redrawPreview(); drawHudPoints(); };
+  state.naming = true;
+  setHud('<span class="msg">Name the turf:</span>'
+    +'<input type="text" id="hName" placeholder="e.g. Northside" maxlength="30">'
+    +'<button class="btn small primary" id="hStart">Start drawing</button>'
+    +'<button class="btn small" id="hCancel">Cancel</button>');
+  $('hStart').onclick = ()=>{
+    state.pendingName = $('hName').value.trim() || 'New turf';
+    beginDraw();
+  };
   $('hCancel').onclick = cancelDraw;
-  $('hFinish').onclick = finishShape;
+  $('hName').addEventListener('keydown', e=>{ if(e.key==='Enter') $('hStart').click(); });
+  $('hName').focus();
+}
+function beginDraw(){
+  state.naming = false;
+  state.drawing = true;
+  state.pts = [];
+  svg.classList.add('drawing');
+  drawHud();
+}
+function drawHud(){
+  setHud('<span class="msg">'+esc(state.pendingName)+' — tap the map to drop corners ('+state.pts.length+')</span>'
+    +'<button class="btn small" id="hUndo"'+(state.pts.length<1?' disabled':'')+'>Undo</button>'
+    +'<button class="btn small" id="hCancel">Cancel</button>'
+    +'<button class="btn small primary" id="hSave"'+(state.pts.length<3?' disabled':'')+'>Save</button>');
+  $('hUndo').onclick = ()=>{ state.pts.pop(); redrawPreview(); drawHud(); };
+  $('hCancel').onclick = cancelDraw;
+  $('hSave').onclick = saveShape;
 }
 function cancelDraw(){
-  state.drawing=false; state.naming=false; state.pts=[];
+  state.drawing=false; state.naming=false; state.pts=[]; state.pendingName='';
   svg.classList.remove('drawing');
   $('drawLayer').innerHTML='';
   hideHud();
@@ -648,28 +513,13 @@ function redrawPreview(){
   state.pts.forEach((p,i)=> el('circle',{cx:p[0],cy:p[1], class:i===0?'first':''}, layer));
   scalePreview(vb.w / viewport().w);
 }
-function finishShape(){
-  if(state.pts.length<3) return;
-  state.naming=true;
-  setHud('<span class="msg">Name it:</span>'
-    +'<input type="text" id="hName" placeholder="e.g. Grove Street" maxlength="30">'
-    +'<select id="hGang"></select>'
-    +'<button class="btn small primary" id="hCreate">Create</button>'
-    +'<button class="btn small" id="hDiscard">Discard</button>');
-  const sel=$('hGang');
-  for(const g of state.gangs){
-    const o=document.createElement('option'); o.value=g.id; o.textContent=g.name; sel.appendChild(o);
-  }
-  $('hName').focus();
-  $('hCreate').onclick = ()=>{
-    const t={id:'t'+(uid++), name: $('hName').value.trim()||'New turf',
-             gang: sel.value || null, pts: state.pts.slice()};
-    state.turfs.push(t);
-    cancelDraw();
-    selectTurf(t.id);
-  };
-  $('hDiscard').onclick = cancelDraw;
-  $('hName').addEventListener('keydown', e=>{ if(e.key==='Enter') $('hCreate').click(); });
+function saveShape(){
+  if(!state.drawing || state.pts.length<3) return;
+  const t = {id:'t'+(uid++), name:state.pendingName || 'New turf',
+             color:autoColor(uid), pts:state.pts.slice()};
+  state.turfs.push(t);
+  cancelDraw();
+  selectTurf(t.id);
 }
 
 /* ================= pointer: pan / zoom / draw ================= */
@@ -710,33 +560,24 @@ svg.addEventListener('pointermove', e=>{
     apply();
   }
 });
-function closeTol(){
-  const r=svg.getBoundingClientRect();
-  return 14 * vb.w / r.width;
-}
 function endPointer(e){
   pointers.delete(e.pointerId);
   if(pointers.size<2) pinchStart=null;
   if(pointers.size===0){
     svg.classList.remove('dragging');
-    if(!dragMoved && state.drawing && !state.naming){
+    if(!dragMoved && state.drawing){
+      /* a clean tap drops a corner — the shape never closes on its own */
       const [wx,wy]=s2w(e.clientX, e.clientY);
-      /* close if tapping near the first point */
-      if(state.pts.length>=3){
-        const [fx,fy]=state.pts[0];
-        if(Math.hypot(wx-fx, wy-fy) < closeTol()){ finishShape(); return; }
-      }
       state.pts.push([Math.round(wx), Math.round(wy)]);
-      redrawPreview(); drawHudPoints();
-    } else if(!dragMoved && !state.drawing){
-      /* tap: hit-test for a turf; otherwise clear selection/focus */
+      redrawPreview(); drawHud();
+    } else if(!dragMoved && !state.drawing && !state.naming){
+      /* tap: hit-test for a turf; otherwise clear selection */
       const hitEl = document.elementFromPoint(e.clientX, e.clientY);
       const tg = hitEl && hitEl.closest ? hitEl.closest('.turf') : null;
       if(tg && tg.dataset.id){
         selectTurf(tg.dataset.id);
       } else if(hitEl && (hitEl===svg || (hitEl.closest && hitEl.closest('#map')))){
         if(state.selected) closeCard();
-        else if(state.focus){ state.focus=null; renderTurfs(); }
       }
     }
     panStart=null;
@@ -745,19 +586,6 @@ function endPointer(e){
 svg.addEventListener('pointerup', endPointer);
 svg.addEventListener('pointercancel', endPointer);
 svg.addEventListener('contextmenu', e=> e.preventDefault());
-svg.addEventListener('dblclick', e=>{
-  if(state.drawing && !state.naming && state.pts.length>=3){
-    e.preventDefault();
-    /* a double-tap will have dropped two nearly identical points — drop the extras */
-    while(state.pts.length>3){
-      const a=state.pts[state.pts.length-1], b=state.pts[state.pts.length-2];
-      if(Math.hypot(a[0]-b[0], a[1]-b[1]) < closeTol()) state.pts.pop();
-      else break;
-    }
-    redrawPreview();
-    finishShape();
-  }
-});
 svg.addEventListener('wheel', e=>{
   e.preventDefault();
   zoomAt(e.clientX, e.clientY, e.deltaY>0 ? 1.15 : 1/1.15);
@@ -766,78 +594,81 @@ svg.addEventListener('wheel', e=>{
 document.addEventListener('keydown', e=>{
   const typing = /INPUT|SELECT|TEXTAREA/.test(e.target.tagName);
   if(e.key==='Escape'){
-    if(state.drawing) cancelDraw();
+    if(state.drawing || state.naming) cancelDraw();
     else if(state.selected) closeCard();
-    else $('gangForm').classList.remove('open');
   }
-  if(e.key==='Backspace' && state.drawing && !state.naming && !typing){
-    e.preventDefault(); state.pts.pop(); redrawPreview(); drawHudPoints();
+  if(e.key==='Backspace' && state.drawing && !typing){
+    e.preventDefault(); state.pts.pop(); redrawPreview(); drawHud();
   }
-  if(e.key==='Enter' && state.drawing && !state.naming && !typing && state.pts.length>=3) finishShape();
+  if(e.key==='Enter' && state.drawing && !typing && state.pts.length>=3) saveShape();
 });
 
-/* ================= zoom buttons ================= */
+/* ================= zoom + save buttons ================= */
 $('zin').addEventListener('click', ()=> zoomAt(innerWidth/2, innerHeight/2, 1/1.3));
 $('zout').addEventListener('click', ()=> zoomAt(innerWidth/2, innerHeight/2, 1.3));
 $('zhome').addEventListener('click', fitView);
 
-/* ================= panel show/hide ================= */
-$('btnHide').addEventListener('click', ()=>{
-  $('panel').classList.add('closed'); $('openPanel').classList.add('show');
-});
-$('openPanel').addEventListener('click', ()=>{
-  $('panel').classList.remove('closed'); $('openPanel').classList.remove('show');
-});
-
-/* ================= save / load ================= */
-function snapshot(){
-  return {v:1, image:state.img, gangs:state.gangs, turfs:state.turfs,
-          view:{x:vb.x, y:vb.y, w:vb.w}};
+function buildSaveHtml(){
+  const i = PRISTINE.indexOf(MARK_A), j = PRISTINE.indexOf(MARK_B);
+  if(i<0 || j<0 || j<i) return null;
+  const json = JSON.stringify({v:2, image:state.img, turfs:state.turfs,
+    view:{x:vb.x, y:vb.y, w:vb.w}}).replace(/</g,'\\u003c');
+  return PRISTINE.slice(0, i+MARK_A.length)
+    +'<script type="application/json" id="save">'+json+'</scr'+'ipt>'
+    +PRISTINE.slice(j);
 }
-function download(name, text, type){
-  const blob = new Blob([text], {type});
+function blobDownload(name, text){
   const a=document.createElement('a');
-  a.href=URL.createObjectURL(blob);
+  a.href=URL.createObjectURL(new Blob([text], {type:'text/html'}));
   a.download=name;
   a.click();
   setTimeout(()=> URL.revokeObjectURL(a.href), 5000);
 }
-$('btnExport').addEventListener('click', ()=>{
-  download('los-santos-turfs.json', JSON.stringify(snapshot(), null, 2), 'application/json');
-});
-$('btnSaveHtml').addEventListener('click', ()=>{
-  const i = PRISTINE.indexOf(MARK_A), j = PRISTINE.indexOf(MARK_B);
-  if(i<0 || j<0 || j<i){ alert('Could not rebuild the file (save markers missing).'); return; }
-  const json = JSON.stringify(snapshot()).replace(/</g,'\\u003c');
-  const html = PRISTINE.slice(0, i+MARK_A.length)
-    +'<script type="application/json" id="save">'+json+'</scr'+'ipt>'
-    +PRISTINE.slice(j);
-  download('los-santos-turf-map.html', html, 'text/html');
+$('zsave').addEventListener('click', ()=>{
+  const html = buildSaveHtml();
+  if(!html){ alert('Could not rebuild the file (save markers missing).'); return; }
+  const dl = window.claude && window.claude.downloads;
+  if(dl){
+    dl.save({filename:'lake-city-factions.html', data:html})
+      .catch(err=>{
+        if(err && err.code==='extension_not_enabled'){
+          /* html saves not enabled here: fall back to .txt and tell the user */
+          return dl.save({filename:'lake-city-factions.html.txt', data:html})
+            .then(()=> alert('Saved as .txt — rename the file to end in .html and it will open as the map.'))
+            .catch(()=>{});
+        }
+        if(err && err.code!=='declined' && err.code!=='rate_limited')
+          alert('Could not save here ('+(err && err.code || 'unknown')+').');
+      });
+  } else {
+    blobDownload('lake-city-factions.html', html);
+  }
 });
 
+/* ================= load saved data ================= */
 const COLOR_RE = /^#[0-9a-fA-F]{3,8}$/;
 function hydrate(d){
   if(!d || typeof d!=='object') return false;
-  const gangs=[], turfs=[];
-  if(Array.isArray(d.gangs)) for(const g of d.gangs){
-    if(!g || typeof g.name!=='string') continue;
-    gangs.push({id:String(g.id||'g'+(uid++)),
-                name:g.name.slice(0,40),
-                color:COLOR_RE.test(g.color)?g.color:PRESETS[gangs.length%PRESETS.length]});
-  }
+  const turfs = [];
+  /* legacy v1 files stored gang ids + a gangs list instead of per-turf colors */
+  const gangColor = {};
+  if(Array.isArray(d.gangs)) for(const g of d.gangs)
+    if(g && g.id && COLOR_RE.test(g.color)) gangColor[g.id] = g.color;
   if(Array.isArray(d.turfs)) for(const t of d.turfs){
     if(!t || !Array.isArray(t.pts)) continue;
     const pts = t.pts.filter(p=>Array.isArray(p) && isFinite(p[0]) && isFinite(p[1]))
                      .map(p=>[+p[0], +p[1]]);
     if(pts.length<3) continue;
+    const color = COLOR_RE.test(t.color) ? t.color
+      : (gangColor[t.gang] || autoColor(100+turfs.length));
     turfs.push({id:String(t.id||'t'+(uid++)),
                 name:typeof t.name==='string'?t.name.slice(0,40):'Turf',
-                gang:typeof t.gang==='string'?t.gang:null, pts});
+                color, pts});
   }
-  state.gangs=gangs; state.turfs=turfs;
-  state.selected=null; state.focus=null;
+  state.turfs = turfs;
+  state.selected = null;
   $('turfCard').classList.remove('open');
-  const im=d.image;
+  const im = d.image;
   if(im && typeof im.data==='string' && /^data:image\//.test(im.data) && im.w>0 && im.h>0){
     setImage(im.data, +im.w, +im.h);
   }
@@ -849,22 +680,8 @@ function hydrate(d){
   renderTurfs();
   return true;
 }
-$('btnImport').addEventListener('click', ()=> $('fileImport').click());
-$('fileImport').addEventListener('change', e=>{
-  const f=e.target.files[0]; if(!f) return;
-  const r=new FileReader();
-  r.onload=()=>{
-    try{
-      const d=JSON.parse(r.result);
-      if(Array.isArray(d.gangs) && Array.isArray(d.turfs)) hydrate(d);
-      else alert('That file is missing "gangs" and "turfs" lists.');
-    }catch(err){ alert('Could not read that file as JSON.'); }
-    e.target.value='';
-  };
-  r.readAsText(f);
-});
 
-/* ================= wanted stars ================= */
+/* ================= brand stars ================= */
 (function buildStars(){
   const wrap=$('stars');
   const starPath=(cx,cy,R,r)=>{
