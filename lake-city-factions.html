@@ -244,6 +244,7 @@ function apply(){
   svg.style.setProperty('--wpp', wpp);
   for(const t of turfEls) t.el.classList.toggle('nolabel', t.w/wpp < 64);
   if(state.drawing) scalePreview(wpp);
+  autoSave();
 }
 function syncAspect(){
   const v = viewport();
@@ -378,6 +379,41 @@ function hsl2hex(h, s, l){
   return '#'+f(0)+f(8)+f(4);
 }
 function autoColor(seed){ return hsl2hex((seed*137.508)%360, 0.72, 0.55); }
+
+/* ---- auto-save: best-effort IndexedDB, silently absent where storage is blocked ---- */
+let db=null, storeReady=false, saveTimer=null;
+function openDB(){
+  return new Promise(res=>{
+    try{
+      const rq = indexedDB.open('lakeCityFactions', 1);
+      rq.onupgradeneeded = ()=> rq.result.createObjectStore('kv');
+      rq.onsuccess = ()=> res(rq.result);
+      rq.onerror = ()=> res(null);
+      rq.onblocked = ()=> res(null);
+    }catch(err){ res(null); }
+  });
+}
+function idbGet(){
+  return new Promise(res=>{
+    if(!db) return res(null);
+    try{
+      const rq = db.transaction('kv').objectStore('kv').get('lcf-state');
+      rq.onsuccess = ()=> res(rq.result || null);
+      rq.onerror = ()=> res(null);
+    }catch(err){ res(null); }
+  });
+}
+function autoSave(){
+  if(!storeReady) return;
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(()=>{
+    try{
+      db.transaction('kv','readwrite').objectStore('kv')
+        .put({v:2, image:state.img, turfs:state.turfs,
+              view:{x:vb.x, y:vb.y, w:vb.w}, t:Date.now()}, 'lcf-state');
+    }catch(err){ /* quota or closed db — the 💾 button still works */ }
+  }, 400);
+}
 
 /* ================= render turfs ================= */
 function renderTurfs(){
@@ -675,7 +711,11 @@ function hydrate(d){
   nextUid();
   if(d.view && isFinite(d.view.x) && isFinite(d.view.y) && isFinite(d.view.w) && d.view.w>0){
     vb.x=+d.view.x; vb.y=+d.view.y; vb.w=clampW(+d.view.w);
-    syncAspect();
+    /* rebuild h from the live viewport, anchored at the stored corner —
+       syncAspect would re-center around the stale pre-restore height */
+    const v = viewport();
+    vb.h = vb.w * v.h / v.w;
+    apply();
   }
   renderTurfs();
   return true;
@@ -706,11 +746,21 @@ function hydrate(d){
 /* ================= boot ================= */
 addEventListener('resize', syncAspect);
 let booted=false;
-(function boot(){
+(async function boot(){
+  /* baked-in data first (works everywhere), then anything auto-saved on this device */
   const raw = $('save').textContent.trim();
   if(raw){
     try{ booted = hydrate(JSON.parse(raw)); }catch(err){ booted=false; }
   }
+  db = await openDB();
+  const stored = await idbGet();
+  if(stored && Array.isArray(stored.turfs)){
+    const bakedImg = state.img;
+    if(hydrate(stored)) booted = true;
+    /* an auto-save without its own image keeps the baked-in map */
+    if(!state.img && bakedImg) setImage(bakedImg.data, bakedImg.w, bakedImg.h);
+  }
+  storeReady = !!db;
   nextUid();
   if(!booted || !state.img) fitView(); else syncAspect();
   renderTurfs();
