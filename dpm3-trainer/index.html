@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRAK DPM3 · Operator Trainer</title>
+<style>
+  :root {
+    --paper: #EDEFEA;
+    --ink: #232A2E;
+    --blue: #1F5FA8;
+    --orange: #E4572E;
+    --green: #39FF6A;
+    --panel: #E2E5DF;
+    --line: #C4C9C2;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--paper); color: var(--ink); min-height: 100vh;
+    font-family: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    padding-bottom: 60px;
+  }
+  header {
+    border-bottom: 2px solid var(--ink); padding: 18px 22px;
+    display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap;
+  }
+  h1 { font-size: 18px; letter-spacing: .14em; }
+  header .sub { color: var(--blue); font-size: 12px; letter-spacing: .08em; }
+  .note {
+    margin: 14px 22px 0; padding: 10px 14px; font-size: 12px; line-height: 1.5;
+    border: 1.5px solid var(--ink); background: var(--panel); max-width: 900px;
+  }
+  .note b { color: var(--orange); }
+  main {
+    display: grid; gap: 14px; padding: 18px 22px;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); max-width: 1400px;
+  }
+  .card {
+    border: 1.5px solid var(--ink); background: #fff;
+    display: flex; flex-direction: column;
+  }
+  .card .top {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; border-bottom: 1px solid var(--line);
+  }
+  .card .num { color: var(--blue); font-size: 11px; letter-spacing: .12em; }
+  .card .day {
+    font-size: 10px; letter-spacing: .1em; color: var(--paper);
+    background: var(--ink); padding: 2px 7px;
+  }
+  .card h2 { font-size: 14px; padding: 10px 12px 4px; letter-spacing: .04em; }
+  .card p { font-size: 11.5px; line-height: 1.5; padding: 0 12px 10px; color: #47525A; flex: 1; }
+  .card .bottom {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 8px 12px; border-top: 1px dashed var(--line);
+  }
+  .card .best { font-size: 11px; color: var(--blue); }
+  .card .best b { color: var(--orange); font-size: 13px; }
+  .card a.open {
+    font-size: 12px; letter-spacing: .1em; text-decoration: none;
+    color: var(--paper); background: var(--blue); padding: 6px 16px;
+    border: 1.5px solid var(--ink);
+  }
+  .card a.open:hover, .card a.open:focus-visible { background: var(--orange); }
+  .card.model { background: var(--panel); }
+  footer {
+    position: fixed; left: 0; right: 0; bottom: 0;
+    background: var(--ink); color: var(--paper);
+    font-size: 11px; letter-spacing: .06em; line-height: 1.4;
+    padding: 8px 22px; display: flex; gap: 26px; flex-wrap: wrap;
+  }
+  footer span b { color: var(--green); font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>TRAK DPM3 · PROTOTRAK SMX — OPERATOR TRAINER</h1>
+  <span class="sub">BOOT CAMP COMPANION · SIM TRACK 🖥</span>
+</header>
+<div class="note">
+  Serve this folder over HTTP (<b>python3 -m http.server 8080</b> in <code>dpm3-trainer/</code>,
+  then open <code>http://localhost:8080/</code>) — ES modules will not load from
+  <code>file://</code>. Session bests appear below while this tab stays open; scores are
+  memory-only, by design. The sim gets you the control, the layout, the math and the
+  procedures — <b>first real cuts happen with a machinist within arm's reach.</b>
+</div>
+<main id="cards"></main>
+<footer>
+  <span>RPM = SFM × 3.82 ÷ D <b>· cap 4200</b></span>
+  <span>FEED = RPM × flutes × chip load</span>
+  <span>EDGE FINDER TIP .200 → OFFSET <b>.100</b></span>
+  <span>TRAVELS <b>31 / 17 / 23.5</b> · QUILL 5 · NMTB40</span>
+  <span>VARI-SPEED: ONLY RUNNING · RANGE: ONLY STOPPED</span>
+</footer>
+<script>
+const ITEMS = [
+  { id: 'model', num: 'MODEL', day: 'DAY 0+', title: '3D Machine Model',
+    href: 'model/viewer.html', model: true,
+    desc: 'The DPM3 in engineering view: orbit it, jog it, run the demo cycles and narrate what every subsystem is doing.' },
+  { id: 'g1', num: 'GAME 1', day: 'DAY 1', title: 'Name That Part',
+    href: 'games/g1-name-that-part.html',
+    desc: 'A component lights up, you name it. Target: 100% under 60 seconds, three runs straight.' },
+  { id: 'g2', num: 'GAME 2', day: 'DAY 2', title: 'DRO Chase',
+    href: 'games/g2-dro-chase.html',
+    desc: 'Jog to targets on a live DRO — ABS and INC rounds, scored on time and overshoot. Log best time and worst overshoot.' },
+  { id: 'g3', num: 'GAME 3', day: 'DAY 2', title: 'Zero Hunt',
+    href: 'games/g3-zero-hunt.html',
+    desc: 'Edge-finder work: kiss the edge, then SET the axis with the ±0.1000 offset logic until sign errors are extinct.' },
+  { id: 'g4', num: 'GAME 4', day: 'DAY 3', title: 'Speeds & Feeds Trainer',
+    href: 'games/g4-speeds-feeds.html',
+    desc: 'RPM and IPM from scratch, ±10% credit, worked formulas after every card. Target ≥90% over 25 rounds.' },
+  { id: 'g5', num: 'GAME 5', day: 'DAY 3–4', title: 'Event Builder',
+    href: 'games/g5-event-builder.html',
+    desc: 'Assemble POSN / DRILL / BOLT HOLE / MILL / ARC events against a target path — comp side and conrad included.' },
+  { id: 'g6', num: 'GAME 6', day: 'DAY 1', title: 'Power-Up Sequence',
+    href: 'games/g6-power-up.html',
+    desc: 'Order the startup and shutdown checklists from memory; trap cards go to the reject bin. Play until perfect.' },
+  { id: 'g7', num: 'GAME 7', day: 'DAY 4', title: 'Ghost Run',
+    href: 'games/g7-ghost-run.html',
+    desc: 'Watch a cycle run silent, then call the event list in order. Three variant cycles, timed.' },
+  { id: 'g8', num: 'GAME 8', day: 'DAY 5–6', title: 'Crash Investigator',
+    href: 'games/g8-crash-investigator.html',
+    desc: 'Fifteen incident cards: pick the root cause and the prevention step. Every explanation is shop-floor real.' },
+];
+const cards = document.getElementById('cards');
+const bestEls = {};
+for (const it of ITEMS) {
+  const el = document.createElement('div');
+  el.className = 'card' + (it.model ? ' model' : '');
+  el.innerHTML = `
+    <div class="top"><span class="num">${it.num}</span><span class="day">${it.day}</span></div>
+    <h2>${it.title}</h2>
+    <p>${it.desc}</p>
+    <div class="bottom">
+      <span class="best" id="best-${it.id}">SESSION BEST — <b>—</b></span>
+      <a class="open" href="${it.href}">OPEN</a>
+    </div>`;
+  cards.appendChild(el);
+  bestEls[it.id] = el.querySelector(`#best-${it.id} b`);
+}
+try {
+  const chan = new BroadcastChannel('dpm3-scores');
+  chan.onmessage = (e) => {
+    const d = e.data || {};
+    if (d.game && bestEls[d.game] && d.best !== undefined && d.best !== null) {
+      bestEls[d.game].textContent = String(d.best);
+    }
+  };
+} catch (err) { /* BroadcastChannel unavailable — bests just stay blank */ }
+</script>
+</body>
+</html>

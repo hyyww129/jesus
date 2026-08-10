@@ -1,0 +1,214 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRAK DPM3 · 3D Model</title>
+<style>
+  :root {
+    --paper: #EDEFEA;
+    --ink: #232A2E;
+    --blue: #1F5FA8;
+    --orange: #E4572E;
+    --green: #39FF6A;
+    --panel: #E2E5DF;
+    --line: #C4C9C2;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    overflow: hidden;
+  }
+  #stage { position: absolute; inset: 0; }
+  canvas { width: 100%; height: 100%; display: block; }
+  header {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1.5px solid var(--ink);
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+  }
+  header h1 { font-size: 14px; letter-spacing: .12em; font-weight: 600; }
+  header .sub { font-size: 11px; color: var(--blue); letter-spacing: .08em; }
+  header a { color: var(--blue); font-size: 11px; margin-left: auto; text-decoration: none; border-bottom: 1px solid var(--blue); }
+  #hud {
+    position: absolute; left: 16px; bottom: 16px; z-index: 5;
+    background: #10211A; border: 1.5px solid var(--ink); padding: 10px 14px;
+    color: var(--green); font-size: 15px; letter-spacing: .08em; min-width: 210px;
+  }
+  #hud .row { display: flex; justify-content: space-between; gap: 16px; }
+  #hud .spin { color: #9fd8ae; font-size: 11px; margin-top: 6px; }
+  #ctl {
+    position: absolute; right: 16px; bottom: 16px; z-index: 5;
+    background: var(--panel); border: 1.5px solid var(--ink); padding: 10px 12px;
+    display: grid; gap: 8px; width: 250px;
+  }
+  #ctl .t { font-size: 10px; letter-spacing: .14em; color: var(--blue); }
+  select, button {
+    font: inherit; font-size: 12px; color: var(--ink);
+    background: var(--paper); border: 1.5px solid var(--ink);
+    padding: 6px 8px; cursor: pointer;
+  }
+  button:hover { background: var(--blue); color: var(--paper); }
+  button.primary { background: var(--blue); color: var(--paper); }
+  button.primary:hover { background: var(--orange); }
+  #step {
+    font-size: 11px; min-height: 30px; color: var(--ink);
+    border-top: 1px dashed var(--line); padding-top: 6px;
+  }
+  #step b { color: var(--orange); }
+  .jog { display: grid; grid-template-columns: repeat(6, 1fr); gap: 4px; }
+  .jog button { padding: 4px 0; font-size: 11px; }
+  .lbl {
+    position: absolute; z-index: 4; transform: translate(-50%, -130%);
+    font-size: 10px; letter-spacing: .06em; white-space: nowrap;
+    background: color-mix(in srgb, var(--paper) 90%, transparent);
+    border: 1px solid var(--ink); padding: 1px 5px; pointer-events: none;
+  }
+  .lbl::after {
+    content: ""; position: absolute; left: 50%; top: 100%;
+    width: 1px; height: 9px; background: var(--ink);
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>TRAK DPM3 · PROTOTRAK SMX</h1>
+  <span class="sub">3D MODEL — ENGINEERING VIEW</span>
+  <a href="../index.html">← HUB</a>
+</header>
+<div id="stage"><canvas id="c"></canvas></div>
+<div id="hud">
+  <div class="row"><span>X</span><span id="dx">0.0000</span></div>
+  <div class="row"><span>Y</span><span id="dy">0.0000</span></div>
+  <div class="row"><span>Z</span><span id="dz">0.0000</span></div>
+  <div class="spin" id="dspin">SPINDLE — OFF</div>
+</div>
+<div id="ctl">
+  <div class="t">DEMO CYCLE</div>
+  <select id="cycleSel"></select>
+  <div style="display:flex; gap:6px">
+    <button class="primary" id="runBtn" style="flex:1">RUN</button>
+    <button id="resetBtn" style="flex:1">RESET</button>
+    <button id="lblBtn" style="flex:1">LABELS</button>
+  </div>
+  <div id="step">Drag to orbit · scroll to zoom · run a cycle and narrate each subsystem.</div>
+  <div class="t">JOG</div>
+  <div class="jog">
+    <button data-a="x" data-d="-1">X−</button><button data-a="x" data-d="1">X+</button>
+    <button data-a="y" data-d="-1">Y−</button><button data-a="y" data-d="1">Y+</button>
+    <button data-a="z" data-d="-1">Z−</button><button data-a="z" data-d="1">Z+</button>
+  </div>
+</div>
+<script src="vendor/three.min.js"></script>
+<script src="vendor/OrbitControls.js"></script>
+<script type="module">
+import { buildMachine, makeScene, DEMO_CYCLES, createCycleRunner } from './machine.js';
+
+const canvas = document.getElementById('c');
+const { scene, camera, renderer, resize } = makeScene(canvas);
+const machine = buildMachine(scene);
+
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.target.set(0, 50, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.update();
+
+/* labels */
+const LABELED = ['pendant','estop','table','saddle','column','head','quill','spindle',
+  'motor','drawbar','varispeed','range','hw_x','hw_y','hw_z','disconnect','lube',
+  'coolant','lamp','base','chippan','wipers'];
+let labelsOn = true;
+const labelEls = new Map();
+for (const id of LABELED) {
+  const p = machine.partById(id);
+  if (!p) continue;
+  const el = document.createElement('div');
+  el.className = 'lbl';
+  el.textContent = p.name.toUpperCase();
+  document.body.appendChild(el);
+  labelEls.set(id, el);
+}
+const v = new THREE.Vector3();
+function placeLabels() {
+  for (const [id, el] of labelEls) {
+    if (!labelsOn) { el.style.display = 'none'; continue; }
+    const p = machine.partById(id);
+    new THREE.Box3().setFromObject(p.group).getCenter(v);
+    v.project(camera);
+    if (v.z > 1) { el.style.display = 'none'; continue; }
+    el.style.display = 'block';
+    el.style.left = ((v.x * 0.5 + 0.5) * canvas.clientWidth) + 'px';
+    el.style.top = ((-v.y * 0.5 + 0.5) * canvas.clientHeight) + 'px';
+  }
+}
+document.getElementById('lblBtn').onclick = () => { labelsOn = !labelsOn; };
+
+/* demo cycles */
+const sel = document.getElementById('cycleSel');
+DEMO_CYCLES.forEach((c, i) => {
+  const o = document.createElement('option');
+  o.value = i; o.textContent = c.name.toUpperCase();
+  sel.appendChild(o);
+});
+let runner = null;
+const stepEl = document.getElementById('step');
+function makeRunner() {
+  return createCycleRunner(machine, DEMO_CYCLES[+sel.value], {
+    onStep: (s, i) => { stepEl.innerHTML = `<b>STEP ${i + 1}</b> — ${s.label}<br>${s.desc}`; },
+    onDone: () => { stepEl.innerHTML = '<b>CYCLE COMPLETE.</b> Pick another or RESET.'; },
+  });
+}
+document.getElementById('runBtn').onclick = () => {
+  if (runner) runner.reset();
+  runner = makeRunner();
+  runner.start();
+};
+document.getElementById('resetBtn').onclick = () => {
+  if (runner) runner.reset();
+  runner = null;
+  stepEl.textContent = 'Machine parked at home.';
+};
+
+/* jog */
+document.querySelectorAll('.jog button').forEach(b => {
+  let timer = null;
+  const move = () => {
+    const a = b.dataset.a, d = +b.dataset.d;
+    const ax = machine.getAxes();
+    machine.setAxes({ [a]: ax[a] + d * 0.25 });
+  };
+  b.addEventListener('pointerdown', () => { move(); timer = setInterval(move, 60); });
+  for (const ev of ['pointerup', 'pointerleave']) {
+    b.addEventListener(ev, () => clearInterval(timer));
+  }
+});
+
+/* loop */
+const dx = document.getElementById('dx'), dy = document.getElementById('dy'),
+      dz = document.getElementById('dz'), dspin = document.getElementById('dspin');
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (runner) runner.update(dt);
+  machine.update(dt);
+  const ax = machine.getAxes();
+  dx.textContent = ax.x.toFixed(4);
+  dy.textContent = ax.y.toFixed(4);
+  dz.textContent = ax.z.toFixed(4);
+  dspin.textContent = machine.spindle.on
+    ? `SPINDLE — ${machine.spindle.rpm} RPM` : 'SPINDLE — OFF';
+  resize();
+  controls.update();
+  placeLabels();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+window.__viewerReady = true;
+</script>
+</body>
+</html>
