@@ -1,0 +1,1399 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRAK DPM3 · G5 Event Builder</title>
+<style>
+  :root {
+    --paper: #EDEFEA;
+    --ink: #232A2E;
+    --blue: #1F5FA8;
+    --orange: #E4572E;
+    --green: #39FF6A;
+    --panel: #E2E5DF;
+    --line: #C4C9C2;
+    --dark: #0B1512;
+    --green-faint: #9FD8AE;
+    --ok: #1D7A3A;
+    --red: #C22B2B;
+    --blue-lt: #7FA8D4;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  header {
+    flex: none; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1.5px solid var(--ink);
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+  }
+  header h1 { font-size: 14px; letter-spacing: .12em; font-weight: 600; }
+  header .sub { font-size: 11px; color: var(--blue); letter-spacing: .08em; }
+  header a { color: var(--blue); font-size: 11px; margin-left: auto; text-decoration: none; border-bottom: 1px solid var(--blue); }
+
+  main { flex: 1; display: flex; min-height: 0; }
+  #left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
+  #side {
+    width: 392px; flex: none; border-left: 1.5px solid var(--ink);
+    padding: 10px 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+    background: color-mix(in srgb, var(--panel) 55%, var(--paper));
+  }
+
+  /* level row */
+  #levels { display: grid; grid-template-columns: repeat(8, 1fr); gap: 5px; flex: none; }
+  .lv {
+    font: inherit; border: 1.5px solid var(--ink); background: var(--paper); cursor: pointer;
+    padding: 3px 0 2px; display: flex; flex-direction: column; align-items: center; gap: 0;
+  }
+  .lv span { font-size: 12px; font-weight: 600; letter-spacing: .08em; }
+  .lv em { font-style: normal; font-size: 9px; color: var(--blue); font-variant-numeric: tabular-nums; }
+  .lv:hover { background: var(--panel); }
+  .lv.on { background: var(--blue); }
+  .lv.on span, .lv.on em { color: var(--paper); }
+
+  /* stat strip */
+  #stats { display: grid; grid-template-columns: 92px 92px 92px 1fr 96px 82px; gap: 6px; flex: none; }
+  .stat { border: 1.5px solid var(--ink); background: var(--panel); padding: 3px 8px; }
+  .stat .k { font-size: 9px; letter-spacing: .14em; color: var(--blue); }
+  .stat .v { font-size: 16px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .stat.dro { background: var(--dark); }
+  .stat.dro .k { color: var(--green-faint); }
+  .stat.dro .v { color: var(--green); }
+  #status { overflow: hidden; }
+  #status .v { font-size: 11px; font-weight: 400; padding-top: 3px; letter-spacing: .04em; }
+  #runBtn, #resetBtn {
+    font: inherit; font-size: 12px; font-weight: 600; letter-spacing: .12em; cursor: pointer;
+    border: 1.5px solid var(--ink);
+  }
+  #runBtn { background: var(--blue); color: var(--paper); }
+  #runBtn:hover { background: var(--orange); }
+  #resetBtn { background: var(--paper); color: var(--ink); }
+  #resetBtn:hover { background: var(--orange); color: var(--paper); }
+
+  #wrap { flex: 1; min-height: 0; border: 1.5px solid var(--ink); background: #F4F5F0; position: relative; }
+  #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #legend { flex: none; font-size: 9.5px; color: var(--ink); opacity: .78; letter-spacing: .04em; }
+  #legend b { color: var(--blue); font-weight: 600; }
+
+  /* side sections */
+  .sec { border: 1.5px solid var(--ink); background: var(--panel); flex: none; }
+  .sec .hd {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 4px 9px; border-bottom: 1.5px solid var(--ink); font-size: 10px;
+    letter-spacing: .16em; font-weight: 600;
+    background: color-mix(in srgb, var(--blue) 10%, var(--panel));
+  }
+  .sec .hd .r { font-weight: 400; color: var(--blue); letter-spacing: .08em; }
+  .sec .bd { padding: 7px 9px; }
+
+  #brief .bd { font-size: 10.5px; line-height: 1.5; }
+  #brief .bd div { padding-left: 10px; text-indent: -10px; }
+  #brief .bd div::before { content: "– "; color: var(--blue); }
+
+  /* form */
+  #fRow1 { display: grid; grid-template-columns: 1fr 1fr 86px; gap: 6px; margin-bottom: 6px; }
+  select, .fld input {
+    font: inherit; font-size: 12px; color: var(--ink); width: 100%;
+    background: var(--paper); border: 1.5px solid var(--ink); padding: 3px 6px;
+  }
+  select { cursor: pointer; }
+  .fld input { text-align: right; font-variant-numeric: tabular-nums; }
+  .fld input:focus, select:focus { outline: 2px solid var(--blue); outline-offset: -1px; }
+  #fGrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+  .fld { display: block; }
+  .fld .lb { display: block; font-size: 8.5px; letter-spacing: .12em; color: var(--blue); margin-bottom: 2px; white-space: nowrap; }
+  .hide { display: none !important; }
+  #fBtns { display: flex; gap: 6px; margin-top: 7px; }
+  #fBtns button {
+    font: inherit; font-size: 11px; font-weight: 600; letter-spacing: .1em; cursor: pointer;
+    border: 1.5px solid var(--ink); padding: 5px 10px;
+  }
+  #addBtn { background: var(--blue); color: var(--paper); flex: 1; }
+  #addBtn:hover { background: var(--orange); }
+  #cancelBtn { background: var(--paper); }
+  #cancelBtn:hover { background: var(--ink); color: var(--paper); }
+  #fErr { color: var(--orange); font-size: 10px; margin-top: 5px; display: none; }
+  #fHint { font-size: 9px; color: var(--blue); margin-top: 5px; letter-spacing: .04em; }
+
+  /* event list */
+  #evList { list-style: none; display: flex; flex-direction: column; }
+  #evList li {
+    display: flex; align-items: center; gap: 5px; padding: 3px 4px;
+    border-bottom: 1px dashed var(--line); font-size: 10.5px; cursor: pointer;
+  }
+  #evList li:last-child { border-bottom: none; }
+  #evList li.sel { background: color-mix(in srgb, var(--blue) 14%, var(--panel)); }
+  #evList li.bad { border-left: 3px solid var(--orange); }
+  #evList li .n { color: var(--blue); font-weight: 600; width: 20px; flex: none; }
+  #evList li .s { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #evList li .err { flex-basis: 100%; color: var(--orange); font-size: 9px; padding-left: 25px; }
+  #evList li { flex-wrap: wrap; }
+  #evList button {
+    font: inherit; font-size: 10px; border: 1px solid var(--ink); background: var(--paper);
+    cursor: pointer; padding: 0 4px; line-height: 1.5; flex: none;
+  }
+  #evList button:hover { background: var(--blue); color: var(--paper); }
+  #evList .empty { font-size: 10px; opacity: .6; padding: 4px; border: none; cursor: default; }
+
+  /* feedback */
+  #fb .bd { font-size: 11px; display: flex; flex-direction: column; gap: 5px; }
+  .vd {
+    display: flex; align-items: baseline; gap: 8px; padding: 4px 7px;
+    border: 1.5px solid var(--line); background: var(--paper); font-size: 10.5px; line-height: 1.45;
+  }
+  .vd .tag { font-weight: 600; letter-spacing: .1em; font-size: 9.5px; padding: 1px 6px; border: 1.5px solid; white-space: nowrap; flex: none; }
+  .vd.ok .tag { color: var(--ok); border-color: var(--ok); }
+  .vd.bad .tag { color: var(--orange); border-color: var(--orange); }
+  .vd.gouge .tag { color: var(--red); border-color: var(--red); }
+  .vd.note .tag { color: var(--blue); border-color: var(--blue); }
+  #fb .big { font-size: 13px; font-weight: 600; }
+  #fb .big em { font-style: normal; color: var(--blue); }
+
+  /* rules */
+  details { border: 1.5px solid var(--ink); background: var(--panel); flex: none; }
+  summary {
+    cursor: pointer; padding: 4px 9px; font-size: 10px; letter-spacing: .16em; font-weight: 600;
+    background: color-mix(in srgb, var(--blue) 10%, var(--panel)); border-bottom: 1px solid var(--line);
+  }
+  details .bd { padding: 7px 9px; font-size: 10.5px; line-height: 1.5; }
+  details svg { display: block; margin: 6px auto 2px; }
+  code { background: var(--paper); border: 1px solid var(--line); padding: 0 3px; font-size: 10px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>TRAK DPM3 · G5 EVENT BUILDER</h1>
+  <span class="sub">PROTOTRAK SMX — PROGRAM THE PART, EVENT BY EVENT</span>
+  <a href="../index.html">← HUB</a>
+</header>
+<main>
+  <div id="left">
+    <div id="levels"></div>
+    <div id="stats">
+      <div class="stat dro"><div class="k">SCORE</div><div class="v" id="sScore">—</div></div>
+      <div class="stat dro"><div class="k">BEST L<span id="sBl">1</span></div><div class="v" id="sBest">—</div></div>
+      <div class="stat"><div class="k">TOOL ⌀</div><div class="v" id="sTool">.500</div></div>
+      <div class="stat" id="status"><div class="k">STATUS</div><div class="v" id="sStat">BUILD — add events, then RUN</div></div>
+      <button id="runBtn">RUN ▶</button>
+      <button id="resetBtn">RESET</button>
+    </div>
+    <div id="wrap"><canvas id="cv"></canvas></div>
+    <div id="legend"><b>TARGET</b> light blue · hatching = material side · after RUN: <b>green</b> = edge on line · <b>orange</b> = miss · <b>red ×</b> = gouge · tolerance ±.030 · X+ right, Y+ up, angles CCW from +X</div>
+  </div>
+  <aside id="side">
+    <section class="sec" id="brief">
+      <div class="hd"><span id="brTitle">L1</span><span class="r" id="brKind"></span></div>
+      <div class="bd" id="brBody"></div>
+    </section>
+    <section class="sec" id="form">
+      <div class="hd"><span id="fTitle">ADD EVENT</span><span class="r">#<span id="fNum">1</span></span></div>
+      <div class="bd">
+        <div id="fRow1">
+          <select id="fType" title="Event type">
+            <option value="POSN">POSN — rapid</option>
+            <option value="DRILL">DRILL</option>
+            <option value="BOLT">BOLT HOLE</option>
+            <option value="MILL" selected>MILL — line cut</option>
+            <option value="ARC">ARC — arc cut</option>
+          </select>
+          <select id="fComp" title="Tool compensation">
+            <option value="center">COMP CENTER</option>
+            <option value="left">COMP LEFT</option>
+            <option value="right">COMP RIGHT</option>
+          </select>
+          <select id="fDir" title="Arc direction">
+            <option value="ccw">CCW</option>
+            <option value="cw">CW</option>
+          </select>
+        </div>
+        <div id="fGrid">
+          <label class="fld" data-t="POSN DRILL"><span class="lb">X</span><input id="fX" value="0"></label>
+          <label class="fld" data-t="POSN DRILL"><span class="lb">Y</span><input id="fY" value="0"></label>
+          <label class="fld" data-t="BOLT"><span class="lb">CENTER X</span><input id="fCX" value="0"></label>
+          <label class="fld" data-t="BOLT"><span class="lb">CENTER Y</span><input id="fCY" value="0"></label>
+          <label class="fld" data-t="BOLT"><span class="lb">RADIUS</span><input id="fR" value="1"></label>
+          <label class="fld" data-t="BOLT"><span class="lb"># HOLES</span><input id="fN" value="4"></label>
+          <label class="fld" data-t="BOLT"><span class="lb">START °</span><input id="fA" value="0"></label>
+          <label class="fld" data-t="MILL ARC"><span class="lb">X BEGIN</span><input id="fX1" value="0"></label>
+          <label class="fld" data-t="MILL ARC"><span class="lb">Y BEGIN</span><input id="fY1" value="0"></label>
+          <label class="fld" data-t="MILL ARC"><span class="lb">X END</span><input id="fX2" value="1"></label>
+          <label class="fld" data-t="MILL ARC"><span class="lb">Y END</span><input id="fY2" value="0"></label>
+          <label class="fld" data-t="ARC"><span class="lb">X CENTER</span><input id="fACX" value="0"></label>
+          <label class="fld" data-t="ARC"><span class="lb">Y CENTER</span><input id="fACY" value="0"></label>
+          <label class="fld" data-t="MILL ARC"><span class="lb">CONRAD R</span><input id="fCr" value="0"></label>
+        </div>
+        <div id="fBtns">
+          <button id="addBtn">ADD EVENT</button>
+          <button id="cancelBtn" class="hide">CANCEL</button>
+        </div>
+        <div id="fErr"></div>
+        <div id="fHint">Begin X/Y auto-fills from the previous event's end. Conrad blends this cut's corner into the NEXT cut event.</div>
+      </div>
+    </section>
+    <section class="sec" id="listSec">
+      <div class="hd"><span>EVENT LIST</span><span class="r" id="evCount">0 EVENTS</span></div>
+      <div class="bd" style="padding:3px 5px"><ol id="evList"></ol></div>
+    </section>
+    <section class="sec" id="fb">
+      <div class="hd"><span>RESULT</span><span class="r" id="fbR"></span></div>
+      <div class="bd" id="fbBody"><div style="opacity:.6">Program the target, press RUN. Wrong runs get a worked explanation here.</div></div>
+    </section>
+    <details>
+      <summary>COMP RULE — LEFT / RIGHT / CENTER</summary>
+      <div class="bd">
+        Walk the cut from BEGIN to END. <b>LEFT</b> = tool center offset one tool radius
+        to your left, <b>RIGHT</b> = to your right, <b>CENTER</b> = tool center rides the
+        programmed line. On a profile, comp so the cut <i>edge</i> lands on the line with
+        the tool over the waste side.
+        <svg viewBox="0 0 300 92" width="286" height="88" aria-hidden="true">
+          <line x1="18" y1="46" x2="252" y2="46" stroke="var(--blue)" stroke-width="2"/>
+          <path d="M252 46 l-10 -4 v8 z" fill="var(--blue)"/>
+          <text x="258" y="50" font-size="9" fill="var(--blue)">WALK</text>
+          <circle cx="80" cy="28" r="17" fill="none" stroke="var(--ink)" stroke-width="1.5"/>
+          <text x="80" y="10" font-size="9" fill="var(--ink)" text-anchor="middle">LEFT</text>
+          <circle cx="150" cy="46" r="17" fill="none" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="3 3"/>
+          <text x="150" y="86" font-size="9" fill="var(--ink)" text-anchor="middle">CENTER</text>
+          <circle cx="220" cy="64" r="17" fill="none" stroke="var(--ink)" stroke-width="1.5"/>
+          <text x="220" y="92" font-size="9" fill="var(--ink)" text-anchor="middle">RIGHT</text>
+        </svg>
+      </div>
+    </details>
+    <details>
+      <summary>BOLT-HOLE MATH</summary>
+      <div class="bd">
+        Hole <code>i</code> of <code>N</code> on radius <code>R</code> about
+        <code>(XC,YC)</code>, first hole at <code>START°</code>, angles CCW from +X:<br>
+        <code>θ = START + i·360/N</code><br>
+        <code>x = XC + R·cos θ</code> · <code>y = YC + R·sin θ</code><br>
+        One BOLT HOLE event drills all N — or compute each and DRILL them yourself.
+      </div>
+    </details>
+    <details>
+      <summary>CLIMB VS CONVENTIONAL (M3 SPINDLE)</summary>
+      <div class="bd">
+        The spindle turns clockwise seen from above (M3). <b>Climb</b> milling puts the
+        material on the <b>RIGHT</b> of your direction of travel — outside profile: walk
+        the part CW with comp LEFT. Material on the left = conventional (outside profile
+        CCW + comp RIGHT cuts the very same edge, just conventional). Scoring here is by
+        geometry; the result panel tells you which way you actually cut.
+      </div>
+    </details>
+    <details>
+      <summary>CONRAD</summary>
+      <div class="bd">
+        A corner radius blended between this cut event and the NEXT one — the control
+        trims both moves back and inserts a tangent arc, radius = CONRAD. Needs the next
+        event to start where this one ends. Too big for the sides → it gets clamped and
+        you are told.
+      </div>
+    </details>
+  </aside>
+</main>
+
+<script type="module">
+import { FACTS, reportScore } from '../model/machine.js';
+
+/* ================= geometry core ================= */
+const TOL = 0.030;                 // cut-edge / hole tolerance, inches
+const EXTRA_PENALTY = 10;          // per off-print hole
+const SAMPLE = 0.02;               // path sampling step
+const TSTEP = 0.1;                 // target sampling step
+const PARK = { x: -0.6, y: -0.6 };
+
+const vsub = (a, b) => ({ x: a.x - b.x, y: a.y - b.y });
+const vadd = (a, b) => ({ x: a.x + b.x, y: a.y + b.y });
+const vmul = (a, k) => ({ x: a.x * k, y: a.y * k });
+const vlen = a => Math.hypot(a.x, a.y);
+const vnorm = a => { const l = vlen(a); return l < 1e-12 ? { x: 0, y: 0 } : { x: a.x / l, y: a.y / l }; };
+const cross = (a, b) => a.x * b.y - a.y * b.x;
+const dot = (a, b) => a.x * b.x + a.y * b.y;
+const leftN = d => ({ x: -d.y, y: d.x });
+const d2 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+const fmt = n => (Math.abs(n) < 5e-4 ? 0 : n).toFixed(3);
+
+/* primitives: {k:'L',p1,p2,...} | {k:'A',c,r,a1,da,...}  (da signed, + = CCW) */
+const primLen = p => p.k === 'L' ? d2(p.p1, p.p2) : Math.abs(p.da) * p.r;
+function primPoint(p, t) {
+  if (p.k === 'L') return vadd(p.p1, vmul(vsub(p.p2, p.p1), t));
+  const a = p.a1 + p.da * t;
+  return { x: p.c.x + p.r * Math.cos(a), y: p.c.y + p.r * Math.sin(a) };
+}
+function primTan(p, t) {
+  if (p.k === 'L') return vnorm(vsub(p.p2, p.p1));
+  const a = p.a1 + p.da * t, s = Math.sign(p.da) || 1;
+  return { x: -Math.sin(a) * s, y: Math.cos(a) * s };
+}
+function trimStart(p, d) {
+  if (p.k === 'L') { const dir = primTan(p, 0); p.p1 = vadd(p.p1, vmul(dir, d)); }
+  else { const dd = (d / p.r) * (Math.sign(p.da) || 1); p.a1 += dd; p.da -= dd; }
+}
+function trimEnd(p, d) {
+  if (p.k === 'L') { const dir = primTan(p, 0); p.p2 = vsub(p.p2, vmul(dir, d)); }
+  else { p.da -= (d / p.r) * (Math.sign(p.da) || 1); }
+}
+function sweepToward(a1, a2, dir) {  // signed sweep from a1 to a2 in direction dir(±1)
+  let d = (a2 - a1) % (2 * Math.PI);
+  if (dir > 0) { if (d < 1e-9) d += 2 * Math.PI; }
+  else { if (d > -1e-9) d -= 2 * Math.PI; }
+  return d;
+}
+
+/* conrad: fillet between prim A end and prim B start (exact for line–line) */
+function applyConrad(A, B, rc, warn) {
+  const d1 = primTan(A, 1), d2v = primTan(B, 0);
+  const cr = cross(d1, d2v), dt = dot(d1, d2v);
+  if (Math.abs(cr) < 1e-4 && dt > 0) return null;           // straight-through, no corner
+  if (dt < -0.999) { warn('CONRAD skipped at a 180° reversal — no corner to blend.'); return null; }
+  const theta = Math.acos(Math.max(-1, Math.min(1, dot(vmul(d1, -1), d2v))));
+  let t = rc / Math.tan(theta / 2);
+  const avail = Math.min(primLen(A) * 0.9, primLen(B) * 0.9);
+  if (t > avail) {
+    t = avail; rc = t * Math.tan(theta / 2);
+    warn(`CONRAD too big for the sides — clamped to R${rc.toFixed(3)}.`);
+    if (rc < 1e-4) return null;
+  }
+  const P = primPoint(A, 1);
+  trimEnd(A, t); trimStart(B, t);
+  const bis = vnorm(vadd(vmul(d1, -1), d2v));
+  const C = vadd(P, vmul(bis, rc / Math.sin(theta / 2)));
+  const T1 = primPoint(A, 1), T2 = primPoint(B, 0);
+  const a1 = Math.atan2(T1.y - C.y, T1.x - C.x), a2 = Math.atan2(T2.y - C.y, T2.x - C.x);
+  const da = sweepToward(a1, a2, Math.sign(cr) || 1);
+  return { k: 'A', c: C, r: (d2(T1, C) + d2(T2, C)) / 2, a1, da, comp: A.comp, ev: A.ev, fillet: true };
+}
+
+/* offset one primitive by tool radius r to comp side ('center'|'left'|'right') */
+function offsetPrim(p, r, side) {
+  if (side === 'center' || r === 0) return { ...p };
+  const s = side === 'left' ? 1 : -1;
+  if (p.k === 'L') {
+    const n = leftN(primTan(p, 0)), off = vmul(n, s * r);
+    return { ...p, p1: vadd(p.p1, off), p2: vadd(p.p2, off) };
+  }
+  const sg = Math.sign(p.da) || 1;
+  const nr = p.r - s * sg * r;                    // CCW+left = inside (r−rt), CCW+right = outside (r+rt)
+  if (nr <= 1e-3) return { err: `tool ⌀${(r * 2).toFixed(3)} cannot cut inside R${p.r.toFixed(3)} with comp ${side.toUpperCase()} — offset radius would be ≤ 0` };
+  return { ...p, r: nr };
+}
+
+function samplePrim(p, out, meta) {
+  const L = primLen(p), n = Math.max(2, Math.ceil(L / SAMPLE));
+  for (let i = 0; i <= n; i++) {
+    const t = i / n;
+    out.push({ p: primPoint(p, t), tan: primTan(p, t), ...meta });
+  }
+}
+
+/* ---- event → primitive, with validation ---- */
+function evPrim(ev, idx) {
+  if (ev.t === 'MILL') {
+    const p1 = { x: ev.x1, y: ev.y1 }, p2 = { x: ev.x2, y: ev.y2 };
+    if (d2(p1, p2) < 1e-4) return { err: 'MILL begin = end — zero-length cut.' };
+    return { prim: { k: 'L', p1, p2, comp: ev.comp, cr: ev.cr || 0, ev: idx } };
+  }
+  const p1 = { x: ev.x1, y: ev.y1 }, p2 = { x: ev.x2, y: ev.y2 }, c = { x: ev.xc, y: ev.yc };
+  const r1 = d2(p1, c), r2 = d2(p2, c);
+  if (r1 < 1e-3) return { err: 'ARC begin sits on the center.' };
+  if (Math.abs(r1 - r2) > 0.005)
+    return { err: `ARC begin R ${r1.toFixed(3)} ≠ end R ${r2.toFixed(3)} — both points must be the same distance from center.` };
+  const r = (r1 + r2) / 2;
+  const a1 = Math.atan2(p1.y - c.y, p1.x - c.x), a2 = Math.atan2(p2.y - c.y, p2.x - c.x);
+  let da = sweepToward(a1, a2, ev.dir === 'cw' ? -1 : 1);
+  if (d2(p1, p2) < 1e-4) da = (ev.dir === 'cw' ? -1 : 1) * 2 * Math.PI;   // full circle
+  return { prim: { k: 'A', c, r, a1, da, comp: ev.comp, cr: ev.cr || 0, ev: idx } };
+}
+
+function validateEvent(ev) {
+  const bad = [];
+  const num = (v, name) => { if (!Number.isFinite(v)) bad.push(name + ' is not a number'); };
+  const inTravel = (x, y, tag) => {
+    if (Math.abs(x) > FACTS.travel.x) bad.push(`${tag} X ${x} beyond ±${FACTS.travel.x}" X travel`);
+    if (Math.abs(y) > FACTS.travel.y) bad.push(`${tag} Y ${y} beyond ±${FACTS.travel.y}" Y travel`);
+  };
+  if (ev.t === 'POSN' || ev.t === 'DRILL') { num(ev.x, 'X'); num(ev.y, 'Y'); if (!bad.length) inTravel(ev.x, ev.y, ''); }
+  else if (ev.t === 'BOLT') {
+    num(ev.xc, 'XC'); num(ev.yc, 'YC'); num(ev.r, 'R'); num(ev.n, 'N'); num(ev.a, 'START');
+    if (!bad.length) {
+      if (ev.r <= 0) bad.push('radius must be > 0');
+      if (ev.n < 2 || ev.n > 36 || ev.n % 1) bad.push('# holes must be a whole number 2–36');
+      inTravel(ev.xc, ev.yc, 'center');
+    }
+  } else {
+    num(ev.x1, 'X BEGIN'); num(ev.y1, 'Y BEGIN'); num(ev.x2, 'X END'); num(ev.y2, 'Y END');
+    if (ev.t === 'ARC') { num(ev.xc, 'X CENTER'); num(ev.yc, 'Y CENTER'); }
+    num(ev.cr, 'CONRAD');
+    if (!bad.length) {
+      if (ev.cr < 0) bad.push('conrad must be ≥ 0');
+      inTravel(ev.x1, ev.y1, 'begin'); inTravel(ev.x2, ev.y2, 'end');
+      const chk = evPrim(ev, 0);
+      if (chk.err) bad.push(chk.err);
+    }
+  }
+  return bad.join('; ');
+}
+
+/* ---- compile a whole program ----
+   returns { errors:[{i,msg}], warnings:[], chains:[{prog:[s],center:[s]}],
+             drills:[{p,i,meta}], ops:[rapid|cut|drill], evGeom: Map(i -> prims) } */
+function compile(events, toolR) {
+  const errors = [], warnings = [], chains = [], drills = [], ops = [];
+  const evGeom = new Map();
+  const warn = m => warnings.push(m);
+  let cursor = { ...PARK };
+  let pend = [];                                  // pending cut prims (one chain)
+
+  const flush = () => {
+    if (!pend.length) { pend = []; return; }
+    const prims = pend; pend = [];
+    /* conrad pass */
+    const out = [];
+    for (let i = 0; i < prims.length; i++) {
+      out.push(prims[i]);
+      if (i < prims.length - 1 && prims[i].cr > 1e-6) {
+        const f = applyConrad(prims[i], prims[i + 1], prims[i].cr, warn);
+        if (f) out.push(f);
+      }
+    }
+    /* programmed samples */
+    const prog = [];
+    for (const p of out) {
+      samplePrim(p, prog, { ev: p.ev, comp: p.comp });
+      if (!evGeom.has(p.ev)) evGeom.set(p.ev, []);
+      evGeom.get(p.ev).push(p);
+    }
+    /* offset pass */
+    const offs = [];
+    for (const p of out) {
+      const o = offsetPrim(p, toolR, p.comp);
+      if (o.err) { errors.push({ i: p.ev, msg: o.err }); return; }
+      offs.push(o);
+    }
+    /* junctions between offset prims */
+    const offs2 = [offs[0]];
+    for (let i = 0; i < offs.length - 1; i++) {
+      const A = offs2[offs2.length - 1], B = offs[i + 1];
+      const e1 = primPoint(A, 1), s2 = primPoint(B, 0);
+      const gap = d2(e1, s2);
+      if (gap > 1e-4) {
+        const dA = primTan(out[i], 1), dB = primTan(out[i + 1], 0);
+        const crn = cross(dA, dB), P = primPoint(out[i], 1);
+        const comp = out[i].comp, s = comp === 'left' ? 1 : -1;
+        const gapCase = comp !== 'center' && ((s === 1 && crn < 0) || (s === -1 && crn > 0));
+        if (gap < 0.01 || Math.abs(crn) < 0.05) {
+          offs2.push({ k: 'L', p1: e1, p2: s2, comp, ev: out[i].ev, joint: true });
+        } else if (gapCase) {
+          const a1 = Math.atan2(e1.y - P.y, e1.x - P.x), a2 = Math.atan2(s2.y - P.y, s2.x - P.x);
+          offs2.push({ k: 'A', c: P, r: toolR, a1, da: sweepToward(a1, a2, Math.sign(crn) || 1), comp, ev: out[i].ev, joint: true });
+        } else if (A.k === 'L' && B.k === 'L') {
+          const den = cross(primTan(A, 0), primTan(B, 0));
+          if (Math.abs(den) > 1e-9) {
+            const t = cross(vsub(B.p1, A.p1), primTan(B, 0)) / den;
+            const I = vadd(A.p1, vmul(primTan(A, 0), t));
+            A.p2 = I; B.p1 = { ...I };
+          } else offs2.push({ k: 'L', p1: e1, p2: s2, comp, ev: out[i].ev, joint: true });
+        } else {
+          offs2.push({ k: 'L', p1: e1, p2: s2, comp, ev: out[i].ev, joint: true });
+        }
+      }
+      offs2.push(B);
+    }
+    /* center-path samples */
+    const center = [];
+    for (const p of offs2) samplePrim(p, center, { ev: p.ev, comp: p.comp });
+    chains.push({ prog, center });
+    if (center.length) {
+      ops.push({ kind: 'rapid', from: { ...cursor }, to: center[0].p });
+      ops.push({ kind: 'cut', chain: center });
+      cursor = { ...center[center.length - 1].p };
+    }
+  };
+
+  events.forEach((ev, i) => {
+    const verr = validateEvent(ev);
+    if (verr) { errors.push({ i, msg: verr }); flush(); return; }
+    if (ev.t === 'POSN') {
+      flush();
+      ops.push({ kind: 'rapid', from: { ...cursor }, to: { x: ev.x, y: ev.y } });
+      cursor = { x: ev.x, y: ev.y };
+    } else if (ev.t === 'DRILL') {
+      flush();
+      const p = { x: ev.x, y: ev.y };
+      ops.push({ kind: 'rapid', from: { ...cursor }, to: p });
+      ops.push({ kind: 'drill', p });
+      drills.push({ p, i });
+      cursor = { ...p };
+    } else if (ev.t === 'BOLT') {
+      flush();
+      for (let h = 0; h < ev.n; h++) {
+        const th = (ev.a + h * 360 / ev.n) * Math.PI / 180;
+        const p = { x: ev.xc + ev.r * Math.cos(th), y: ev.yc + ev.r * Math.sin(th) };
+        ops.push({ kind: 'rapid', from: { ...cursor }, to: p });
+        ops.push({ kind: 'drill', p });
+        drills.push({ p, i, meta: { h, n: ev.n, xc: ev.xc, yc: ev.yc, r: ev.r, a: ev.a } });
+        cursor = { ...p };
+      }
+    } else {                                       // MILL / ARC
+      const { prim, err } = evPrim(ev, i);
+      if (err) { errors.push({ i, msg: err }); flush(); return; }
+      const beg = primPoint(prim, 0);
+      if (pend.length) {
+        const prevEnd = primPoint(pend[pend.length - 1], 1);
+        if (d2(prevEnd, beg) > 2e-3) flush();
+      }
+      pend.push(prim);
+    }
+  });
+  flush();
+  return { errors, warnings, chains, drills, ops, evGeom };
+}
+
+/* ================= levels ================= */
+function mill(x1, y1, x2, y2, cr = 0) { return { t: 'MILL', x1, y1, x2, y2, xc: 0, yc: 0, comp: 'center', dir: 'ccw', cr }; }
+function arc(x1, y1, x2, y2, xc, yc, dir = 'ccw', cr = 0) { return { t: 'ARC', x1, y1, x2, y2, xc, yc, comp: 'center', dir, cr }; }
+const drill = (x, y) => ({ t: 'DRILL', x, y });
+
+const LEVELS = [
+  { name: 'FIRST HOLES', tool: 0.25, kind: 'drill',
+    brief: ['Drill the three holes shown, anywhere order.',
+      'DRILL positions AND makes the hole. POSN is only a rapid move — it cuts nothing.',
+      'A hole counts when your drill lands within ±.030 of its center. Off-print holes cost −10.'],
+    golden: [drill(1, 1), drill(2.5, 2), drill(4, 1)],
+    view: { x0: -1, y0: -1, x1: 5.4, y1: 3.4 } },
+
+  { name: 'HOLE GRID 3×2', tool: 0.25, kind: 'drill',
+    brief: ['Six holes: 3 columns × 2 rows from (1.000,1.000).',
+      'Pitch 1.250 in X, 1.500 in Y.',
+      'Six DRILL events — let begin auto-fill keep you honest about the pattern.'],
+    golden: [drill(1, 1), drill(2.25, 1), drill(3.5, 1), drill(1, 2.5), drill(2.25, 2.5), drill(3.5, 2.5)],
+    view: { x0: -1, y0: -1, x1: 5.4, y1: 3.9 } },
+
+  { name: 'BOLT CIRCLE ×5', tool: 0.25, kind: 'drill',
+    brief: ['5 holes on R1.250 about (2.500,2.000), first hole at 90°.',
+      'θᵢ = 90° + i·72°, CCW from +X. xᵢ = 2.5 + 1.25·cos θᵢ, yᵢ = 2.0 + 1.25·sin θᵢ.',
+      'One BOLT HOLE event does all five — or compute and DRILL each.'],
+    golden: [{ t: 'BOLT', xc: 2.5, yc: 2, r: 1.25, n: 5, a: 90 }],
+    view: { x0: -1, y0: -1, x1: 5.9, y1: 3.9 } },
+
+  { name: 'BOLT + STRAGGLERS', tool: 0.25, kind: 'drill',
+    brief: ['4-hole bolt circle: R1.000 about (2.000,2.000), first hole at 45°.',
+      'Plus two loose holes at (4.500,1.000) and (4.500,3.000).',
+      'Mix event types: one BOLT HOLE + two DRILLs.'],
+    golden: [{ t: 'BOLT', xc: 2, yc: 2, r: 1, n: 4, a: 45 }, drill(4.5, 1), drill(4.5, 3)],
+    view: { x0: -1, y0: -1, x1: 5.9, y1: 3.9 } },
+
+  { name: 'L-PATH · COMP CENTER', tool: 0.5, kind: 'contour', mode: 'center',
+    brief: ['Cut the open L: (1.000,3.250) → (1.000,1.000) → (4.000,1.000).',
+      'COMP CENTER — the ⌀.500 tool center rides the line, cutting a .500 wide slot.',
+      'Two MILL events. Scored on the tool CENTER staying within ±.030 of the line.'],
+    golden: [mill(1, 3.25, 1, 1), mill(1, 1, 4, 1)],
+    view: { x0: -1, y0: -1, x1: 5.4, y1: 4.1 } },
+
+  { name: 'RECT PROFILE + CONRAD', tool: 0.5, kind: 'contour', mode: 'edge', matSide: 'left',
+    brief: ['Profile OUTSIDE the 3.000×2.000 boss, corners (1,1)–(4,3). CONRAD R.250 on all four corners.',
+      'Start mid-edge (2.500,1.000) so every corner blends into a NEXT event: 5 MILLs.',
+      'Hatching marks material. Comp so the cut EDGE lands on the line from outside.',
+      'Climb with the M3 spindle = material on your RIGHT → walk CW with comp LEFT. (CCW + comp RIGHT cuts the same edge, conventional.)'],
+    golden: [mill(2.5, 1, 4, 1, 0.25), mill(4, 1, 4, 3, 0.25), mill(4, 3, 1, 3, 0.25), mill(1, 3, 1, 1, 0.25), mill(1, 1, 2.5, 1)],
+    view: { x0: -1, y0: -1, x1: 5.9, y1: 4.1 } },
+
+  { name: 'PROFILE WITH ARC SIDE', tool: 0.5, kind: 'contour', mode: 'edge', matSide: 'left',
+    brief: ['Same boss, but the right side is a half-round: ARC (4,1)→(4,3), center (4.000,2.000), R1.000, bulging +X.',
+      'Walking CCW (bottom first), the arc runs CCW and meets both lines tangent — no conrad needed there.',
+      'CONRAD R.250 on the two left corners (1,3) and (1,1).',
+      'Order: MILL bottom · ARC · MILL top (conrad) · MILL left (conrad) · MILL back to start.'],
+    golden: [mill(2.5, 1, 4, 1), arc(4, 1, 4, 3, 4, 2, 'ccw'), mill(4, 3, 1, 3, 0.25), mill(1, 3, 1, 1, 0.25), mill(1, 1, 2.5, 1)],
+    view: { x0: -1, y0: -1, x1: 6.2, y1: 4.1 } },
+
+  { name: 'FREE PROFILE', tool: 0.5, kind: 'contour', mode: 'edge', matSide: 'left',
+    brief: ['Mixed profile, CCW from (2.500,1.000): bottom to (4.500,1.000) CONRAD .250 · right side up to (4.500,2.250) ·',
+      'ARC to (3.250,3.500) about center (3.250,2.250) R1.250 CCW (tangent both ends) ·',
+      'top to (1.000,3.500) CONRAD .375 · left down to (1.000,1.000) CONRAD .250 · bottom back to start.',
+      '6 events: 5 MILL + 1 ARC. Comp for an outside cut — the arc grows by the tool radius.'],
+    golden: [mill(2.5, 1, 4.5, 1, 0.25), mill(4.5, 1, 4.5, 2.25), arc(4.5, 2.25, 3.25, 3.5, 3.25, 2.25, 'ccw'),
+      mill(3.25, 3.5, 1, 3.5, 0.375), mill(1, 3.5, 1, 1, 0.25), mill(1, 1, 2.5, 1)],
+    view: { x0: -1, y0: -1, x1: 6.2, y1: 4.6 } },
+];
+
+/* canvas dimension labels per level (world coords) */
+const LABELS = [
+  [{ x: 1, y: 1, t: '(1.000,1.000)', dy: -0.28 }, { x: 2.5, y: 2, t: '(2.500,2.000)', dy: 0.3 },
+   { x: 4, y: 1, t: '(4.000,1.000)', dy: -0.28 }],
+  [{ x: 1, y: 1, t: '(1.000,1.000)', dy: -0.28 }, { x: 2.25, y: 1, t: 'PITCH X 1.250', dy: -0.55, dx: 0.6 },
+   { x: 1, y: 2.5, t: 'PITCH Y 1.500', dy: 0.3, dx: 0.35 }, { x: 3.5, y: 2.5, t: '(3.500,2.500)', dy: 0.3 }],
+  [{ x: 2.5, y: 2, t: '(2.500,2.000)', dy: -0.3 }, { x: 2.5, y: 2, t: 'R1.250 · 5 HOLES · START 90°', dy: -0.58 }],
+  [{ x: 2, y: 2, t: '(2.000,2.000)', dy: -0.3 }, { x: 2, y: 2, t: 'R1.000 · 4 HOLES · START 45°', dy: -0.58 },
+   { x: 4.5, y: 1, t: '(4.500,1.000)', dy: -0.28 }, { x: 4.5, y: 3, t: '(4.500,3.000)', dy: 0.3 }],
+  [{ x: 1, y: 3.25, t: '(1.000,3.250)', dy: 0.3 }, { x: 1, y: 1, t: '(1.000,1.000)', dx: -0.15, dy: -0.3 },
+   { x: 4, y: 1, t: '(4.000,1.000)', dy: -0.3 }, { x: 2.6, y: 2.3, t: 'TOOL ⌀.500 · COMP CENTER' }],
+  [{ x: 1, y: 1, t: '(1.000,1.000)', dx: -0.35, dy: -0.3 }, { x: 4, y: 1, t: '(4.000,1.000)', dx: 0.4, dy: -0.3 },
+   { x: 4, y: 3, t: '(4.000,3.000)', dx: 0.45, dy: 0.3 }, { x: 1, y: 3, t: '(1.000,3.000)', dx: -0.4, dy: 0.3 },
+   { x: 2.5, y: 2, t: 'CONRAD R.250 ×4' }, { x: 2.5, y: 1, t: 'START (2.500,1.000)', dy: -0.55 }],
+  [{ x: 1, y: 1, t: '(1.000,1.000)', dx: -0.35, dy: -0.3 }, { x: 4, y: 1, t: '(4.000,1.000)', dx: 0.55, dy: -0.3 },
+   { x: 4, y: 3, t: '(4.000,3.000)', dx: 0.55, dy: 0.3 }, { x: 1, y: 3, t: '(1.000,3.000)', dx: -0.4, dy: 0.3 },
+   { x: 5, y: 2, t: 'R1.000', dx: 0.35 }, { x: 4, y: 2, t: 'CTR (4.000,2.000)', dx: -0.85 },
+   { x: 2.3, y: 2, t: 'CONRAD R.250 ×2' }, { x: 2.5, y: 1, t: 'START (2.500,1.000)', dy: -0.55 }],
+  [{ x: 1, y: 1, t: '(1.000,1.000)', dx: -0.35, dy: -0.3 }, { x: 4.5, y: 1, t: '(4.500,1.000)', dx: 0.5, dy: -0.3 },
+   { x: 4.5, y: 2.25, t: '(4.500,2.250)', dx: 0.72 }, { x: 3.25, y: 3.5, t: '(3.250,3.500)', dy: 0.3 },
+   { x: 1, y: 3.5, t: '(1.000,3.500)', dx: -0.4, dy: 0.3 },
+   { x: 3.25, y: 2.25, t: 'ARC CTR (3.250,2.250) R1.250', dy: -0.25 },
+   { x: 2.4, y: 1.6, t: 'CONRAD .250 / TOP-LEFT .375' }, { x: 2.5, y: 1, t: 'START', dy: -0.5 }],
+];
+
+/* ---- targets: golden program compiled through the same pipeline ---- */
+function buildTarget(li) {
+  const L = LEVELS[li];
+  const c = compile(L.golden, L.tool / 2);
+  const holes = c.drills.map(dd => ({ p: dd.p, meta: dd.meta || null }));
+  const path = [];
+  for (const ch of c.chains) {
+    let acc = TSTEP;                       // force-emit first sample
+    let prev = null;
+    ch.prog.forEach((s, k) => {
+      if (prev) acc += d2(prev.p, s.p);
+      prev = s;
+      if (acc >= TSTEP - 1e-9 || k === ch.prog.length - 1) {
+        acc = 0;
+        const nm = L.mode === 'edge'
+          ? (L.matSide === 'left' ? leftN(s.tan) : vmul(leftN(s.tan), -1)) : null;
+        path.push({ p: s.p, tan: s.tan, nMat: nm });
+      }
+    });
+  }
+  return { holes, path, chains: c.chains };
+}
+const TARGETS = LEVELS.map((_, i) => buildTarget(i));
+
+/* ================= state ================= */
+const S = {
+  li: 0,
+  progs: LEVELS.map(() => []),
+  bests: LEVELS.map(() => null),
+  score: null,
+  sel: -1, editing: -1,
+  compiled: null,          // lenient compile for preview
+  run: null,               // animation state
+  result: null,            // scoring result for markers
+  phase: 'build',          // build | run | done
+};
+
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const trail = document.createElement('canvas'), tctx = trail.getContext('2d');
+
+/* ================= view transform ================= */
+let VW = { s: 80, ox: 0, oy: 0, w: 0, h: 0 };
+function fitView() {
+  const w = cv.clientWidth, h = cv.clientHeight;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  let resized = false;
+  if (cv.width !== Math.round(w * dpr) || cv.height !== Math.round(h * dpr)) {
+    cv.width = Math.round(w * dpr); cv.height = Math.round(h * dpr);
+    trail.width = cv.width; trail.height = cv.height;
+    resized = true;
+  }
+  const v = LEVELS[S.li].view, m = 14 * dpr;
+  const s = Math.min((cv.width - 2 * m) / (v.x1 - v.x0), (cv.height - 2 * m) / (v.y1 - v.y0));
+  VW = {
+    s, w: cv.width, h: cv.height,
+    ox: (cv.width - s * (v.x1 - v.x0)) / 2 - v.x0 * s,
+    oy: (cv.height + s * (v.y1 - v.y0)) / 2 + v.y0 * s,
+  };
+  if (resized && S.run) restamp();
+}
+const px = wx => VW.ox + wx * VW.s;
+const py = wy => VW.oy - wy * VW.s;
+
+/* ================= drawing ================= */
+function drawGrid(g) {
+  const v = LEVELS[S.li].view;
+  g.fillStyle = '#F4F5F0'; g.fillRect(0, 0, VW.w, VW.h);
+  const dprG = VW.w / cv.clientWidth;
+  for (let pass = 0; pass < 2; pass++) {
+    const step = pass ? 1 : 0.25;
+    g.strokeStyle = pass ? '#B4BCB2' : '#D5DAD1';
+    g.lineWidth = (pass ? 1 : 0.75) * dprG;
+    g.beginPath();
+    for (let x = Math.ceil(v.x0 / step) * step; x <= v.x1 + 1e-9; x += step) {
+      g.moveTo(px(x), py(v.y0)); g.lineTo(px(x), py(v.y1));
+    }
+    for (let y = Math.ceil(v.y0 / step) * step; y <= v.y1 + 1e-9; y += step) {
+      g.moveTo(px(v.x0), py(y)); g.lineTo(px(v.x1), py(y));
+    }
+    g.stroke();
+  }
+  /* axes + origin */
+  g.strokeStyle = '#8E9792'; g.lineWidth = 1.4 * dprG;
+  g.beginPath();
+  g.moveTo(px(v.x0), py(0)); g.lineTo(px(v.x1), py(0));
+  g.moveTo(px(0), py(v.y0)); g.lineTo(px(0), py(v.y1));
+  g.stroke();
+  const dpr = VW.w / cv.clientWidth;
+  g.font = `${Math.round(9 * dpr)}px "IBM Plex Mono", monospace`;
+  g.fillStyle = '#7C8681'; g.textAlign = 'center'; g.textBaseline = 'top';
+  for (let x = Math.ceil(v.x0); x <= v.x1; x++) if (x) g.fillText(String(x), px(x), py(0) + 3 * dpr);
+  g.textAlign = 'right'; g.textBaseline = 'middle';
+  for (let y = Math.ceil(v.y0); y <= v.y1; y++) if (y) g.fillText(String(y), px(0) - 4 * dpr, py(y));
+  /* origin */
+  g.strokeStyle = '#232A2E'; g.lineWidth = 1.4;
+  g.beginPath();
+  g.moveTo(px(0) - 7 * dpr, py(0)); g.lineTo(px(0) + 7 * dpr, py(0));
+  g.moveTo(px(0), py(0) - 7 * dpr); g.lineTo(px(0), py(0) + 7 * dpr);
+  g.stroke();
+  g.fillStyle = '#232A2E'; g.textAlign = 'left'; g.textBaseline = 'top';
+  g.fillText('X0 Y0', px(0) + 5 * dpr, py(0) + 5 * dpr);
+  g.fillStyle = '#7C8681'; g.textAlign = 'right';
+  g.fillText('X+ →  Y+ ↑   ANGLES CCW FROM +X', px(v.x1) - 4 * dpr, py(v.y1) + 4 * dpr);
+  g.textAlign = 'left';
+  /* park */
+  g.strokeStyle = '#9AA39E'; g.lineWidth = 1;
+  g.beginPath();
+  g.moveTo(px(PARK.x) - 5 * dpr, py(PARK.y)); g.lineTo(px(PARK.x) + 5 * dpr, py(PARK.y));
+  g.moveTo(px(PARK.x), py(PARK.y) - 5 * dpr); g.lineTo(px(PARK.x), py(PARK.y) + 5 * dpr);
+  g.stroke();
+  g.fillStyle = '#9AA39E'; g.textAlign = 'center';
+  g.fillText('TOOL START', px(PARK.x), py(PARK.y) + 7 * dpr);
+}
+
+function strokeChain(g, samples) {
+  g.beginPath();
+  samples.forEach((s, i) => { if (i) g.lineTo(px(s.p.x), py(s.p.y)); else g.moveTo(px(s.p.x), py(s.p.y)); });
+  g.stroke();
+}
+
+function drawTarget(g) {
+  const L = LEVELS[S.li], T = TARGETS[S.li];
+  const dpr = VW.w / cv.clientWidth;
+  g.strokeStyle = '#7FA8D4'; g.fillStyle = '#7FA8D4';
+  /* contour */
+  g.lineWidth = 2 * dpr;
+  for (const ch of T.chains) strokeChain(g, ch.prog);
+  /* hatching = material side */
+  if (L.mode === 'edge') {
+    g.lineWidth = 0.8 * dpr; g.globalAlpha = 0.7;
+    g.beginPath();
+    let acc = 1;
+    let prev = null;
+    for (const s of T.path) {
+      if (prev) acc += d2(prev.p, s.p); prev = s;
+      if (acc >= 0.18) {
+        acc = 0;
+        const a = vadd(s.p, vmul(s.nMat, 0.03)), b = vadd(s.p, vmul(s.nMat, 0.11));
+        g.moveTo(px(a.x), py(a.y)); g.lineTo(px(b.x), py(b.y));
+      }
+    }
+    g.stroke(); g.globalAlpha = 1;
+  }
+  /* holes */
+  const hr = (L.tool / 2) * VW.s;
+  for (const h of T.holes) {
+    g.setLineDash([4 * dpr, 3 * dpr]); g.lineWidth = 1.5 * dpr;
+    g.beginPath(); g.arc(px(h.p.x), py(h.p.y), hr, 0, 7); g.stroke();
+    g.setLineDash([]);
+    g.lineWidth = 1 * dpr;
+    g.beginPath();
+    g.moveTo(px(h.p.x) - hr - 3 * dpr, py(h.p.y)); g.lineTo(px(h.p.x) + hr + 3 * dpr, py(h.p.y));
+    g.moveTo(px(h.p.x), py(h.p.y) - hr - 3 * dpr); g.lineTo(px(h.p.x), py(h.p.y) + hr + 3 * dpr);
+    g.stroke();
+  }
+  /* dimension labels */
+  g.font = `${Math.round(9.5 * dpr)}px "IBM Plex Mono", monospace`;
+  g.fillStyle = '#1F5FA8'; g.textAlign = 'center'; g.textBaseline = 'middle';
+  for (const lb of (LABELS[S.li] || [])) {
+    g.fillText(lb.t, px(lb.x + (lb.dx || 0)), py(lb.y + (lb.dy || 0)));
+  }
+}
+
+function drawPreview(g) {
+  if (!S.compiled) return;
+  const dpr = VW.w / cv.clientWidth;
+  const c = S.compiled;
+  /* rapids dotted */
+  g.strokeStyle = '#9AA39E'; g.lineWidth = 1 * dpr; g.setLineDash([3 * dpr, 4 * dpr]);
+  g.beginPath();
+  for (const op of c.ops) if (op.kind === 'rapid') {
+    g.moveTo(px(op.from.x), py(op.from.y)); g.lineTo(px(op.to.x), py(op.to.y));
+  }
+  g.stroke(); g.setLineDash([]);
+  /* programmed cuts in ink */
+  g.strokeStyle = '#232A2E'; g.lineWidth = 1.3 * dpr;
+  for (const ch of c.chains) strokeChain(g, ch.prog);
+  /* begin-direction arrow per chain */
+  g.fillStyle = '#232A2E';
+  for (const ch of c.chains) {
+    if (ch.prog.length < 2) continue;
+    const s = ch.prog[0], t = s.tan;
+    const tip = vadd(s.p, vmul(t, 0.14)), l = leftN(t);
+    const b1 = vadd(vadd(s.p, vmul(t, 0.02)), vmul(l, 0.05));
+    const b2 = vadd(vadd(s.p, vmul(t, 0.02)), vmul(l, -0.05));
+    g.beginPath();
+    g.moveTo(px(tip.x), py(tip.y)); g.lineTo(px(b1.x), py(b1.y)); g.lineTo(px(b2.x), py(b2.y));
+    g.closePath(); g.fill();
+  }
+  /* drills */
+  const hr = (LEVELS[S.li].tool / 2) * VW.s;
+  g.strokeStyle = '#232A2E'; g.lineWidth = 1 * dpr;
+  for (const dd of c.drills) {
+    g.beginPath(); g.arc(px(dd.p.x), py(dd.p.y), Math.max(hr, 2), 0, 7); g.stroke();
+    g.beginPath();
+    g.moveTo(px(dd.p.x) - 3 * dpr, py(dd.p.y)); g.lineTo(px(dd.p.x) + 3 * dpr, py(dd.p.y));
+    g.moveTo(px(dd.p.x), py(dd.p.y) - 3 * dpr); g.lineTo(px(dd.p.x), py(dd.p.y) + 3 * dpr);
+    g.stroke();
+  }
+  /* selected event highlight */
+  if (S.sel >= 0 && c.evGeom.has(S.sel)) {
+    g.strokeStyle = '#E4572E'; g.lineWidth = 2.6 * dpr;
+    for (const p of c.evGeom.get(S.sel)) {
+      const tmp = []; samplePrim(p, tmp, {});
+      strokeChain(g, tmp);
+    }
+  }
+  const selEv = S.progs[S.li][S.sel];
+  if (selEv && (selEv.t === 'POSN' || selEv.t === 'DRILL')) {
+    g.strokeStyle = '#E4572E'; g.lineWidth = 2 * dpr;
+    g.beginPath(); g.arc(px(selEv.x), py(selEv.y), Math.max(hr, 3) + 2 * dpr, 0, 7); g.stroke();
+  }
+  if (selEv && selEv.t === 'BOLT') {
+    g.strokeStyle = '#E4572E'; g.lineWidth = 1.4 * dpr; g.setLineDash([4 * dpr, 3 * dpr]);
+    g.beginPath(); g.arc(px(selEv.xc), py(selEv.yc), selEv.r * VW.s, 0, 7); g.stroke();
+    g.setLineDash([]);
+  }
+}
+
+function drawMarkers(g) {
+  if (!S.result) return;
+  const dpr = VW.w / cv.clientWidth;
+  const R = S.result;
+  if (R.samples) {
+    for (const s of R.samples) {
+      if (s.cat === 'hit') { g.fillStyle = '#1D7A3A'; g.beginPath(); g.arc(px(s.p.x), py(s.p.y), 2 * dpr, 0, 7); g.fill(); }
+      else if (s.cat === 'gouge') {
+        g.strokeStyle = '#C22B2B'; g.lineWidth = 1.4 * dpr;
+        g.beginPath();
+        g.moveTo(px(s.p.x) - 3 * dpr, py(s.p.y) - 3 * dpr); g.lineTo(px(s.p.x) + 3 * dpr, py(s.p.y) + 3 * dpr);
+        g.moveTo(px(s.p.x) - 3 * dpr, py(s.p.y) + 3 * dpr); g.lineTo(px(s.p.x) + 3 * dpr, py(s.p.y) - 3 * dpr);
+        g.stroke();
+      } else { g.fillStyle = '#E4572E'; g.beginPath(); g.arc(px(s.p.x), py(s.p.y), 2.2 * dpr, 0, 7); g.fill(); }
+    }
+  }
+  if (R.holes) {
+    const hr = (LEVELS[S.li].tool / 2) * VW.s + 4 * dpr;
+    for (const h of R.holes) {
+      g.strokeStyle = h.hit ? '#1D7A3A' : '#E4572E'; g.lineWidth = 2 * dpr;
+      g.beginPath(); g.arc(px(h.p.x), py(h.p.y), hr, 0, 7); g.stroke();
+    }
+    g.font = `${Math.round(9 * dpr)}px "IBM Plex Mono", monospace`;
+    g.fillStyle = '#E4572E'; g.textAlign = 'center';
+    for (const e of R.extras) {
+      g.beginPath(); g.arc(px(e.x), py(e.y), hr, 0, 7); g.strokeStyle = '#E4572E'; g.stroke();
+      g.fillText('EXTRA −' + EXTRA_PENALTY, px(e.x), py(e.y) - hr - 6 * dpr);
+    }
+  }
+}
+
+function drawTool(g) {
+  if (!S.run || S.phase !== 'run') return;
+  const dpr = VW.w / cv.clientWidth;
+  const p = S.run.pos, r = (LEVELS[S.li].tool / 2) * VW.s;
+  g.fillStyle = 'rgba(31,95,168,0.28)';
+  g.beginPath(); g.arc(px(p.x), py(p.y), Math.max(r, 3), 0, 7); g.fill();
+  g.strokeStyle = '#232A2E'; g.lineWidth = 1.5 * dpr;
+  g.beginPath(); g.arc(px(p.x), py(p.y), Math.max(r, 3), 0, 7); g.stroke();
+  g.beginPath();
+  g.moveTo(px(p.x) - 3 * dpr, py(p.y)); g.lineTo(px(p.x) + 3 * dpr, py(p.y));
+  g.moveTo(px(p.x), py(p.y) - 3 * dpr); g.lineTo(px(p.x), py(p.y) + 3 * dpr);
+  g.stroke();
+}
+
+function frame() {
+  fitView();
+  drawGrid(ctx);
+  ctx.drawImage(trail, 0, 0);
+  drawTarget(ctx);
+  if (S.phase === 'build') drawPreview(ctx);
+  drawMarkers(ctx);
+  drawTool(ctx);
+  requestAnimationFrame(frame);
+}
+
+/* ================= run animation ================= */
+const RAPID_IPS = 8, CUT_IPS = 3, DRILL_DWELL = 0.32;
+
+function buildSpans(c) {
+  const spans = []; let t0 = 0;
+  for (const op of c.ops) {
+    if (op.kind === 'rapid') {
+      const len = d2(op.from, op.to);
+      if (len < 1e-6) continue;
+      spans.push({ kind: 'rapid', from: op.from, to: op.to, len, t0, dur: len / RAPID_IPS });
+      t0 += len / RAPID_IPS;
+    } else if (op.kind === 'drill') {
+      spans.push({ kind: 'drill', p: op.p, t0, dur: DRILL_DWELL });
+      t0 += DRILL_DWELL;
+    } else {
+      const cum = [0];
+      for (let i = 1; i < op.chain.length; i++) cum.push(cum[i - 1] + d2(op.chain[i - 1].p, op.chain[i].p));
+      const len = cum[cum.length - 1];
+      if (len < 1e-6) continue;
+      spans.push({ kind: 'cut', chain: op.chain, cum, len, t0, dur: len / CUT_IPS });
+      t0 += len / CUT_IPS;
+    }
+  }
+  return { spans, total: t0 };
+}
+
+function spanPos(sp, k) {                    // k in [0,1]
+  if (sp.kind === 'drill') return sp.p;
+  if (sp.kind === 'rapid') return vadd(sp.from, vmul(vsub(sp.to, sp.from), k));
+  const d = k * sp.len;
+  let i = sp._i || 0;
+  while (i < sp.cum.length - 2 && sp.cum[i + 1] < d) i++;
+  while (i > 0 && sp.cum[i] > d) i--;
+  sp._i = i;
+  const seg = sp.cum[i + 1] - sp.cum[i];
+  const f = seg < 1e-12 ? 0 : (d - sp.cum[i]) / seg;
+  return vadd(sp.chain[i].p, vmul(vsub(sp.chain[i + 1].p, sp.chain[i].p), f));
+}
+
+function stampCut(sp, k0, k1) {
+  const dpr = VW.w / cv.clientWidth;
+  const dia = LEVELS[S.li].tool * VW.s;
+  const a = spanPos(sp, k0), b = spanPos(sp, k1);
+  const d0 = k0 * sp.len, d1v = k1 * sp.len;
+  tctx.strokeStyle = '#D6DAD3'; tctx.lineWidth = Math.max(dia, 2); tctx.lineCap = 'round'; tctx.lineJoin = 'round';
+  tctx.beginPath();
+  tctx.moveTo(px(a.x), py(a.y));
+  for (let i = 0; i < sp.chain.length; i++) if (sp.cum[i] > d0 && sp.cum[i] < d1v) tctx.lineTo(px(sp.chain[i].p.x), py(sp.chain[i].p.y));
+  tctx.lineTo(px(b.x), py(b.y));
+  tctx.stroke();
+  tctx.strokeStyle = '#232A2E'; tctx.lineWidth = 1 * dpr;
+  tctx.stroke();
+}
+function stampRapid(sp) {
+  const dpr = VW.w / cv.clientWidth;
+  tctx.strokeStyle = '#1F5FA8'; tctx.lineWidth = 1 * dpr; tctx.setLineDash([4 * dpr, 4 * dpr]);
+  tctx.beginPath(); tctx.moveTo(px(sp.from.x), py(sp.from.y)); tctx.lineTo(px(sp.to.x), py(sp.to.y));
+  tctx.stroke(); tctx.setLineDash([]);
+}
+function stampDrill(sp) {
+  const dpr = VW.w / cv.clientWidth;
+  const r = Math.max((LEVELS[S.li].tool / 2) * VW.s, 2);
+  tctx.fillStyle = '#C9CFC8';
+  tctx.beginPath(); tctx.arc(px(sp.p.x), py(sp.p.y), r, 0, 7); tctx.fill();
+  tctx.strokeStyle = '#232A2E'; tctx.lineWidth = 1.2 * dpr;
+  tctx.beginPath(); tctx.arc(px(sp.p.x), py(sp.p.y), r, 0, 7); tctx.stroke();
+}
+function restamp() {                          // rebuild trail up to current run time
+  tctx.clearRect(0, 0, trail.width, trail.height);
+  if (!S.run) return;
+  for (const sp of S.run.spans) {
+    if (S.run.t >= sp.t0 + sp.dur) {
+      if (sp.kind === 'cut') stampCut(sp, 0, 1);
+      else if (sp.kind === 'rapid') stampRapid(sp);
+      else stampDrill(sp);
+    } else if (S.run.t > sp.t0 && sp.kind === 'cut') {
+      stampCut(sp, 0, (S.run.t - sp.t0) / sp.dur);
+    }
+  }
+}
+
+let lastTick = performance.now();
+function tick(now) {
+  const dt = Math.min(0.05, (now - lastTick) / 1000);
+  lastTick = now;
+  if (S.run && S.phase === 'run') {
+    const r = S.run;
+    const tPrev = r.t;
+    r.t = Math.min(r.total, r.t + dt);
+    for (const sp of r.spans) {
+      const a = Math.max(tPrev, sp.t0), b = Math.min(r.t, sp.t0 + sp.dur);
+      if (b <= a) continue;
+      if (sp.kind === 'cut') stampCut(sp, (a - sp.t0) / sp.dur, (b - sp.t0) / sp.dur);
+      if (sp.kind === 'rapid' && r.t >= sp.t0 + sp.dur) stampRapid(sp);
+      if (sp.kind === 'drill' && r.t >= sp.t0 + sp.dur) stampDrill(sp);
+      const k = Math.min(1, (r.t - sp.t0) / sp.dur);
+      if (r.t >= sp.t0 && (r.t < sp.t0 + sp.dur || sp === r.spans[r.spans.length - 1])) r.pos = spanPos(sp, k);
+    }
+    if (r.t >= r.total) finishRun();
+  }
+  requestAnimationFrame(tick);
+}
+
+/* ================= scoring ================= */
+function distToChain(pt, chain) {             // min distance point → sampled polyline
+  let best = { d: Infinity, np: null, tan: null };
+  for (let i = 0; i < chain.length - 1; i++) {
+    const a = chain[i].p, b = chain[i + 1].p;
+    const ab = vsub(b, a), L2 = ab.x * ab.x + ab.y * ab.y;
+    let t = L2 < 1e-12 ? 0 : (dot(vsub(pt, a), ab)) / L2;
+    t = Math.max(0, Math.min(1, t));
+    const np = vadd(a, vmul(ab, t));
+    const dd = d2(pt, np);
+    if (dd < best.d) best = { d: dd, np, tan: chain[i].tan };
+  }
+  return best;
+}
+
+function scoreRun(c) {
+  const L = LEVELS[S.li], T = TARGETS[S.li];
+  const r = L.tool / 2;
+  const res = { kind: L.kind, extras: [], teach: [] };
+  let pct = 0;
+
+  /* stray holes cost in every level */
+  for (const dd of c.drills) {
+    const near = T.holes.some(h => d2(h.p, dd.p) <= TOL);
+    if (!near) res.extras.push(dd.p);
+  }
+
+  if (L.kind === 'drill') {
+    res.holes = T.holes.map(h => {
+      let bestD = Infinity, bestP = null;
+      for (const dd of c.drills) { const dd2 = d2(h.p, dd.p); if (dd2 < bestD) { bestD = dd2; bestP = dd.p; } }
+      return { p: h.p, meta: h.meta, hit: bestD <= TOL, bestD, bestP };
+    });
+    const hits = res.holes.filter(h => h.hit).length;
+    pct = 100 * hits / res.holes.length;
+    res.line = `HOLES ON PRINT: ${hits}/${res.holes.length}`;
+    const missed = res.holes.filter(h => !h.hit);
+    for (const m of missed.slice(0, 3)) {
+      const delta = (m.bestP && m.bestD < 0.6)
+        ? ` Nearest drill is off by ΔX ${fmt(m.bestP.x - m.p.x)}, ΔY ${fmt(m.bestP.y - m.p.y)} (tol ±${TOL.toFixed(3)}).` : '';
+      if (m.meta) {
+        const th = m.meta.a + m.meta.h * 360 / m.meta.n;
+        res.teach.push({ tag: 'MISS', cls: 'bad',
+          html: `Bolt hole i=${m.meta.h}: θ = ${m.meta.a}° + ${m.meta.h}·360/${m.meta.n} = ${th}° → X = ${fmt(m.meta.xc)} + ${fmt(m.meta.r)}·cos ${th}° = <b>${fmt(m.p.x)}</b>, Y = ${fmt(m.meta.yc)} + ${fmt(m.meta.r)}·sin ${th}° = <b>${fmt(m.p.y)}</b>.${delta || ' No drill landed there.'}` });
+      } else if (delta) {
+        res.teach.push({ tag: 'MISS', cls: 'bad', html: `Hole (${fmt(m.p.x)},${fmt(m.p.y)}):${delta}` });
+      } else {
+        res.teach.push({ tag: 'MISS', cls: 'bad', html: `No drill anywhere near (${fmt(m.p.x)},${fmt(m.p.y)}). DRILL makes holes; POSN only rapids.` });
+      }
+    }
+  } else {
+    const chains = c.chains.map(ch => ch.center).filter(ch => ch.length > 1);
+    let hit = 0, gouge = 0, wrong = 0, uncut = 0, climb = 0, hitN = 0;
+    let worstUncut = null;
+    res.samples = T.path.map(tp => {
+      let best = { d: Infinity };
+      for (const ch of chains) { const b = distToChain(tp.p, ch); if (b.d < best.d) best = b; }
+      let cat;
+      if (!isFinite(best.d)) cat = 'uncut';
+      else if (L.mode === 'center') cat = best.d <= TOL ? 'hit' : 'uncut';
+      else if (best.d < r - TOL) cat = 'gouge';
+      else if (Math.abs(best.d - r) <= TOL) {
+        cat = dot(vsub(best.np, tp.p), tp.nMat) <= 0 ? 'hit' : 'wrong';
+      } else cat = 'uncut';
+      if (cat === 'hit') {
+        hit++;
+        if (L.mode === 'edge' && best.tan) {
+          hitN++;
+          const rightOf = { x: best.tan.y, y: -best.tan.x };
+          if (dot(tp.nMat, rightOf) > 0) climb++;
+        }
+      } else if (cat === 'gouge') gouge++;
+      else if (cat === 'wrong') wrong++;
+      else { uncut++; if (!worstUncut || best.d > worstUncut.d) worstUncut = { p: tp.p, d: best.d }; }
+      return { p: tp.p, cat, d: best.d };
+    });
+    const total = res.samples.length;
+    pct = 100 * hit / Math.max(1, total);
+    res.line = L.mode === 'center'
+      ? `CENTERLINE ON PATH: ${hit}/${total} samples`
+      : `CUT EDGE ON LINE: ${hit}/${total} samples`;
+    if (gouge > 0) res.teach.push({ tag: 'GOUGE', cls: 'gouge',
+      html: `${gouge} sample${gouge > 1 ? 's' : ''} machined AWAY — the tool center came closer than R−.030 to the part line. Running COMP CENTER on a profile buries the edge R=${fmt(r)} into the part; offset with comp LEFT/RIGHT (and check arc directions).` });
+    if (wrong > 0) res.teach.push({ tag: 'WRONG SIDE', cls: 'bad',
+      html: `${wrong} sample${wrong > 1 ? 's' : ''}: the edge reached the line but from INSIDE the material. LEFT/RIGHT is judged walking each cut begin→end — flip the comp or reverse the walk.` });
+    if (uncut > 0) {
+      let extra = '';
+      const parallel = res.samples.filter(s => s.cat === 'uncut' && Math.abs(s.d - r) <= TOL).length;
+      if (L.mode === 'center' && parallel > uncut * 0.6)
+        extra = ` Your path runs parallel about ${fmt(r)} off — comp LEFT/RIGHT shifts the whole slot. This level wants COMP CENTER.`;
+      else if (worstUncut && isFinite(worstUncut.d))
+        extra = ` Worst gap near (${fmt(worstUncut.p.x)},${fmt(worstUncut.p.y)}) — nearest cut ${fmt(worstUncut.d)}" away.`;
+      res.teach.push({ tag: 'UNCUT', cls: 'bad',
+        html: `${uncut} sample${uncut > 1 ? 's' : ''} never met a cutter edge (±.030).${extra}` });
+    }
+    if (L.mode === 'edge' && hitN > 0) {
+      const isClimb = climb > hitN / 2;
+      res.teach.push({ tag: isClimb ? 'CLIMB ✓' : 'CONVENTIONAL', cls: isClimb ? 'ok' : 'note',
+        html: isClimb
+          ? 'Material stayed on the RIGHT of your travel — climb milling, correct for the M3 spindle.'
+          : 'You cut with material on your LEFT — conventional. Same finished edge, but for CLIMB with M3: reverse the walk (outside profile CW) and flip comp to LEFT.' });
+    }
+  }
+
+  if (res.extras.length) res.teach.push({ tag: 'EXTRA', cls: 'bad',
+    html: `${res.extras.length} hole${res.extras.length > 1 ? 's' : ''} not on the print — a scrapped part in the real world. −${EXTRA_PENALTY} each.` });
+
+  res.pct = pct;
+  res.score = Math.max(0, Math.round(pct) - res.extras.length * EXTRA_PENALTY);
+  return res;
+}
+
+/* ================= UI: program management ================= */
+const prog = () => S.progs[S.li];
+
+function lastEnd() {
+  const p = prog();
+  for (let i = p.length - 1; i >= 0; i--) {
+    const e = p[i];
+    if (e.t === 'MILL' || e.t === 'ARC') return { x: e.x2, y: e.y2 };
+    if (e.t === 'POSN' || e.t === 'DRILL') return { x: e.x, y: e.y };
+    if (e.t === 'BOLT') {
+      const th = (e.a + (e.n - 1) * 360 / e.n) * Math.PI / 180;
+      return { x: e.xc + e.r * Math.cos(th), y: e.yc + e.r * Math.sin(th) };
+    }
+  }
+  return null;
+}
+
+function summarize(e) {
+  const cc = e.comp === 'left' ? 'COMP L' : e.comp === 'right' ? 'COMP R' : 'COMP C';
+  const cr = e.cr > 0 ? ` CR ${e.cr.toFixed(3).replace(/^0/, '')}` : '';
+  switch (e.t) {
+    case 'POSN': return `POSN → (${fmt(e.x)}, ${fmt(e.y)})`;
+    case 'DRILL': return `DRILL (${fmt(e.x)}, ${fmt(e.y)})`;
+    case 'BOLT': return `BOLT ${e.n}×R${fmt(e.r)} @(${fmt(e.xc)},${fmt(e.yc)}) ∠${e.a}°`;
+    case 'MILL': return `MILL (${fmt(e.x1)},${fmt(e.y1)})→(${fmt(e.x2)},${fmt(e.y2)}) ${cc}${cr}`;
+    case 'ARC': return `ARC (${fmt(e.x1)},${fmt(e.y1)})→(${fmt(e.x2)},${fmt(e.y2)}) c(${fmt(e.xc)},${fmt(e.yc)}) ${e.dir.toUpperCase()} ${cc}${cr}`;
+  }
+}
+
+function recompile() {
+  S.compiled = compile(prog(), LEVELS[S.li].tool / 2);
+  S.result = null; S.run = null; S.phase = 'build';
+  tctx.clearRect(0, 0, trail.width, trail.height);
+  renderList(); renderStats();
+}
+
+function renderList() {
+  const ol = $('evList');
+  ol.innerHTML = '';
+  const p = prog();
+  $('evCount').textContent = p.length + (p.length === 1 ? ' EVENT' : ' EVENTS');
+  if (!p.length) {
+    const li = document.createElement('li');
+    li.className = 'empty';
+    li.textContent = 'No events yet. Pick a type above and ADD EVENT.';
+    ol.appendChild(li);
+    return;
+  }
+  const errMap = new Map((S.compiled ? S.compiled.errors : []).map(e => [e.i, e.msg]));
+  p.forEach((e, i) => {
+    const li = document.createElement('li');
+    if (i === S.sel) li.classList.add('sel');
+    if (errMap.has(i)) li.classList.add('bad');
+    const n = document.createElement('span'); n.className = 'n'; n.textContent = String(i + 1);
+    const s = document.createElement('span'); s.className = 's'; s.textContent = summarize(e);
+    li.append(n, s);
+    const mk = (txt, title, fn) => {
+      const b = document.createElement('button');
+      b.textContent = txt; b.title = title;
+      b.onclick = ev => { ev.stopPropagation(); fn(); };
+      li.appendChild(b);
+    };
+    mk('↑', 'move up', () => { if (i > 0) { [p[i - 1], p[i]] = [p[i], p[i - 1]]; S.sel = i - 1; recompile(); } });
+    mk('↓', 'move down', () => { if (i < p.length - 1) { [p[i + 1], p[i]] = [p[i], p[i + 1]]; S.sel = i + 1; recompile(); } });
+    mk('EDIT', 'edit this event', () => startEdit(i));
+    mk('✕', 'delete', () => { p.splice(i, 1); if (S.editing === i) cancelEdit(); S.sel = -1; recompile(); });
+    if (errMap.has(i)) {
+      const er = document.createElement('span'); er.className = 'err'; er.textContent = errMap.get(i);
+      li.appendChild(er);
+    }
+    li.onclick = () => { S.sel = S.sel === i ? -1 : i; renderList(); };
+    ol.appendChild(li);
+  });
+}
+
+/* ---- form ---- */
+const FIELDS = { fX: 'x', fY: 'y', fCX: 'xc', fCY: 'yc', fR: 'r', fN: 'n', fA: 'a', fX1: 'x1', fY1: 'y1', fX2: 'x2', fY2: 'y2', fACX: 'xc', fACY: 'yc', fCr: 'cr' };
+
+function showFields() {
+  const t = $('fType').value;
+  document.querySelectorAll('#fGrid .fld').forEach(el => {
+    el.classList.toggle('hide', !el.dataset.t.split(' ').includes(t));
+  });
+  $('fComp').classList.toggle('hide', !(t === 'MILL' || t === 'ARC'));
+  $('fDir').classList.toggle('hide', t !== 'ARC');
+  if ((t === 'MILL' || t === 'ARC') && S.editing < 0) {
+    const le = lastEnd();
+    if (le) { $('fX1').value = fmt(le.x); $('fY1').value = fmt(le.y); }
+  }
+  $('fNum').textContent = S.editing >= 0 ? S.editing + 1 : prog().length + 1;
+}
+
+function readForm() {
+  const t = $('fType').value;
+  const g = id => parseFloat($(id).value);
+  const e = { t, comp: $('fComp').value, dir: $('fDir').value, cr: 0 };
+  if (t === 'POSN' || t === 'DRILL') { e.x = g('fX'); e.y = g('fY'); }
+  else if (t === 'BOLT') { e.xc = g('fCX'); e.yc = g('fCY'); e.r = g('fR'); e.n = g('fN'); e.a = g('fA'); }
+  else {
+    e.x1 = g('fX1'); e.y1 = g('fY1'); e.x2 = g('fX2'); e.y2 = g('fY2'); e.cr = g('fCr') || 0;
+    if (t === 'ARC') { e.xc = g('fACX'); e.yc = g('fACY'); }
+    else { e.xc = 0; e.yc = 0; }
+  }
+  return e;
+}
+
+function startEdit(i) {
+  const e = prog()[i];
+  S.editing = i; S.sel = i;
+  $('fType').value = e.t;
+  $('fComp').value = e.comp || 'center';
+  $('fDir').value = e.dir || 'ccw';
+  const setv = (id, v) => { $(id).value = v === undefined || Number.isNaN(v) ? '' : String(v); };
+  setv('fX', e.x); setv('fY', e.y);
+  setv('fCX', e.xc); setv('fCY', e.yc); setv('fR', e.r); setv('fN', e.n); setv('fA', e.a);
+  setv('fX1', e.x1); setv('fY1', e.y1); setv('fX2', e.x2); setv('fY2', e.y2);
+  if (e.t === 'ARC') { setv('fACX', e.xc); setv('fACY', e.yc); }
+  setv('fCr', e.cr);
+  $('fTitle').textContent = 'EDIT EVENT';
+  $('addBtn').textContent = 'SAVE #' + (i + 1);
+  $('cancelBtn').classList.remove('hide');
+  showFields(); renderList();
+}
+function cancelEdit() {
+  S.editing = -1;
+  $('fTitle').textContent = 'ADD EVENT';
+  $('addBtn').textContent = 'ADD EVENT';
+  $('cancelBtn').classList.add('hide');
+  showFields(); renderList();
+}
+
+$('fType').onchange = showFields;
+$('cancelBtn').onclick = cancelEdit;
+$('addBtn').onclick = () => {
+  const e = readForm();
+  const err = validateEvent(e);
+  const fe = $('fErr');
+  if (err) { fe.textContent = err; fe.style.display = 'block'; return; }
+  fe.style.display = 'none';
+  if (S.editing >= 0) { prog()[S.editing] = e; const i = S.editing; cancelEdit(); S.sel = i; }
+  else { prog().push(e); S.sel = prog().length - 1; }
+  recompile();
+  showFields();
+};
+
+/* ================= run / result ================= */
+$('runBtn').onclick = () => {
+  if (S.phase === 'run') {                    // skip to end
+    S.run.t = S.run.total; restamp(); finishRun();
+    return;
+  }
+  const p = prog();
+  if (!p.length) { setFb([{ tag: 'EMPTY', cls: 'bad', html: 'No events to run. Add DRILL / MILL / ARC events first.' }]); return; }
+  const c = compile(p, LEVELS[S.li].tool / 2);
+  if (c.errors.length) {
+    S.compiled = c; renderList();
+    setFb(c.errors.map(e => ({ tag: 'E' + (e.i + 1), cls: 'bad', html: `Event ${e.i + 1}: ${e.msg}` })));
+    return;
+  }
+  S.compiled = c;
+  S.result = null;
+  tctx.clearRect(0, 0, trail.width, trail.height);
+  const sp = buildSpans(c);
+  S.run = { ...sp, t: 0, pos: { ...PARK }, c };
+  S.phase = 'run';
+  $('runBtn').textContent = 'FINISH ≫';
+  $('sStat').textContent = 'RUNNING…';
+};
+
+function finishRun() {
+  S.phase = 'done';
+  $('runBtn').textContent = 'RUN ▶';
+  const res = scoreRun(S.run.c);
+  S.result = res;
+  S.score = res.score;
+  const prevBest = S.bests[S.li];
+  if (prevBest === null || res.score > prevBest) S.bests[S.li] = res.score;
+  reportScore('g5', { label: 'Event Builder', score: res.score, best: S.bests[S.li], detail: `L${S.li + 1} ${res.score}` });
+  renderStats(); renderLevels();
+  const blocks = [];
+  blocks.push({ big: true, html: `SCORE <em>${res.score}</em> — ${res.line}${S.run.c.warnings.length ? ' · ' + S.run.c.warnings.length + ' warning(s)' : ''}` });
+  for (const w of S.run.c.warnings) blocks.push({ tag: 'NOTE', cls: 'note', html: w });
+  if (res.score >= 100) blocks.push({ tag: 'PERFECT', cls: 'ok', html: 'Every check inside ±.030. That is a part you could ship.' });
+  else if (!res.teach.length) blocks.push({ tag: 'CLOSE', cls: 'note', html: 'Nearly there — tighten coordinates against the print dimensions.' });
+  blocks.push(...res.teach);
+  setFb(blocks);
+  $('sStat').textContent = `DONE — SCORE ${res.score} · edit and RUN again`;
+}
+
+function setFb(blocks) {
+  const bd = $('fbBody');
+  bd.innerHTML = '';
+  for (const b of blocks) {
+    const d = document.createElement('div');
+    if (b.big) { d.className = 'big'; d.innerHTML = b.html; }
+    else {
+      d.className = 'vd ' + (b.cls || 'note');
+      d.innerHTML = `<span class="tag">${b.tag}</span><span>${b.html}</span>`;
+    }
+    bd.appendChild(d);
+  }
+  $('fbR').textContent = 'L' + (S.li + 1);
+}
+
+$('resetBtn').onclick = () => {
+  S.progs[S.li] = [];
+  S.score = null; S.sel = -1;
+  cancelEdit();
+  recompile();
+  setFb([{ tag: 'RESET', cls: 'note', html: 'Program cleared. Session best for this level is kept.' }]);
+  reportScore('g5', { label: 'Event Builder', score: 0, best: S.bests[S.li] ?? 0, detail: `L${S.li + 1} reset` });
+  renderStats();
+};
+
+/* ================= level UI ================= */
+function renderLevels() {
+  const holder = $('levels');
+  holder.innerHTML = '';
+  LEVELS.forEach((L, i) => {
+    const b = document.createElement('button');
+    b.className = 'lv' + (i === S.li ? ' on' : '');
+    b.title = L.name;
+    const s = document.createElement('span'); s.textContent = 'L' + (i + 1);
+    const e = document.createElement('em'); e.textContent = S.bests[i] === null ? '—' : S.bests[i];
+    b.append(s, e);
+    b.onclick = () => setLevel(i);
+    holder.appendChild(b);
+  });
+}
+function renderStats() {
+  $('sScore').textContent = S.score === null ? '—' : S.score;
+  $('sBl').textContent = S.li + 1;
+  $('sBest').textContent = S.bests[S.li] === null ? '—' : S.bests[S.li];
+  $('sTool').textContent = LEVELS[S.li].tool.toFixed(3).replace(/^0/, '');
+  if (S.phase === 'build') {
+    const errs = S.compiled ? S.compiled.errors.length : 0;
+    $('sStat').textContent = `BUILD — ${prog().length} event${prog().length === 1 ? '' : 's'}${errs ? ' · ' + errs + ' INVALID' : ''}, RUN when ready`;
+  }
+}
+function renderBrief() {
+  const L = LEVELS[S.li];
+  $('brTitle').textContent = `L${S.li + 1} — ${L.name}`;
+  $('brKind').textContent = L.kind === 'drill' ? `DRILL ⌀${L.tool.toFixed(3).replace(/^0/, '')}` : `END MILL ⌀${L.tool.toFixed(3).replace(/^0/, '')}`;
+  $('brBody').innerHTML = L.brief.map(t => `<div>${t}</div>`).join('');
+}
+function setLevel(i) {
+  S.li = i; S.sel = -1; S.score = null;
+  cancelEdit();
+  const preferred = LEVELS[i].kind === 'drill' ? 'DRILL' : 'MILL';
+  $('fType').value = preferred;
+  recompile();
+  renderLevels(); renderBrief(); renderStats(); showFields();
+  setFb([{ tag: 'L' + (i + 1), cls: 'note', html: LEVELS[i].name + ' — build the event list, then RUN.' }]);
+}
+
+/* ================= boot ================= */
+setLevel(0);
+requestAnimationFrame(frame);
+requestAnimationFrame(tick);
+window.__g5Ready = true;
+</script>
+</body>
+</html>

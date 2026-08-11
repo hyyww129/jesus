@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRAK DPM3 · G2 DRO Chase</title>
+<style>
+  :root {
+    --paper: #EDEFEA;
+    --ink: #232A2E;
+    --blue: #1F5FA8;
+    --orange: #E4572E;
+    --green: #39FF6A;
+    --panel: #E2E5DF;
+    --line: #C4C9C2;
+    --dark: #0B1512;
+    --green-dim: #7FD693;
+    --green-faint: #9FD8AE;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  header {
+    flex: none; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1.5px solid var(--ink);
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+  }
+  header h1 { font-size: 14px; letter-spacing: .12em; font-weight: 600; }
+  header .sub { font-size: 11px; color: var(--blue); letter-spacing: .08em; }
+  header a { color: var(--blue); font-size: 11px; margin-left: auto; text-decoration: none; border-bottom: 1px solid var(--blue); }
+  main { flex: 1; display: flex; min-height: 0; }
+  #left {
+    width: 47%; min-width: 440px; max-width: 640px;
+    border-right: 1.5px solid var(--ink);
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 10px 12px; overflow-y: auto;
+  }
+  #right { flex: 1; position: relative; min-width: 0; }
+  canvas#c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #hint3d {
+    position: absolute; right: 10px; bottom: 10px; z-index: 4;
+    font-size: 9.5px; letter-spacing: .06em; color: var(--ink); text-align: right;
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+    border: 1px solid var(--line); padding: 4px 7px;
+  }
+  #hint3d b { color: var(--orange); font-weight: 600; }
+
+  /* stat strip */
+  #stats { display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 6px; }
+  .stat { border: 1.5px solid var(--ink); background: var(--panel); padding: 4px 8px; }
+  .stat .k { font-size: 9px; letter-spacing: .14em; color: var(--blue); }
+  .stat .v { font-size: 15px; font-weight: 600; white-space: nowrap; }
+  #resetBtn {
+    font: inherit; font-size: 11px; letter-spacing: .1em; padding: 0 12px;
+    background: var(--paper); color: var(--ink); border: 1.5px solid var(--ink); cursor: pointer;
+  }
+  #resetBtn:hover { background: var(--orange); color: var(--paper); }
+
+  /* command card */
+  #command { border: 1.5px solid var(--ink); background: var(--panel); padding: 7px 10px; }
+  #cmdType {
+    display: inline-block; font-size: 10px; letter-spacing: .14em;
+    padding: 1px 7px; border: 1.5px solid var(--blue); color: var(--blue); margin-right: 8px;
+  }
+  #cmdType.inc { border-color: var(--orange); color: var(--orange); }
+  #cmdRound { font-size: 10px; letter-spacing: .1em; color: var(--ink); }
+  #cmdText { font-size: 15px; font-weight: 600; margin-top: 4px; letter-spacing: .03em; }
+  #cmdNote { font-size: 9.5px; color: var(--blue); margin-top: 3px; letter-spacing: .04em; }
+
+  /* DRO */
+  #dro { background: var(--dark); border: 1.5px solid var(--ink); padding: 6px 12px 8px; }
+  .dhead, .drow {
+    display: grid; grid-template-columns: 26px 1fr 118px 122px 34px;
+    align-items: baseline; column-gap: 8px;
+  }
+  .dhead { font-size: 9px; letter-spacing: .16em; color: var(--green-faint); padding-bottom: 2px; border-bottom: 1px solid #1d3a2a; }
+  .dhead span { text-align: right; }
+  .dhead span:first-child { text-align: left; }
+  .drow { padding: 2px 0; }
+  .drow .ax { color: var(--green-faint); font-size: 14px; font-weight: 600; }
+  .drow .abs { font-size: 29px; color: var(--green); text-align: right; font-variant-numeric: tabular-nums; letter-spacing: .03em; }
+  .drow .inc { font-size: 15px; color: var(--green-dim); text-align: right; font-variant-numeric: tabular-nums; }
+  .drow .tgt { font-size: 12px; color: var(--orange); text-align: right; font-variant-numeric: tabular-nums; }
+  .drow .tgt.none { color: #2a4436; }
+  .lamp {
+    justify-self: end; align-self: center;
+    width: 13px; height: 13px; border-radius: 50%;
+    border: 1.5px solid #2a4436; background: transparent;
+  }
+  .lamp.cmd { border-color: var(--orange); }
+  .lamp.ok { background: var(--green); border-color: var(--green); box-shadow: 0 0 8px var(--green); }
+  #droFoot { font-size: 9px; letter-spacing: .1em; color: var(--green-faint); margin-top: 4px; display: flex; justify-content: space-between; }
+
+  /* mark */
+  #markBtn {
+    font: inherit; font-size: 16px; font-weight: 600; letter-spacing: .28em;
+    padding: 9px 0 8px; background: var(--blue); color: var(--paper);
+    border: 1.5px solid var(--ink); cursor: pointer;
+  }
+  #markBtn:hover { background: var(--orange); }
+  #markBtn.bad { background: var(--orange); }
+
+  /* jog cluster */
+  #jogs { border: 1.5px solid var(--ink); background: var(--panel); padding: 7px 10px 9px; }
+  #jogs .t { font-size: 10px; letter-spacing: .14em; color: var(--blue); }
+  .jrow { display: grid; grid-template-columns: 20px repeat(4, 1fr); gap: 6px; margin-top: 6px; align-items: center; }
+  .jrow .jax { font-weight: 600; font-size: 13px; }
+  .jrow button {
+    font: inherit; font-size: 12px; padding: 7px 0;
+    background: var(--paper); color: var(--ink); border: 1.5px solid var(--ink);
+    cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none;
+  }
+  .jrow button:hover { background: var(--blue); color: var(--paper); }
+  .jrow button:active, .jrow button.live { background: var(--orange); color: var(--paper); }
+  #jogHint { font-size: 9.5px; color: var(--blue); letter-spacing: .05em; margin-top: 7px; line-height: 1.5; }
+
+  /* teach / results */
+  #teach {
+    flex: 1; min-height: 96px; overflow-y: auto;
+    border: 1.5px solid var(--ink); background: var(--paper);
+    padding: 8px 10px; font-size: 11.5px; line-height: 1.55;
+  }
+  #teach .miss { color: var(--orange); font-weight: 600; }
+  #teach .good { color: var(--blue); font-weight: 600; }
+  #teach .rule { color: var(--blue); }
+  #teach .mono { font-variant-numeric: tabular-nums; }
+
+  /* round progress strip */
+  #prog { display: grid; grid-template-columns: repeat(20, 1fr); gap: 3px; }
+  #prog span {
+    border: 1px solid var(--line); font-size: 8.5px; text-align: center;
+    padding: 2px 0; color: var(--line); background: var(--paper); min-width: 0; overflow: hidden;
+  }
+  #prog span.done { border-color: var(--blue); color: var(--blue); font-weight: 600; }
+  #prog span.cur { border-color: var(--orange); color: var(--orange); }
+
+  /* end modal */
+  #end {
+    position: fixed; inset: 0; z-index: 20;
+    background: color-mix(in srgb, var(--ink) 55%, transparent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #end[hidden] { display: none; }
+  #endCard { background: var(--paper); border: 2px solid var(--ink); padding: 16px 22px 18px; width: min(540px, 92vw); }
+  #endCard h2 { font-size: 13px; letter-spacing: .18em; color: var(--blue); }
+  #endTotal { font-size: 34px; font-weight: 600; margin: 6px 0 2px; }
+  #endTotal em { font-style: normal; font-size: 13px; color: var(--blue); letter-spacing: .1em; }
+  #endNew { color: var(--orange); font-size: 11px; letter-spacing: .14em; font-weight: 600; min-height: 15px; }
+  #endLines { font-size: 11.5px; line-height: 1.7; margin: 8px 0 12px; border-top: 1px dashed var(--line); padding-top: 8px; }
+  #endLines b { color: var(--orange); }
+  #againBtn {
+    font: inherit; font-size: 13px; letter-spacing: .18em; padding: 8px 18px;
+    background: var(--blue); color: var(--paper); border: 1.5px solid var(--ink); cursor: pointer;
+  }
+  #againBtn:hover { background: var(--orange); }
+</style>
+</head>
+<body>
+<header>
+  <h1>TRAK DPM3 · DRO CHASE</h1>
+  <span class="sub">G2 — JOG TO THE NUMBER · LAND INSIDE ±0.0005"</span>
+  <a href="../index.html">← HUB</a>
+</header>
+<main>
+  <section id="left">
+    <div id="stats">
+      <div class="stat"><div class="k">ROUND</div><div class="v" id="stRound">1/20</div></div>
+      <div class="stat"><div class="k">ROUND TIME</div><div class="v" id="stTime">0.0s</div></div>
+      <div class="stat"><div class="k">TOTAL (SCORE)</div><div class="v" id="stTotal">0.0s</div></div>
+      <div class="stat"><div class="k">SESSION BEST</div><div class="v" id="stBest">—</div></div>
+      <button id="resetBtn">RESET</button>
+    </div>
+
+    <div id="command">
+      <span id="cmdType">ABS</span><span id="cmdRound">ROUND 1 / 20</span>
+      <div id="cmdText">—</div>
+      <div id="cmdNote">—</div>
+    </div>
+
+    <div id="dro">
+      <div class="dhead"><span>AX</span><span>ABS</span><span>INC</span><span>TARGET</span><span>TOL</span></div>
+      <div class="drow"><span class="ax">X</span><span class="abs" id="absX">+0.0000</span><span class="inc" id="incX">+0.0000</span><span class="tgt none" id="tgtX">—</span><span class="lamp" id="lampX"></span></div>
+      <div class="drow"><span class="ax">Y</span><span class="abs" id="absY">+0.0000</span><span class="inc" id="incY">+0.0000</span><span class="tgt none" id="tgtY">—</span><span class="lamp" id="lampY"></span></div>
+      <div class="drow"><span class="ax">Z</span><span class="abs" id="absZ">+0.0000</span><span class="inc" id="incZ">+0.0000</span><span class="tgt none" id="tgtZ">—</span><span class="lamp" id="lampZ"></span></div>
+      <div id="droFoot"><span>PART ZERO REFERENCE · 0.0001" COUNT</span><span>● = IN TOL ±0.0005</span></div>
+    </div>
+
+    <button id="markBtn">MARK · ENTER</button>
+
+    <div id="jogs">
+      <div class="t">JOG — TAP = 0.0010" EXACT · HOLD = FEED 0.010 → 0.500 IN/S</div>
+      <div class="jrow"><span class="jax">X</span>
+        <button data-step data-axis="x" data-amt="-0.1">−0.100</button>
+        <button data-jog data-axis="x" data-dir="-1" id="jxm">−</button>
+        <button data-jog data-axis="x" data-dir="1" id="jxp">+</button>
+        <button data-step data-axis="x" data-amt="0.1">+0.100</button></div>
+      <div class="jrow"><span class="jax">Y</span>
+        <button data-step data-axis="y" data-amt="-0.1">−0.100</button>
+        <button data-jog data-axis="y" data-dir="-1" id="jym">−</button>
+        <button data-jog data-axis="y" data-dir="1" id="jyp">+</button>
+        <button data-step data-axis="y" data-amt="0.1">+0.100</button></div>
+      <div class="jrow"><span class="jax">Z</span>
+        <button data-step data-axis="z" data-amt="-0.1">−0.100</button>
+        <button data-jog data-axis="z" data-dir="-1" id="jzm">−</button>
+        <button data-jog data-axis="z" data-dir="1" id="jzp">+</button>
+        <button data-step data-axis="z" data-amt="0.1">+0.100</button></div>
+      <div id="jogHint">KEYS — ← → = X · ↓ ↑ = Y · PgDn PgUp = Z (same tap / hold) · ENTER = MARK</div>
+    </div>
+
+    <div id="teach"></div>
+
+    <div id="prog"></div>
+  </section>
+
+  <section id="right">
+    <canvas id="c"></canvas>
+    <div id="hint3d">DRAG ORBIT · SCROLL ZOOM<br><b>ORANGE PIN</b> = X/Y TARGET ON TABLE · <b>RING</b> = Z TARGET AT SPINDLE NOSE</div>
+  </section>
+</main>
+
+<div id="end" hidden>
+  <div id="endCard">
+    <h2>20 ROUNDS COMPLETE</h2>
+    <div id="endTotal">0.0s <em>TOTAL — LOWER IS BETTER</em></div>
+    <div id="endNew"></div>
+    <div id="endLines"></div>
+    <button id="againBtn">PLAY AGAIN</button>
+  </div>
+</div>
+
+<script src="../model/vendor/three.min.js"></script>
+<script src="../model/vendor/OrbitControls.js"></script>
+<script type="module">
+import { buildMachine, makeScene, FACTS, reportScore } from '../model/machine.js';
+
+const $ = id => document.getElementById(id);
+const TOL = 0.0005;            // in — half a tap
+const TAP = 0.0010;            // in per tap/click
+const FEED0 = 0.010, FEED1 = 0.500;  // in/s hold-feed ramp
+const HOLD_DELAY = 0.25, RAMP = 2.5; // s before feed engages, s to full feed
+const OVER_PEN = 100;          // score-seconds per inch of overshoot
+const MISS_PEN = 2.0;          // score-seconds per bad MARK
+const ROUNDS = 20;
+const AXES = ['x', 'y', 'z'];
+const MID = { x: FACTS.travel.x / 2, y: FACTS.travel.y / 2, z: FACTS.travel.z / 2 };
+const NICE_INC = [0.0625, 0.1, 0.125, 0.1875, 0.2, 0.25, 0.3125, 0.375, 0.4375, 0.5, 0.5625, 0.625];
+
+const q4 = v => Math.round(v * 10000) / 10000;
+const pick = arr => arr[Math.floor(Math.random() * arr.length)];
+const fmt = v => { const r = Math.abs(v) < 0.00005 ? 0 : v; return (r < 0 ? '-' : '+') + Math.abs(r).toFixed(4); };
+const fmt1 = v => v.toFixed(1) + 's';
+
+/* ---------- 3D ---------- */
+const canvas = $('c');
+const { scene, camera, renderer, resize } = makeScene(canvas);
+const machine = buildMachine(scene);
+camera.position.set(64, 76, 104);
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.target.set(2, 52, 2);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.update();
+
+/* target markers: pin on the table for X/Y, ring at spindle-nose height for Z */
+const markMat = () => new THREE.MeshLambertMaterial({ color: 0xE4572E, emissive: 0xE4572E, emissiveIntensity: 0.45 });
+const markerXY = new THREE.Group();
+{
+  const post = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 2.4, 12), markMat());
+  post.position.y = 1.2;
+  const cap = new THREE.Mesh(new THREE.ConeGeometry(0.6, 0.9, 12), markMat());
+  cap.position.y = 2.85;
+  const pad = new THREE.Mesh(new THREE.CylinderGeometry(1.0, 1.0, 0.12, 20), markMat());
+  pad.position.y = 0.06;
+  markerXY.add(post, cap, pad);
+}
+markerXY.visible = false;
+machine.tableG.add(markerXY);
+
+const markerZ = new THREE.Mesh(new THREE.TorusGeometry(3.1, 0.14, 10, 36), markMat());
+markerZ.rotation.x = Math.PI / 2;
+markerZ.visible = false;
+scene.add(markerZ);
+
+/* ---------- game state ---------- */
+const S = {
+  pos: { ...MID },       // machine coords (truth, inches)
+  zero: { ...MID },      // ABS datum per axis: DRO ABS = pos − zero
+  incZero: { ...MID },   // INC datum, re-zeroed each round start
+  round: 0,              // index of current round, 0-based
+  typeSeq: [],
+  cur: null,             // current round {n,type,axes:[{a,shown,targetM,dir,over,crossed}],t0,missPen}
+  results: [],           // per-round {n,type,time,overPen,missPen,score}
+  total: 0,
+  best: null,
+  misses: 0,
+  worst: { val: 0, axis: '—', round: 0 },
+  playing: false,
+};
+
+function shuffledTypes() {
+  const t = [];
+  for (let i = 0; i < ROUNDS / 2; i++) t.push('ABS', 'INC');
+  for (let i = t.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [t[i], t[j]] = [t[j], t[i]];
+  }
+  return t;
+}
+
+const PATTERNS = [['x'], ['y'], ['z'], ['x', 'y'], ['x', 'y'], ['x', 'z'], ['y', 'z'], ['x', 'y', 'z']];
+
+function startRound() {
+  const type = S.typeSeq[S.round];
+  const axes = pick(PATTERNS);
+  S.incZero = { ...S.pos };
+  const list = [];
+  for (const a of axes) {
+    let sign = Math.random() < 0.5 ? -1 : 1;
+    if (S.pos[a] - MID[a] > 1.5) sign = -1;         // drift-guard: bias back toward mid-travel
+    else if (S.pos[a] - MID[a] < -1.5) sign = 1;
+    let shown, targetM;
+    if (type === 'ABS') {
+      const T = q4((Math.floor(Math.random() * 49) - 24) / 16);   // ±1.5000 in 0.0625 steps
+      const d = sign * q4(0.08 + Math.random() * 0.5);            // physical move this round
+      S.zero[a] = q4(S.pos[a] - (T - d));                         // ABS now reads T − d
+      shown = T;
+      targetM = S.zero[a] + T;
+    } else {
+      let delta = sign * pick(NICE_INC);
+      if (S.pos[a] + delta < 0.6 || S.pos[a] + delta > FACTS.travel[a] - 0.6) delta = -delta;
+      shown = delta;
+      targetM = q4(S.pos[a] + delta);
+    }
+    list.push({ a, shown, targetM, dir: Math.sign(targetM - S.pos[a]) || 1, over: 0, crossed: false });
+  }
+  S.cur = { n: S.round + 1, type, axes: list, t0: performance.now(), missPen: 0 };
+  placeMarkers();
+  renderCommand();
+  renderProg();
+  renderTargets();
+}
+
+function placeMarkers() {
+  const get = a => { const t = S.cur && S.cur.axes.find(t => t.a === a); return t ? t.targetM : S.pos[a]; };
+  const hasXY = S.cur && S.cur.axes.some(t => t.a === 'x' || t.a === 'y');
+  const hasZ = S.cur && S.cur.axes.some(t => t.a === 'z');
+  markerXY.visible = !!hasXY;
+  if (hasXY) markerXY.position.set(15.5 - get('x'), 41.6, get('y') - 9);  // rides the table; under spindle axis at target
+  markerZ.visible = !!hasZ;
+  if (hasZ) markerZ.position.set(0, 46.4 + get('z'), 4);                  // spindle nose center height at target Z
+}
+
+/* ---------- movement + overshoot ledger ---------- */
+function moveAxis(a, amt) {
+  if (!S.playing) return;
+  const v = Math.max(0, Math.min(FACTS.travel[a], S.pos[a] + amt));
+  S.pos[a] = v;
+  machine.setAxes({ [a]: v });
+  if (!S.cur) return;
+  for (const t of S.cur.axes) {
+    if (t.a !== a) continue;
+    const past = (v - t.targetM) * t.dir;   // excursion beyond target, along approach direction
+    if (past > 1e-9) { t.crossed = true; if (past > t.over) t.over = past; }
+  }
+}
+
+/* tap-vs-hold engine (shared by buttons and keys) */
+const holds = new Map();
+const keyOf = (a, d) => a + (d > 0 ? '+' : '-');
+function press(a, d) {
+  const k = keyOf(a, d);
+  if (holds.has(k)) return;
+  holds.set(k, { a, d, t: 0 });
+  moveAxis(a, d * TAP);                     // the tap: exactly 0.0010
+  const btn = $('j' + a + (d > 0 ? 'p' : 'm'));
+  if (btn) btn.classList.add('live');
+}
+function release(a, d) {
+  holds.delete(keyOf(a, d));
+  const btn = $('j' + a + (d > 0 ? 'p' : 'm'));
+  if (btn) btn.classList.remove('live');
+}
+function releaseAll() { for (const h of [...holds.values()]) release(h.a, h.d); }
+function updateHolds(dt) {
+  for (const h of holds.values()) {
+    h.t += dt;
+    if (h.t <= HOLD_DELAY) continue;
+    const u = Math.min(1, (h.t - HOLD_DELAY) / RAMP);
+    const v = FEED0 + (FEED1 - FEED0) * u;  // accelerating feed
+    moveAxis(h.a, h.d * v * dt);
+  }
+}
+
+/* ---------- MARK ---------- */
+function readingOf(t) { return S.cur.type === 'ABS' ? S.pos[t.a] - S.zero[t.a] : S.pos[t.a] - S.incZero[t.a]; }
+
+function mark() {
+  if (!S.playing || !S.cur) return;
+  const errs = S.cur.axes.map(t => ({ t, err: S.pos[t.a] - t.targetM }));
+  const bad = errs.filter(e => Math.abs(e.err) > TOL + 1e-9);
+  if (bad.length) {
+    S.cur.missPen += MISS_PEN;
+    S.misses++;
+    teachMiss(bad);
+    $('markBtn').classList.add('bad');
+    setTimeout(() => $('markBtn').classList.remove('bad'), 350);
+    return;
+  }
+  const time = (performance.now() - S.cur.t0) / 1000;
+  const overSum = S.cur.axes.reduce((s, t) => s + t.over, 0);
+  const overPen = overSum * OVER_PEN;
+  const score = time + overPen + S.cur.missPen;
+  for (const t of S.cur.axes) {
+    if (t.over > S.worst.val) S.worst = { val: t.over, axis: t.a.toUpperCase(), round: S.cur.n };
+  }
+  S.results.push({ n: S.cur.n, type: S.cur.type, time, overPen, missPen: S.cur.missPen, score,
+                   overs: S.cur.axes.map(t => ({ a: t.a, over: t.over })) });
+  S.total += score;
+  teachResult(S.results[S.results.length - 1]);
+  reportScore('g2', { label: 'DRO Chase', score: +S.total.toFixed(1), best: S.best,
+                      detail: `round ${S.cur.n}/${ROUNDS}` });
+  S.round++;
+  if (S.round >= ROUNDS) endGame(); else startRound();
+}
+
+/* ---------- teaching ---------- */
+function teachIntro() {
+  $('teach').innerHTML =
+    `<span class="good">HOW IT WORKS</span> — the DRO reads distance from <b>part zero</b>, not from the machine's ` +
+    `travel (${FACTS.travel.x}" X / ${FACTS.travel.y}" Y / ${FACTS.travel.z}" Z). Jog until the commanded readout equals the target, ` +
+    `then MARK.<br><span class="rule">TAP = 0.0010" exactly · tolerance ±0.0005" is half a tap, so taps can always land it · ` +
+    `HOLD accelerates 0.010 → 0.500 in/s — hold to travel, release early, tap the last thousandths. ` +
+    `Score = seconds + overshoot penalty (${OVER_PEN} s per inch past the target). Lower is better.</span>`;
+}
+function teachMiss(bad) {
+  const rows = bad.map(({ t, err }) => {
+    const reading = readingOf(t);
+    const taps = Math.round(Math.abs(err) / TAP);
+    const landing = err - Math.sign(err) * taps * TAP;
+    const dirWord = err < 0 ? 'SHORT' : 'PAST';
+    const tapDir = err < 0 ? '[+]' : '[−]';
+    return `${t.a.toUpperCase()} reads <span class="mono">${fmt(reading)}</span>, target <span class="mono">${fmt(t.shown)}</span> ` +
+      `→ off <span class="mono">${fmt(err)}</span> (${(Math.abs(err) * 1000).toFixed(1)} thou ${dirWord}). ` +
+      (taps > 0
+        ? `Fix: ${taps} tap${taps > 1 ? 's' : ''} ${tapDir} lands <span class="mono">${fmt(landing)}</span> — inside ±0.0005.`
+        : `You are within a tap — it already rounds inside ±0.0005 on the next touch.`);
+  }).join('<br>');
+  $('teach').innerHTML =
+    `<span class="miss">MISS — MARK pressed outside ±0.0005" · +${MISS_PEN.toFixed(1)}s penalty</span><br>${rows}<br>` +
+    `<span class="rule">RULE — 1 tap = 0.0010" exactly; the ±0.0005" window is half a tap wide, so a tapped approach ` +
+    `always has a landing spot. Hold to feed (0.010 → 0.500 in/s), release early, walk on with taps. Keep going — same target.</span>`;
+}
+function teachResult(r) {
+  const overBits = r.overs.filter(o => o.over > 0.00005)
+    .map(o => `${o.a.toUpperCase()} ${o.over.toFixed(4)}"`).join(' · ');
+  let tip;
+  if (r.overPen > 0.2) {
+    tip = `<span class="rule">Overshoot ${overBits} past the target cost +${r.overPen.toFixed(1)}s ` +
+      `(${OVER_PEN} s/in). The DRO counts every 0.0001" — decelerate before the number, not after it.</span>`;
+  } else {
+    tip = `<span class="rule">Clean approach — no meaningful travel past the target. That is the habit that saves scrapped parts.</span>`;
+  }
+  $('teach').innerHTML =
+    `<span class="good">ROUND ${r.n} ✓ (${r.type})</span> — time ${r.time.toFixed(1)}s + overshoot ${r.overPen.toFixed(1)}s` +
+    `${r.missPen ? ` + miss ${r.missPen.toFixed(1)}s` : ''} = <b>${r.score.toFixed(1)}s</b> · running total ${S.total.toFixed(1)}s<br>${tip}`;
+}
+
+/* ---------- rendering ---------- */
+function renderCommand() {
+  const c = S.cur;
+  $('cmdType').textContent = c.type;
+  $('cmdType').classList.toggle('inc', c.type === 'INC');
+  $('cmdRound').textContent = `ROUND ${c.n} / ${ROUNDS}`;
+  const parts = c.axes.map(t => `${t.a.toUpperCase()} ${fmt(t.shown)}`).join(' · ');
+  if (c.type === 'ABS') {
+    $('cmdText').textContent = `GO TO ${parts}`;
+    $('cmdNote').textContent = 'ABS — drive the ABS column to these readings (± 0.0005"), then MARK.';
+  } else {
+    $('cmdText').textContent = `MOVE ${parts} FROM HERE`;
+    $('cmdNote').textContent = 'INC — the INC column just re-zeroed. Drive it to the commanded move, then MARK.';
+  }
+}
+function renderTargets() {
+  for (const a of AXES) {
+    const A = a.toUpperCase();
+    const t = S.cur && S.cur.axes.find(t => t.a === a);
+    const tgt = $('tgt' + A), lamp = $('lamp' + A);
+    if (t) {
+      tgt.textContent = (S.cur.type === 'INC' ? 'INC▸ ' : 'ABS▸ ') + fmt(t.shown);
+      tgt.classList.remove('none');
+      lamp.classList.add('cmd');
+    } else {
+      tgt.textContent = '—';
+      tgt.classList.add('none');
+      lamp.classList.remove('cmd', 'ok');
+    }
+  }
+}
+function renderProg() {
+  const box = $('prog');
+  if (!box.children.length) for (let i = 0; i < ROUNDS; i++) box.appendChild(document.createElement('span'));
+  for (let i = 0; i < ROUNDS; i++) {
+    const el = box.children[i];
+    const r = S.results[i];
+    el.className = r ? 'done' : (i === S.round && S.playing ? 'cur' : '');
+    el.textContent = r ? Math.round(r.score) : i + 1;
+    el.title = r ? `Round ${r.n} (${r.type}): ${r.score.toFixed(1)}s` : `Round ${i + 1}`;
+  }
+}
+function renderStats() {
+  $('stRound').textContent = `${Math.min(S.round + 1, ROUNDS)}/${ROUNDS}`;
+  $('stTime').textContent = S.cur ? fmt1((performance.now() - S.cur.t0) / 1000) : '0.0s';
+  $('stTotal').textContent = fmt1(S.total);
+  $('stBest').textContent = S.best === null ? '—' : fmt1(S.best);
+}
+function renderDro() {
+  for (const a of AXES) {
+    const A = a.toUpperCase();
+    $('abs' + A).textContent = fmt(S.pos[a] - S.zero[a]);
+    $('inc' + A).textContent = fmt(S.pos[a] - S.incZero[a]);
+    const t = S.cur && S.cur.axes.find(t => t.a === a);
+    if (t) $('lamp' + A).classList.toggle('ok', Math.abs(S.pos[a] - t.targetM) <= TOL + 1e-9);
+  }
+}
+
+/* ---------- game lifecycle ---------- */
+function startGame() {
+  S.pos = { ...MID };
+  machine.setAxes({ ...MID, quill: 0 });
+  S.zero = { ...MID };
+  S.incZero = { ...MID };
+  S.round = 0;
+  S.typeSeq = shuffledTypes();
+  S.results = [];
+  S.total = 0;
+  S.misses = 0;
+  S.worst = { val: 0, axis: '—', round: 0 };
+  S.playing = true;
+  releaseAll();
+  $('end').hidden = true;
+  teachIntro();
+  startRound();
+}
+
+function endGame() {
+  S.playing = false;
+  S.cur = null;
+  markerXY.visible = markerZ.visible = false;
+  renderProg();
+  const isNew = S.best === null || S.total < S.best;
+  if (isNew) S.best = +S.total.toFixed(1);
+  $('end').hidden = false;
+  $('endTotal').innerHTML = `${S.total.toFixed(1)}s <em>TOTAL — LOWER IS BETTER</em>`;
+  $('endNew').textContent = isNew ? '★ NEW SESSION BEST' : '';
+  const w = S.worst.val > 0.00005
+    ? `Worst overshoot: <b>${S.worst.val.toFixed(4)}"</b> on ${S.worst.axis} in round ${S.worst.round} ` +
+      `(cost ${(S.worst.val * OVER_PEN).toFixed(1)}s at ${OVER_PEN} s/in).`
+    : `Worst overshoot: <b>none</b> — you never crossed a target and kept going. Machinist-grade feel.`;
+  const avg = S.total / ROUNDS;
+  $('endLines').innerHTML =
+    `${w}<br>Bad MARKs: <b>${S.misses}</b> (+${(S.misses * MISS_PEN).toFixed(1)}s in penalties) · ` +
+    `average ${avg.toFixed(1)}s per round.<br>` +
+    `Session best: ${S.best.toFixed(1)}s.<br>` +
+    `<span style="color:var(--blue)">Sneak up on the number the way you sneak up on a finished dimension: ` +
+    `feed in fast, release early, tap the last thousandths. Overshoot on a DRO is scrap on a part.</span>`;
+  reportScore('g2', { label: 'DRO Chase', score: +S.total.toFixed(1), best: S.best,
+                      detail: `finished ${ROUNDS}/${ROUNDS} · worst overshoot ${S.worst.val.toFixed(4)}"` });
+}
+
+/* ---------- input wiring ---------- */
+document.querySelectorAll('[data-jog]').forEach(b => {
+  const a = b.dataset.axis, d = +b.dataset.dir;
+  b.addEventListener('pointerdown', e => {
+    e.preventDefault();
+    try { b.setPointerCapture(e.pointerId); } catch (_) {}
+    press(a, d);
+  });
+  const end = () => release(a, d);
+  b.addEventListener('pointerup', end);
+  b.addEventListener('pointercancel', end);
+  b.addEventListener('contextmenu', e => e.preventDefault());
+});
+document.querySelectorAll('[data-step]').forEach(b => {
+  b.addEventListener('click', () => { moveAxis(b.dataset.axis, +b.dataset.amt); b.blur(); });
+});
+$('markBtn').addEventListener('click', e => { mark(); e.currentTarget.blur(); });
+$('resetBtn').addEventListener('click', e => { startGame(); e.currentTarget.blur(); });
+$('againBtn').addEventListener('click', e => { startGame(); e.currentTarget.blur(); });
+
+const KEYMAP = {
+  ArrowLeft: ['x', -1], ArrowRight: ['x', 1],
+  ArrowUp: ['y', 1], ArrowDown: ['y', -1],
+  PageUp: ['z', 1], PageDown: ['z', -1],
+};
+window.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); if (!e.repeat) mark(); return; }
+  const m = KEYMAP[e.key];
+  if (!m) return;
+  e.preventDefault();
+  if (!e.repeat) press(m[0], m[1]);   // key auto-repeat ignored; the hold engine feeds
+});
+window.addEventListener('keyup', e => { const m = KEYMAP[e.key]; if (m) release(m[0], m[1]); });
+window.addEventListener('blur', releaseAll);
+
+/* ---------- main loop ---------- */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  updateHolds(dt);
+  machine.update(dt);
+  renderDro();
+  renderStats();
+  resize();
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+
+startGame();
+
+/* test hooks (memory only) */
+window.__game = { S, moveAxis, mark, press, release, machine, startGame, TOL, TAP };
+window.__gameReady = true;
+</script>
+</body>
+</html>

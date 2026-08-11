@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DPM3 · Name That Part</title>
+<style>
+  :root {
+    --paper: #EDEFEA;
+    --ink: #232A2E;
+    --blue: #1F5FA8;
+    --orange: #E4572E;
+    --green: #39FF6A;
+    --panel: #E2E5DF;
+    --line: #C4C9C2;
+    --dark: #10211A;
+    --okdark: #17603A;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    overflow: hidden;
+  }
+  #stage { position: absolute; inset: 0; }
+  canvas { width: 100%; height: 100%; display: block; }
+  header {
+    position: absolute; top: 0; left: 0; right: 0; z-index: 5;
+    display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1.5px solid var(--ink);
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+  }
+  header h1 { font-size: 14px; letter-spacing: .12em; font-weight: 600; }
+  header .sub { font-size: 11px; color: var(--blue); letter-spacing: .08em; }
+  header a { color: var(--blue); font-size: 11px; margin-left: auto; text-decoration: none; border-bottom: 1px solid var(--blue); }
+
+  #hud {
+    position: absolute; left: 16px; bottom: 16px; z-index: 5;
+    background: var(--dark); border: 1.5px solid var(--ink); padding: 10px 14px;
+    color: var(--green); font-size: 13px; letter-spacing: .08em; min-width: 200px;
+  }
+  #hud .row { display: flex; justify-content: space-between; gap: 16px; }
+  #hud .time { font-size: 26px; margin-top: 6px; letter-spacing: .06em; }
+  #hud .time.low { color: var(--orange); }
+  #hud .dim { color: #9fd8ae; font-size: 11px; }
+
+  #quiz {
+    position: absolute; right: 16px; bottom: 16px; z-index: 5;
+    background: var(--panel); border: 1.5px solid var(--ink); padding: 10px 12px;
+    display: grid; gap: 8px; width: 330px;
+  }
+  #quiz .t { font-size: 10px; letter-spacing: .14em; color: var(--blue); }
+  #answers { display: grid; gap: 6px; }
+  button {
+    font: inherit; font-size: 12px; color: var(--ink);
+    background: var(--paper); border: 1.5px solid var(--ink);
+    padding: 6px 8px; cursor: pointer;
+  }
+  button:hover { background: var(--blue); color: var(--paper); }
+  button:disabled { cursor: default; }
+  button.primary { background: var(--blue); color: var(--paper); }
+  button.primary:hover { background: var(--orange); }
+  .ans { text-align: left; display: flex; gap: 8px; align-items: baseline; }
+  .ans .key { color: var(--blue); font-size: 10px; border: 1px solid var(--line); padding: 0 4px; }
+  .ans.good { background: var(--okdark); color: var(--paper); border-color: var(--okdark); }
+  .ans.good .key { color: var(--green); border-color: var(--okdark); }
+  .ans.bad { background: var(--orange); color: var(--paper); border-color: var(--orange); }
+  .ans.bad .key { color: var(--paper); border-color: var(--orange); }
+  .ans:disabled:hover { color: inherit; background: inherit; }
+  .ans.good:disabled:hover { background: var(--okdark); color: var(--paper); }
+  .ans.bad:disabled:hover { background: var(--orange); color: var(--paper); }
+  #feedback {
+    font-size: 11px; min-height: 58px; line-height: 1.45;
+    border-top: 1px dashed var(--line); padding-top: 6px;
+  }
+  #feedback .ok { color: var(--okdark); }
+  #feedback .no { color: var(--orange); }
+  #feedback .or { color: var(--orange); }
+  #feedback .blurb { margin-top: 4px; color: var(--ink); font-size: 10.5px; }
+
+  body.modal #hud, body.modal #quiz { visibility: hidden; }
+  #overlay {
+    position: absolute; inset: 0; z-index: 10;
+    display: flex; align-items: center; justify-content: center;
+    background: color-mix(in srgb, var(--paper) 62%, transparent);
+  }
+  #overlay.hidden { display: none; }
+  #ovPanel {
+    background: var(--panel); border: 1.5px solid var(--ink);
+    width: min(600px, 92vw); max-height: 82vh; overflow: auto;
+    padding: 18px 20px; display: grid; gap: 10px;
+  }
+  #ovPanel h2 { font-size: 15px; letter-spacing: .14em; }
+  #ovPanel h2.win { color: var(--blue); }
+  #ovPanel h2.lose { color: var(--orange); }
+  #ovPanel p { font-size: 12px; line-height: 1.5; }
+  #ovPanel .facts { font-size: 10px; color: var(--blue); letter-spacing: .06em; border-top: 1px dashed var(--line); padding-top: 8px; }
+  .breakdown { font-size: 12px; border: 1px solid var(--line); background: var(--paper); }
+  .breakdown .row { display: flex; justify-content: space-between; padding: 4px 10px; border-bottom: 1px dashed var(--line); }
+  .breakdown .row:last-child { border-bottom: none; font-weight: 600; }
+  .miss { border: 1px solid var(--line); background: var(--paper); padding: 7px 10px; }
+  .miss .mname { font-size: 11px; letter-spacing: .1em; color: var(--orange); font-weight: 600; }
+  .miss .mpick { font-size: 10px; color: var(--blue); margin: 2px 0; }
+  .miss .mblurb { font-size: 11px; line-height: 1.45; }
+  .rvt { font-size: 10px; letter-spacing: .14em; color: var(--orange); margin-top: 4px; }
+</style>
+</head>
+<body class="modal">
+<header>
+  <h1>NAME THAT PART</h1>
+  <span class="sub">TRAK DPM3 · COMPONENT ID DRILL</span>
+  <a href="../index.html">← HUB</a>
+</header>
+<div id="stage"><canvas id="c"></canvas></div>
+
+<div id="hud">
+  <div class="row"><span class="dim">ROUND</span><span id="hRound">–/12</span></div>
+  <div class="row"><span class="dim">SCORE</span><span id="hScore">0</span></div>
+  <div class="row"><span class="dim">STREAK</span><span id="hStreak">0</span></div>
+  <div class="row"><span class="dim">BEST</span><span id="hBest">0</span></div>
+  <div class="time" id="hTime">60.0</div>
+</div>
+
+<div id="quiz">
+  <div class="t">WHICH PART IS FLASHING ORANGE?</div>
+  <div id="answers"></div>
+  <div id="feedback">Press START. Keys 1–4 answer.</div>
+  <div style="display:flex; gap:6px">
+    <button id="resetBtn" style="flex:1">RESET</button>
+  </div>
+</div>
+
+<div id="overlay">
+  <div id="ovPanel">
+    <h2>NAME THAT PART</h2>
+    <p>One component of the DPM3 pulses <b style="color:var(--orange)">orange</b>.
+       Pick its name from four choices. The camera flies to face each part —
+       trust the pulse, not the framing.</p>
+    <p><b>12 rounds · one shared 60-second clock.</b><br>
+       +100 per correct · +10 × streak bonus (max +50) · finish all 12 to bank the
+       seconds left as points. A wrong answer kills the streak and the clock keeps
+       running while the fix is on screen — every miss is reviewed at the end.</p>
+    <div class="facts" id="factsLine"></div>
+    <button class="primary" id="startBtn">START</button>
+  </div>
+</div>
+
+<script src="../model/vendor/three.min.js"></script>
+<script type="module">
+import { buildMachine, makeScene, FACTS, reportScore } from '../model/machine.js';
+
+const GAME_ID = 'g1', GAME_LABEL = 'Name That Part';
+const ROUNDS = 12, CLOCK = 60;
+const QUIZ_IDS = ['table','saddle','column','base','head','quill','spindle','motor',
+  'varispeed','range','drawbar','pendant','estop','hw_x','hw_y','hw_z',
+  'disconnect','lube','coolant','lamp','wipers','chippan'];
+
+const canvas = document.getElementById('c');
+const { scene, camera, renderer, resize } = makeScene(canvas);
+const machine = buildMachine(scene);
+
+document.getElementById('factsLine').textContent =
+  `TRAVELS X${FACTS.travel.x}" · Y${FACTS.travel.y}" · Z${FACTS.travel.z}" — ` +
+  `TABLE ${FACTS.tableL}"×${FACTS.tableW}" — SPINDLE ${FACTS.rpmMin}–${FACTS.rpmMax} RPM · ${FACTS.taper}`;
+
+/* ---- camera rig: smooth lerp toward a viewpoint that can actually see the part ---- */
+const HOME_POS = new THREE.Vector3(102, 88, 136);
+const HOME_LOOK = new THREE.Vector3(0, 50, 0);
+const camTargetPos = HOME_POS.clone();
+const camTargetLook = HOME_LOOK.clone();
+const camLook = HOME_LOOK.clone();
+const ray = new THREE.Raycaster();
+
+function setCameraFor(part) {
+  const box = new THREE.Box3().setFromObject(part.group);
+  const center = box.getCenter(new THREE.Vector3());
+  const size = box.getSize(new THREE.Vector3());
+  const radius = size.length() / 2;
+  const dist = Math.max(55, Math.min(75, size.length() * 2.4));
+  const sx = center.x >= 0 ? 1 : -1;
+  // candidate view directions; rear-mounted parts try rear viewpoints first
+  const front = [[sx * 0.55, 0.5, 1], [sx * 0.15, 0.85, 1]];
+  const sides = [[sx * 1.15, 0.45, 0.55], [sx * 1.15, 0.45, -0.55]];
+  const rear  = [[sx * 0.55, 0.5, -1], [sx * 0.15, 0.85, -1]];
+  const order = center.z < -12 ? [...rear, ...sides, ...front]
+                               : [...front, ...sides, ...rear];
+  let pos = null;
+  for (const d of order) {
+    const dir = new THREE.Vector3(...d).normalize();
+    const p = center.clone().addScaledVector(dir, dist);
+    p.y = Math.max(p.y, 10);
+    const toC = center.clone().sub(p);
+    const dc = toC.length();
+    ray.set(p, toC.normalize());
+    const first = ray.intersectObject(machine.root, true).find(h => h.object.isMesh);
+    const clear = !first
+      || part.meshes.includes(first.object)
+      || first.distance >= dc - radius - 0.75;
+    if (clear) { pos = p; break; }
+  }
+  if (!pos) {
+    pos = center.clone().addScaledVector(new THREE.Vector3(...order[0]).normalize(), dist);
+    pos.y = Math.max(pos.y, 10);
+  }
+  camTargetPos.copy(pos);
+  camTargetLook.copy(center);
+}
+
+/* ---- game state ---- */
+let state = 'idle';          // idle | playing | feedback | over
+let best = 0;
+let timer = null;
+const run = {
+  order: [], idx: 0, currentId: null, options: [],
+  score: 0, streak: 0, correct: 0, streakBonus: 0, timeLeft: CLOCK, misses: [],
+};
+
+const hRound = document.getElementById('hRound');
+const hScore = document.getElementById('hScore');
+const hStreak = document.getElementById('hStreak');
+const hBest = document.getElementById('hBest');
+const hTime = document.getElementById('hTime');
+const answersEl = document.getElementById('answers');
+const feedbackEl = document.getElementById('feedback');
+const overlay = document.getElementById('overlay');
+const ovPanel = document.getElementById('ovPanel');
+
+const esc = s => String(s).replace(/[&<>"']/g,
+  c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function schedule(fn, ms) { clearTimeout(timer); timer = setTimeout(fn, ms); }
+function setOverlay(on) {
+  overlay.classList.toggle('hidden', !on);
+  document.body.classList.toggle('modal', on);
+}
+function pushScore() { reportScore(GAME_ID, { label: GAME_LABEL, score: run.score, best }); }
+function updateHud() {
+  hRound.textContent = state === 'idle' ? `–/${ROUNDS}` : `${Math.min(run.idx + 1, ROUNDS)}/${ROUNDS}`;
+  hScore.textContent = run.score;
+  hStreak.textContent = run.streak;
+  hBest.textContent = best;
+  hTime.textContent = run.timeLeft.toFixed(1);
+  hTime.classList.toggle('low', run.timeLeft < 10 && state !== 'idle');
+}
+
+function clearHighlight() {
+  if (run.currentId) machine.highlight(run.currentId, false);
+  hlOn = false;
+}
+
+function startRun() {
+  clearTimeout(timer);
+  clearHighlight();
+  run.order = shuffle(QUIZ_IDS.slice()).slice(0, ROUNDS);
+  run.idx = 0; run.currentId = null; run.options = [];
+  run.score = 0; run.streak = 0; run.correct = 0; run.streakBonus = 0;
+  run.timeLeft = CLOCK; run.misses = [];
+  setOverlay(false);
+  presentRound();
+  pushScore();
+}
+
+function presentRound() {
+  clearHighlight();
+  const id = run.order[run.idx];
+  run.currentId = id;
+  pulseT = 0;
+  const part = machine.partById(id);
+  const others = shuffle(QUIZ_IDS.filter(q => q !== id).map(q => machine.partById(q).name));
+  run.options = shuffle([part.name, ...others.slice(0, 3)]);
+  answersEl.innerHTML = '';
+  run.options.forEach((name, i) => {
+    const b = document.createElement('button');
+    b.className = 'ans';
+    b.innerHTML = `<span class="key">${i + 1}</span><span>${esc(name)}</span>`;
+    b.onclick = () => answer(i);
+    answersEl.appendChild(b);
+  });
+  feedbackEl.innerHTML = `ROUND ${run.idx + 1} OF ${ROUNDS} — the camera is flying to it now.`;
+  setCameraFor(part);
+  state = 'playing';
+  updateHud();
+}
+
+function answer(i) {
+  if (state !== 'playing' || i < 0 || i >= run.options.length) return;
+  const part = machine.partById(run.currentId);
+  const chosen = run.options[i];
+  const btns = [...answersEl.children];
+  btns.forEach(b => b.disabled = true);
+  const rightIdx = run.options.indexOf(part.name);
+  if (chosen === part.name) {
+    run.streak += 1;
+    const bonus = Math.min(50, (run.streak - 1) * 10);
+    run.score += 100 + bonus;
+    run.streakBonus += bonus;
+    run.correct += 1;
+    btns[i].classList.add('good');
+    feedbackEl.innerHTML = `<b class="ok">✓ ${esc(part.name)}</b> +100` +
+      (bonus ? ` <b class="ok">+${bonus} streak</b>` : '');
+    state = 'feedback';
+    schedule(nextRound, 850);
+  } else {
+    run.streak = 0;
+    run.misses.push({ id: run.currentId, chosen });
+    btns[i].classList.add('bad');
+    if (rightIdx >= 0) btns[rightIdx].classList.add('good');
+    feedbackEl.innerHTML =
+      `<b class="no">✗</b> You picked <b>${esc(chosen)}</b>. ` +
+      `The flashing part is the <b class="or">${esc(part.name)}</b>.` +
+      `<div class="blurb">${esc(part.blurb)}</div>`;
+    state = 'feedback';
+    schedule(nextRound, 3000);
+  }
+  updateHud();
+  pushScore();
+}
+
+function nextRound() {
+  if (state !== 'feedback') return;
+  run.idx += 1;
+  if (run.idx >= ROUNDS) endRun(true);
+  else presentRound();
+}
+
+function endRun(finished) {
+  clearTimeout(timer);
+  clearHighlight();
+  state = 'over';
+  let timeBonus = 0;
+  if (finished) {
+    timeBonus = Math.round(run.timeLeft);
+    run.score += timeBonus;
+  }
+  best = Math.max(best, run.score);
+  pushScore();
+  updateHud();
+  camTargetPos.copy(HOME_POS);
+  camTargetLook.copy(HOME_LOOK);
+  answersEl.innerHTML = '';
+  feedbackEl.textContent = 'Run over — see the debrief.';
+
+  const missHtml = run.misses.map(m => {
+    const p = machine.partById(m.id);
+    return `<div class="miss">
+      <div class="mname">${esc(p.name.toUpperCase())}</div>
+      <div class="mpick">you answered: ${esc(m.chosen)}</div>
+      <div class="mblurb">${esc(p.blurb)}</div>
+    </div>`;
+  }).join('');
+  ovPanel.innerHTML = `
+    <h2 class="${finished ? 'win' : 'lose'}">${finished
+      ? (run.misses.length ? 'RUN COMPLETE' : 'PERFECT RUN — ALL 12 NAMED')
+      : 'TIME UP'}</h2>
+    <p>${finished
+      ? `All ${ROUNDS} rounds inside the clock${run.misses.length ? ` — ${run.misses.length} to review below.` : '.'}`
+      : `The clock died after ${run.idx} round${run.idx === 1 ? '' : 's'}. Finish all ${ROUNDS} to bank the remaining seconds.`}</p>
+    <div class="breakdown">
+      <div class="row"><span>CORRECT ${run.correct} × 100</span><span>${run.correct * 100}</span></div>
+      <div class="row"><span>STREAK BONUS</span><span>${run.streakBonus}</span></div>
+      <div class="row"><span>TIME BONUS (seconds left)</span><span>${timeBonus}</span></div>
+      <div class="row"><span>TOTAL</span><span>${run.score}</span></div>
+    </div>
+    ${run.misses.length
+      ? `<div class="rvt">REVIEW — WHAT YOU MISSED</div>${missHtml}`
+      : `<p style="color:var(--blue)">Nothing missed. That is the muscle memory the shop wants.</p>`}
+    <button class="primary" id="againBtn">PLAY AGAIN</button>`;
+  setOverlay(true);
+  document.getElementById('againBtn').onclick = startRun;
+}
+
+function resetToIdle() {
+  clearTimeout(timer);
+  clearHighlight();
+  state = 'idle';
+  run.idx = 0; run.currentId = null; run.options = [];
+  run.score = 0; run.streak = 0; run.correct = 0; run.streakBonus = 0;
+  run.timeLeft = CLOCK; run.misses = [];
+  camTargetPos.copy(HOME_POS);
+  camTargetLook.copy(HOME_LOOK);
+  answersEl.innerHTML = '';
+  feedbackEl.textContent = 'Press START. Keys 1–4 answer.';
+  ovPanel.innerHTML = `
+    <h2>NAME THAT PART</h2>
+    <p>One component of the DPM3 pulses <b style="color:var(--orange)">orange</b>.
+       Pick its name from four choices. The camera flies to face each part —
+       trust the pulse, not the framing.</p>
+    <p><b>${ROUNDS} rounds · one shared ${CLOCK}-second clock.</b><br>
+       +100 per correct · +10 × streak bonus (max +50) · finish all ${ROUNDS} to bank the
+       seconds left as points. A wrong answer kills the streak and the clock keeps
+       running while the fix is on screen — every miss is reviewed at the end.</p>
+    <div class="facts">TRAVELS X${FACTS.travel.x}" · Y${FACTS.travel.y}" · Z${FACTS.travel.z}" —
+       TABLE ${FACTS.tableL}"×${FACTS.tableW}" — SPINDLE ${FACTS.rpmMin}–${FACTS.rpmMax} RPM · ${FACTS.taper}</div>
+    <button class="primary" id="startBtn">START</button>`;
+  setOverlay(true);
+  document.getElementById('startBtn').onclick = startRun;
+  updateHud();
+}
+
+document.getElementById('startBtn').onclick = startRun;
+document.getElementById('resetBtn').onclick = resetToIdle;
+window.addEventListener('keydown', e => {
+  const n = parseInt(e.key, 10);
+  if (n >= 1 && n <= 4) answer(n - 1);
+});
+
+/* ---- frame loop ---- */
+let pulseT = 0, hlOn = false;
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+
+  if (state === 'playing' || state === 'feedback') {
+    run.timeLeft = Math.max(0, run.timeLeft - dt);
+    if (run.timeLeft <= 0) endRun(false);
+  }
+
+  // ~2 Hz pulse while guessing; steady ON while the fix is being read
+  if (run.currentId && (state === 'playing' || state === 'feedback')) {
+    pulseT += dt;
+    const want = state === 'feedback' ? true : Math.floor(pulseT * 4) % 2 === 0;
+    if (want !== hlOn) { machine.highlight(run.currentId, want); hlOn = want; }
+  }
+
+  const k = 1 - Math.exp(-4 * dt);
+  camera.position.lerp(camTargetPos, k);
+  camLook.lerp(camTargetLook, k);
+  camera.lookAt(camLook);
+
+  machine.update(dt);
+  if (state === 'playing' || state === 'feedback') updateHud();
+  resize();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+updateHud();
+requestAnimationFrame(frame);
+
+/* ---- test hooks (no gameplay effect) ---- */
+window.__ntp = {
+  start: startRun,
+  answer,
+  forceRound(id) {
+    if (state === 'idle' || state === 'over') return;
+    clearTimeout(timer);
+    run.order[run.idx] = id;
+    state = 'playing';
+    presentRound();
+  },
+  correctIndex() {
+    return run.options.indexOf(machine.partById(run.currentId).name);
+  },
+  get state() {
+    return { state, idx: run.idx, currentId: run.currentId, score: run.score,
+             streak: run.streak, timeLeft: run.timeLeft, best,
+             misses: run.misses.map(m => m.id) };
+  },
+};
+window.__gameReady = true;
+</script>
+</body>
+</html>

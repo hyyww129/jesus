@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRAK DPM3 · G7 Ghost Run</title>
+<style>
+  :root {
+    --paper: #EDEFEA;
+    --ink: #232A2E;
+    --blue: #1F5FA8;
+    --orange: #E4572E;
+    --green: #39FF6A;
+    --panel: #E2E5DF;
+    --line: #C4C9C2;
+    --dark: #0B1512;
+    --green-faint: #9FD8AE;
+    --ok: #1D7A3A;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  header {
+    flex: none; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1.5px solid var(--ink);
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+  }
+  header h1 { font-size: 14px; letter-spacing: .12em; font-weight: 600; }
+  header .sub { font-size: 11px; color: var(--blue); letter-spacing: .08em; }
+  header a { color: var(--blue); font-size: 11px; margin-left: auto; text-decoration: none; border-bottom: 1px solid var(--blue); }
+
+  main { flex: 1; display: flex; min-height: 0; }
+  #left { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
+  #side {
+    width: 404px; flex: none; border-left: 1.5px solid var(--ink);
+    padding: 10px 12px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;
+    background: color-mix(in srgb, var(--panel) 55%, var(--paper));
+  }
+
+  /* stat strip */
+  #stats { display: grid; grid-template-columns: 96px 96px 96px 1fr 82px; gap: 6px; flex: none; }
+  .stat { border: 1.5px solid var(--ink); background: var(--panel); padding: 3px 8px; }
+  .stat .k { font-size: 9px; letter-spacing: .14em; color: var(--blue); }
+  .stat .v { font-size: 16px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .stat.dro { background: var(--dark); }
+  .stat.dro .k { color: var(--green-faint); }
+  .stat.dro .v { color: var(--green); }
+  #status { overflow: hidden; }
+  #status .v { font-size: 11px; font-weight: 400; padding-top: 3px; letter-spacing: .04em; }
+  #resetBtn {
+    font: inherit; font-size: 12px; font-weight: 600; letter-spacing: .12em; cursor: pointer;
+    border: 1.5px solid var(--ink); background: var(--paper); color: var(--ink);
+  }
+  #resetBtn:hover { background: var(--orange); color: var(--paper); }
+
+  /* stage */
+  #wrap { flex: 1; min-height: 0; border: 1.5px solid var(--ink); background: #F4F5F0; position: relative; }
+  #cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  #legend { flex: none; font-size: 9.5px; opacity: .78; letter-spacing: .04em; }
+  #legend b { color: var(--blue); font-weight: 600; }
+  #hud {
+    position: absolute; left: 12px; bottom: 12px; z-index: 5;
+    background: #10211A; border: 1.5px solid var(--ink); padding: 8px 12px;
+    color: var(--green); font-size: 14px; letter-spacing: .08em; min-width: 190px;
+  }
+  #hud .row { display: flex; justify-content: space-between; gap: 16px; font-variant-numeric: tabular-nums; }
+  #hud .spin { color: var(--green-faint); font-size: 10.5px; margin-top: 5px; }
+  #watch {
+    position: absolute; right: 12px; bottom: 12px; z-index: 5; width: 252px;
+    background: var(--panel); border: 1.5px solid var(--ink); padding: 9px 11px;
+    display: grid; gap: 7px;
+  }
+  #watch .t { font-size: 10px; letter-spacing: .16em; color: var(--blue); font-weight: 600; }
+  #watch .m { font-size: 10.5px; line-height: 1.45; }
+  #wBtns { display: flex; gap: 6px; }
+  #wBtns button {
+    font: inherit; font-size: 10px; font-weight: 600; letter-spacing: .04em; cursor: pointer;
+    border: 1.5px solid var(--ink); padding: 5px 4px; flex: 1; white-space: nowrap;
+  }
+  #rewatchBtn { background: var(--paper); }
+  #rewatchBtn:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+  #goSeqBtn { background: var(--blue); color: var(--paper); }
+  #goSeqBtn:hover:not(:disabled) { background: var(--orange); }
+  #wBtns button:disabled { opacity: .45; cursor: default; }
+
+  /* side sections */
+  .sec { border: 1.5px solid var(--ink); background: var(--panel); flex: none; }
+  .sec .hd {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 4px 9px; border-bottom: 1.5px solid var(--ink); font-size: 10px;
+    letter-spacing: .16em; font-weight: 600;
+    background: color-mix(in srgb, var(--blue) 10%, var(--panel));
+  }
+  .sec .hd .r { font-weight: 400; color: var(--blue); letter-spacing: .08em; }
+  .sec .bd { padding: 7px 9px; }
+  #brief .bd { font-size: 10.5px; line-height: 1.5; }
+  #brief .bd div { padding-left: 10px; text-indent: -10px; }
+  #brief .bd div::before { content: "– "; color: var(--blue); }
+  .hide { display: none !important; }
+
+  /* run picker */
+  #runBtns { display: grid; gap: 6px; }
+  .runBtn {
+    display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+    font: inherit; border: 1.5px solid var(--ink); background: var(--paper);
+    cursor: pointer; padding: 7px 10px; text-align: left;
+  }
+  .runBtn span { font-size: 13px; font-weight: 600; letter-spacing: .1em; }
+  .runBtn em { font-style: normal; font-size: 9px; color: var(--blue); letter-spacing: .06em; }
+  .runBtn:hover:not(:disabled) { background: var(--blue); }
+  .runBtn:hover:not(:disabled) span, .runBtn:hover:not(:disabled) em { color: var(--paper); }
+  .runBtn:disabled { cursor: default; background: var(--panel); }
+  .runBtn.done { border-color: var(--ok); }
+  .runBtn.done span { color: var(--ok); }
+  #dealBtn {
+    font: inherit; font-size: 11px; font-weight: 600; letter-spacing: .1em; cursor: pointer;
+    border: 1.5px solid var(--ink); background: var(--paper); padding: 5px 10px; margin-top: 6px; width: 100%;
+  }
+  #dealBtn:hover:not(:disabled) { background: var(--ink); color: var(--paper); }
+  #dealBtn:disabled { opacity: .45; cursor: default; }
+  #pickNote { font-size: 9.5px; color: var(--blue); margin-top: 6px; letter-spacing: .04em; }
+
+  /* sequence */
+  #slots { display: grid; gap: 4px; }
+  .slot { display: flex; align-items: stretch; border: 1.5px solid var(--ink); background: var(--paper); min-height: 27px; }
+  .slot .n {
+    width: 24px; flex: none; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 600; color: var(--paper); background: var(--ink);
+  }
+  .slot .hold { flex: 1; display: flex; align-items: stretch; padding: 2px; min-width: 0; }
+  .slot.tgt { outline: 2px solid var(--orange); outline-offset: -1px; }
+  .card {
+    border: 1.5px solid var(--ink); background: var(--paper); padding: 4px 7px;
+    font-size: 10.5px; cursor: grab; user-select: none; -webkit-user-select: none;
+    touch-action: none; letter-spacing: .02em; display: flex; align-items: center;
+  }
+  .card:hover { background: color-mix(in srgb, var(--blue) 12%, var(--paper)); }
+  .card.sel { outline: 2px solid var(--blue); outline-offset: -1px; background: color-mix(in srgb, var(--blue) 16%, var(--paper)); }
+  .card.dragging {
+    position: fixed; z-index: 60; pointer-events: none; cursor: grabbing;
+    box-shadow: 3px 3px 0 rgba(35, 42, 46, .3);
+  }
+  .slot .card { width: 100%; border-width: 1px; }
+  #tray {
+    display: flex; flex-wrap: wrap; gap: 5px; min-height: 40px; margin-top: 7px;
+    border: 1px dashed var(--line); padding: 6px; background: color-mix(in srgb, var(--paper) 60%, var(--panel));
+  }
+  #seqBtns { display: flex; gap: 6px; margin-top: 7px; }
+  #seqBtns button {
+    font: inherit; font-size: 11px; font-weight: 600; letter-spacing: .1em; cursor: pointer;
+    border: 1.5px solid var(--ink); padding: 5px 10px;
+  }
+  #submitBtn { background: var(--blue); color: var(--paper); flex: 1; }
+  #submitBtn:hover:not(:disabled) { background: var(--orange); }
+  #submitBtn:disabled { opacity: .45; cursor: default; }
+  #clearBtn { background: var(--paper); }
+  #clearBtn:hover { background: var(--ink); color: var(--paper); }
+  #seqHint { font-size: 9px; color: var(--blue); margin-top: 6px; letter-spacing: .04em; line-height: 1.5; }
+
+  /* result */
+  #resScore { font-size: 10.5px; line-height: 1.6; border: 1.5px solid var(--line); background: var(--paper); padding: 5px 8px; margin-bottom: 7px; }
+  #resScore b { color: var(--blue); }
+  #resList { display: grid; gap: 4px; }
+  .rrow { display: flex; align-items: stretch; border: 1.5px solid var(--line); background: var(--paper); }
+  .rrow .n {
+    width: 24px; flex: none; display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 600; color: var(--paper); background: var(--ink);
+  }
+  .rrow.bad .n { background: var(--orange); }
+  .rrow .tx { flex: 1; min-width: 0; padding: 3px 7px; font-size: 10px; line-height: 1.45; }
+  .rrow .tx b { font-size: 10.5px; }
+  .rrow .tx .d { opacity: .8; }
+  .rrow .tx .you { color: var(--orange); font-weight: 600; }
+  .rrow .tag {
+    flex: none; align-self: center; font-size: 9px; font-weight: 600; letter-spacing: .1em;
+    border: 1.5px solid; padding: 1px 5px; margin: 0 6px;
+  }
+  .rrow.ok .tag { color: var(--ok); border-color: var(--ok); }
+  .rrow.bad .tag { color: var(--orange); border-color: var(--orange); }
+  #resTeach {
+    font-size: 10px; line-height: 1.55; margin-top: 7px; padding: 5px 8px;
+    border: 1.5px solid var(--blue); background: color-mix(in srgb, var(--blue) 8%, var(--paper));
+  }
+  #resTeach b { color: var(--blue); }
+  #resSummary {
+    font-size: 11px; line-height: 1.6; margin-top: 7px; padding: 5px 8px;
+    border: 1.5px solid var(--ok); background: color-mix(in srgb, var(--ok) 8%, var(--paper));
+  }
+  #resSummary b { color: var(--ok); }
+  #nextBtn {
+    font: inherit; font-size: 12px; font-weight: 600; letter-spacing: .12em; cursor: pointer;
+    border: 1.5px solid var(--ink); background: var(--blue); color: var(--paper);
+    padding: 6px 10px; margin-top: 7px; width: 100%;
+  }
+  #nextBtn:hover { background: var(--orange); }
+</style>
+</head>
+<body>
+<header>
+  <h1>TRAK DPM3 · G7 GHOST RUN</h1>
+  <span class="sub">WATCH THE CYCLE — THEN REBUILD ITS SEQUENCE FROM MEMORY</span>
+  <a href="../index.html">← HUB</a>
+</header>
+<main>
+  <div id="left">
+    <div id="stats">
+      <div class="stat dro"><div class="k">SESSION</div><div class="v" id="sScore">0</div></div>
+      <div class="stat dro"><div class="k">BEST</div><div class="v" id="sBest">—</div></div>
+      <div class="stat dro"><div class="k">TIMER</div><div class="v" id="sTime">—</div></div>
+      <div class="stat" id="status"><div class="k">STATUS</div><div class="v" id="sStat">PICK A RUN</div></div>
+      <button id="resetBtn">RESET</button>
+    </div>
+    <div id="wrap">
+      <canvas id="cv"></canvas>
+      <div id="hud">
+        <div class="row"><span>X</span><span id="dx">0.0000</span></div>
+        <div class="row"><span>Y</span><span id="dy">0.0000</span></div>
+        <div class="row"><span>Z</span><span id="dz">0.0000</span></div>
+        <div class="spin" id="dspin">SPINDLE — OFF</div>
+      </div>
+      <div id="watch">
+        <div class="t" id="wTitle">GHOST RUN</div>
+        <div class="m" id="wMsg">Pick a run in the panel →</div>
+        <div id="wBtns" class="hide">
+          <button id="rewatchBtn" disabled>REWATCH · FREE</button>
+          <button id="goSeqBtn" disabled>SEQUENCE →</button>
+        </div>
+      </div>
+    </div>
+    <div id="legend">Drag to orbit · scroll to zoom · <b>DRO</b> in inches, machine coords · watch the <b>spindle line</b> — ON/OFF and RPM are steps too</div>
+  </div>
+  <aside id="side">
+    <section class="sec" id="brief">
+      <div class="hd"><span>THE DRILL</span><span class="r">3 RUNS = 1 SESSION</span></div>
+      <div class="bd">
+        <div>WATCH — a mystery cycle runs. DRO and spindle only, no step labels. One rewatch free; more cost 10 each.</div>
+        <div>SEQUENCE — its step cards land shuffled. Order them. Timed from the deal.</div>
+        <div>Run score = correct slots × 10 + speed bonus (max 30 vs par 5 s/step) − rewatch penalty.</div>
+      </div>
+    </section>
+    <section class="sec" id="pick">
+      <div class="hd"><span>PICK A RUN</span><span class="r" id="pickR">A · B · C</span></div>
+      <div class="bd">
+        <div id="runBtns"></div>
+        <button id="dealBtn">DEAL ME ONE AT RANDOM</button>
+        <div id="pickNote"></div>
+      </div>
+    </section>
+    <section class="sec hide" id="seq">
+      <div class="hd"><span id="seqTitle">SEQUENCE</span><span class="r" id="seqCount">0/0 PLACED</span></div>
+      <div class="bd">
+        <div id="slots"></div>
+        <div id="tray"></div>
+        <div id="seqBtns">
+          <button id="submitBtn" disabled>SUBMIT ORDER</button>
+          <button id="clearBtn">CLEAR</button>
+        </div>
+        <div id="seqHint">Click a tray card, then a numbered slot — or drag it in. Click a placed card to send it back to the tray. Placing onto a full slot bumps the old card out.</div>
+      </div>
+    </section>
+    <section class="sec hide" id="res">
+      <div class="hd"><span id="resTitle">RESULT</span><span class="r" id="resR"></span></div>
+      <div class="bd">
+        <div id="resScore"></div>
+        <div id="resList"></div>
+        <div id="resTeach"></div>
+        <div id="resSummary" class="hide"></div>
+        <button id="nextBtn">NEXT RUN →</button>
+      </div>
+    </section>
+  </aside>
+</main>
+
+<script src="../model/vendor/three.min.js"></script>
+<script src="../model/vendor/OrbitControls.js"></script>
+<script type="module">
+import { buildMachine, makeScene, DEMO_CYCLES, createCycleRunner, reportScore, FACTS }
+  from '../model/machine.js';
+
+const $ = id => document.getElementById(id);
+const show = (el, on) => el.classList.toggle('hide', !on);
+const LETTERS = ['A', 'B', 'C'];
+const PLACE_PTS = 10, SPEED_MAX = 30, REWATCH_COST = 10, PAR_PER_STEP = 5;
+const MAX_TOTAL = DEMO_CYCLES.reduce((a, c) => a + c.steps.length * PLACE_PTS + SPEED_MAX, 0);
+
+/* ---------------- 3D stage ---------------- */
+const canvas = $('cv');
+const { scene, camera, renderer, resize } = makeScene(canvas);
+const machine = buildMachine(scene);
+const controls = new THREE.OrbitControls(camera, canvas);
+controls.target.set(0, 50, 0);
+controls.enableDamping = true;
+controls.dampingFactor = 0.08;
+controls.update();
+
+/* ---------------- state (memory only) ---------------- */
+let best = null;          // best session total, survives RESET, memory only
+let S = null;             // current session
+let runner = null;
+let seqStart = 0;
+let selected = null;
+let drag = null;
+
+function shuffle(a) {
+  a = a.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function newSession() {
+  S = {
+    order: shuffle([0, 1, 2]),                       // run letter -> cycle index
+    runs: [0, 1, 2].map(() => ({ done: false, score: 0, placed: 0, rewatches: 0, elapsed: 0 })),
+    runIdx: -1,
+    phase: 'pick',
+    total: 0,
+  };
+  runner = null;
+  selected = null;
+  machine.spindle.set(false);
+  machine.setAxes({ x: 2, y: 2, z: 20, quill: 0 });
+}
+const cycleOf = i => DEMO_CYCLES[S.order[i]];
+
+/* ---------------- painting ---------------- */
+const setStat = t => { $('sStat').textContent = t; };
+
+function paintPicker() {
+  const box = $('runBtns');
+  box.innerHTML = '';
+  S.runs.forEach((r, i) => {
+    const b = document.createElement('button');
+    b.className = 'runBtn' + (r.done ? ' done' : '');
+    b.disabled = r.done;
+    b.innerHTML = r.done
+      ? `<span>RUN ${LETTERS[i]} ✓ ${r.score}</span><em>${cycleOf(i).name.toUpperCase()} · ${r.placed}/${cycleOf(i).steps.length} PLACED</em>`
+      : `<span>RUN ${LETTERS[i]}</span><em>UNPLAYED — CYCLE NAME HIDDEN</em>`;
+    b.addEventListener('click', () => startWatch(i));
+    box.appendChild(b);
+  });
+  const left = S.runs.filter(r => !r.done).length;
+  $('dealBtn').disabled = !left;
+  $('pickNote').textContent = left
+    ? `${left} run${left > 1 ? 's' : ''} left this session. Which cycle hides behind each letter stays secret until you score it.`
+    : 'Session complete — RESET shuffles the deck and deals a fresh session.';
+}
+
+function paintAll() {
+  $('sScore').textContent = S.total;
+  $('sBest').textContent = best === null ? '—' : best;
+  const ph = S.phase;
+  show($('pick'), ph === 'pick');
+  show($('seq'), ph === 'seq');
+  show($('res'), ph === 'result');
+  show($('watch'), ph === 'pick' || ph === 'watch');
+  show($('wBtns'), ph === 'watch');
+  if (ph === 'pick') {
+    paintPicker();
+    $('wTitle').textContent = 'GHOST RUN';
+    $('wMsg').textContent = 'Pick a run in the panel →';
+    $('sTime').textContent = '—';
+    setStat('PICK A RUN — a full session is all three');
+  }
+}
+
+/* ---------------- phase: WATCH ---------------- */
+function startCycleAnim() {
+  runner = createCycleRunner(machine, cycleOf(S.runIdx), { onDone: watchDone });
+  runner.reset();
+  runner.start();
+}
+
+function startWatch(i) {
+  S.runIdx = i;
+  S.phase = 'watch';
+  paintAll();
+  const cyc = cycleOf(i);
+  $('wTitle').textContent = `RUN ${LETTERS[i]} — WATCH`;
+  $('wMsg').textContent = `Memorize the order of the ${cyc.steps.length} moves. No labels — just the machine, the DRO and the spindle.`;
+  $('rewatchBtn').disabled = true;
+  $('goSeqBtn').disabled = true;
+  setStat(`WATCH RUN ${LETTERS[i]} — ${cyc.steps.length} steps, labels hidden`);
+  startCycleAnim();
+}
+
+function watchDone() {
+  const run = S.runs[S.runIdx];
+  const paid = run.rewatches >= 1;
+  const pen = Math.max(0, run.rewatches - 1) * REWATCH_COST;
+  $('wMsg').textContent = 'Cycle complete.'
+    + (pen ? ` Rewatch penalty so far: −${pen}.` : '')
+    + ' Watch it again, or go rebuild the order.';
+  $('rewatchBtn').textContent = paid ? `REWATCH · −${REWATCH_COST}` : 'REWATCH · FREE';
+  $('rewatchBtn').disabled = false;
+  $('goSeqBtn').disabled = false;
+}
+
+$('rewatchBtn').addEventListener('click', () => {
+  if (S.phase !== 'watch') return;
+  const run = S.runs[S.runIdx];
+  run.rewatches++;
+  $('rewatchBtn').disabled = true;
+  $('goSeqBtn').disabled = true;
+  const pen = Math.max(0, run.rewatches - 1) * REWATCH_COST;
+  $('wMsg').textContent = `Watching again (${run.rewatches === 1 ? 'free one' : '−' + REWATCH_COST + ' this time'})`
+    + (pen ? ` — total penalty −${pen}.` : '.');
+  startCycleAnim();
+});
+
+$('goSeqBtn').addEventListener('click', () => {
+  if (S.phase !== 'watch' || $('goSeqBtn').disabled) return;
+  startSeq();
+});
+
+/* ---------------- phase: SEQUENCE ---------------- */
+function select(card) {
+  if (selected) selected.classList.remove('sel');
+  selected = card;
+  if (selected) selected.classList.add('sel');
+}
+function placeCard(card, slot) {
+  const hold = slot.querySelector('.hold');
+  const occ = hold.querySelector('.card');
+  if (occ && occ !== card) $('tray').appendChild(occ);
+  hold.appendChild(card);
+  card.classList.remove('sel');
+}
+function returnToTray(card) { $('tray').appendChild(card); }
+
+function refreshSeq() {
+  const N = cycleOf(S.runIdx).steps.length;
+  const filled = $('slots').querySelectorAll('.card').length;
+  $('seqCount').textContent = `${filled}/${N} PLACED`;
+  $('submitBtn').disabled = filled !== N;
+}
+
+function startSeq() {
+  S.phase = 'seq';
+  runner = null;
+  const steps = cycleOf(S.runIdx).steps;
+  const slotBox = $('slots');
+  slotBox.innerHTML = '';
+  steps.forEach((_, i) => {
+    const s = document.createElement('div');
+    s.className = 'slot';
+    s.dataset.pos = i;
+    s.innerHTML = `<span class="n">${i + 1}</span><div class="hold"></div>`;
+    s.addEventListener('click', e => {
+      if (S.phase !== 'seq') return;
+      if (e.target.closest('.card')) return;          // card handles its own clicks
+      if (selected) { placeCard(selected, s); select(null); refreshSeq(); }
+    });
+    slotBox.appendChild(s);
+  });
+  const tray = $('tray');
+  tray.innerHTML = '';
+  let idxs = shuffle(steps.map((_, i) => i));
+  if (idxs.every((v, i) => v === i)) idxs = shuffle(idxs);   // never deal a solved tray
+  idxs.forEach(i => {
+    const c = document.createElement('div');
+    c.className = 'card';
+    c.dataset.idx = i;
+    c.textContent = steps[i].label;
+    c.addEventListener('pointerdown', cardDown);
+    tray.appendChild(c);
+  });
+  select(null);
+  $('seqTitle').textContent = `RUN ${LETTERS[S.runIdx]} — ORDER THE ${steps.length} STEPS`;
+  refreshSeq();
+  paintAll();
+  setStat('SEQUENCE — order the cards, then SUBMIT. Clock is running.');
+  seqStart = performance.now();
+}
+
+/* drag with click-to-place fallback */
+let hoverSlot = null;
+function markHover(slot) {
+  if (hoverSlot === slot) return;
+  if (hoverSlot) hoverSlot.classList.remove('tgt');
+  hoverSlot = slot;
+  if (hoverSlot) hoverSlot.classList.add('tgt');
+}
+function cardDown(e) {
+  if (S.phase !== 'seq' || drag) return;
+  const card = e.currentTarget;
+  e.preventDefault();
+  card.setPointerCapture(e.pointerId);
+  drag = { card, id: e.pointerId, sx: e.clientX, sy: e.clientY, moved: false, w: card.offsetWidth };
+  card.addEventListener('pointermove', cardMove);
+  card.addEventListener('pointerup', cardUp);
+  card.addEventListener('pointercancel', cardUp);
+}
+function cardMove(e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  if (!drag.moved) {
+    if (Math.hypot(e.clientX - drag.sx, e.clientY - drag.sy) < 6) return;
+    drag.moved = true;
+    select(null);
+    drag.card.classList.add('dragging');
+    drag.card.style.width = drag.w + 'px';
+    document.body.appendChild(drag.card);
+  }
+  drag.card.style.left = (e.clientX - drag.w / 2) + 'px';
+  drag.card.style.top = (e.clientY - 13) + 'px';
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  markHover(el ? el.closest('.slot') : null);
+}
+function cardUp(e) {
+  if (!drag || e.pointerId !== drag.id) return;
+  const { card, moved } = drag;
+  card.removeEventListener('pointermove', cardMove);
+  card.removeEventListener('pointerup', cardUp);
+  card.removeEventListener('pointercancel', cardUp);
+  if (moved) {
+    card.classList.remove('dragging');
+    card.style.left = card.style.top = card.style.width = '';
+    const el = document.elementFromPoint(e.clientX, e.clientY);
+    const slot = el ? el.closest('.slot') : null;
+    if (slot) placeCard(card, slot); else returnToTray(card);
+    markHover(null);
+  } else {
+    if (card.closest('.slot')) {                      // click a placed card -> back to tray
+      returnToTray(card);
+      if (selected === card) select(null);
+    } else {
+      select(selected === card ? null : card);        // click a tray card -> arm it
+    }
+  }
+  drag = null;
+  refreshSeq();
+}
+
+$('clearBtn').addEventListener('click', () => {
+  if (S.phase !== 'seq') return;
+  $('slots').querySelectorAll('.card').forEach(returnToTray);
+  select(null);
+  refreshSeq();
+});
+
+/* ---------------- submit + result ---------------- */
+$('submitBtn').addEventListener('click', () => {
+  if (S.phase !== 'seq' || $('submitBtn').disabled) return;
+  const i = S.runIdx, run = S.runs[i], cyc = cycleOf(i), N = cyc.steps.length;
+  const elapsed = (performance.now() - seqStart) / 1000;
+  const placedIdx = [];
+  $('slots').querySelectorAll('.slot').forEach(s => {
+    const c = s.querySelector('.card');
+    placedIdx.push(c ? +c.dataset.idx : -1);
+  });
+  let correct = 0;
+  placedIdx.forEach((v, k) => { if (v === k) correct++; });
+  const par = N * PAR_PER_STEP;
+  const speed = Math.max(0, Math.round(SPEED_MAX * (par - elapsed) / par));
+  const pen = Math.max(0, run.rewatches - 1) * REWATCH_COST;
+  const score = Math.max(0, correct * PLACE_PTS + speed - pen);
+  Object.assign(run, { done: true, score, placed: correct, elapsed });
+  S.total = S.runs.reduce((a, r) => a + r.score, 0);
+  if (best === null || S.total > best) best = S.total;
+  reportScore('g7', { label: 'Ghost Run', score: S.total, best, detail: `run ${LETTERS[i]} ${score}` });
+  buildResult(placedIdx, { correct, N, speed, pen, par, elapsed, score });
+  S.phase = 'result';
+  paintAll();
+  $('sTime').textContent = elapsed.toFixed(1) + 's';
+  setStat(`RUN ${LETTERS[i]} SCORED ${score} — review the true sequence`);
+});
+
+function buildResult(placedIdx, B) {
+  const i = S.runIdx, cyc = cycleOf(i);
+  $('resTitle').textContent = `RUN ${LETTERS[i]} WAS: ${cyc.name.toUpperCase()}`;
+  $('resR').textContent = `${B.correct}/${B.N} RIGHT`;
+  $('resScore').innerHTML =
+    `PLACEMENT ${B.correct}/${B.N} × ${PLACE_PTS} = <b>${B.correct * PLACE_PTS}</b><br>`
+    + `SPEED ${B.elapsed.toFixed(1)}s vs PAR ${B.par}s (${B.N} steps × ${PAR_PER_STEP}s) → BONUS <b>+${B.speed}</b><br>`
+    + `REWATCH PENALTY <b>−${B.pen}</b> (first rewatch free, then −${REWATCH_COST}) ⇒ RUN SCORE <b>${B.score}</b>`;
+  const list = $('resList');
+  list.innerHTML = '';
+  cyc.steps.forEach((st, k) => {
+    const ok = placedIdx[k] === k;
+    const row = document.createElement('div');
+    row.className = 'rrow ' + (ok ? 'ok' : 'bad');
+    const you = ok ? '' :
+      `<div class="you">YOU PLACED HERE: ${placedIdx[k] >= 0 ? cyc.steps[placedIdx[k]].label : '(empty)'}</div>`;
+    row.innerHTML = `<span class="n">${k + 1}</span>`
+      + `<div class="tx"><b>${st.label}</b><div class="d">${st.desc}</div>${you}</div>`
+      + `<span class="tag">${ok ? 'OK' : 'MISS'}</span>`;
+    list.appendChild(row);
+  });
+  $('resTeach').innerHTML =
+    `<b>THE SHAPE OF EVERY CYCLE:</b> position first · spindle ON and at speed <b>before</b> the `
+    + `cutter meets metal (${FACTS.variSpeedRule.replace(/\.$/, '')} — so speed is dialed with it turning) · `
+    + `cut · retract clear of the part · spindle OFF · rapid home last, with the tool clear. `
+    + `If a MISS above breaks that shape, that is your tell next watch.`;
+  const doneAll = S.runs.every(r => r.done);
+  show($('resSummary'), doneAll);
+  if (doneAll) {
+    $('resSummary').innerHTML =
+      `<b>SESSION COMPLETE</b> — TOTAL <b>${S.total}</b> / ${MAX_TOTAL} · BEST <b>${best}</b><br>`
+      + S.runs.map((r, j) => `RUN ${LETTERS[j]} · ${cycleOf(j).name.toUpperCase()}: ${r.score}`).join('<br>');
+    $('nextBtn').textContent = 'SESSION BOARD';
+  } else {
+    $('nextBtn').textContent = 'NEXT RUN →';
+  }
+}
+
+$('nextBtn').addEventListener('click', () => {
+  S.phase = 'pick';
+  paintAll();
+});
+
+/* ---------------- deal + reset ---------------- */
+$('dealBtn').addEventListener('click', () => {
+  const open = S.runs.map((r, i) => r.done ? -1 : i).filter(i => i >= 0);
+  if (open.length) startWatch(open[Math.floor(Math.random() * open.length)]);
+});
+
+$('resetBtn').addEventListener('click', () => {
+  newSession();
+  paintAll();
+  reportScore('g7', { label: 'Ghost Run', score: 0, best });
+});
+
+/* ---------------- frame loop ---------------- */
+const dx = $('dx'), dy = $('dy'), dz = $('dz'), dspin = $('dspin'), sTime = $('sTime');
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  if (runner && runner.running) runner.update(dt);
+  machine.update(dt);
+  const ax = machine.getAxes();
+  dx.textContent = ax.x.toFixed(4);
+  dy.textContent = ax.y.toFixed(4);
+  dz.textContent = ax.z.toFixed(4);
+  dspin.textContent = machine.spindle.on
+    ? `SPINDLE — ${machine.spindle.rpm} RPM` : 'SPINDLE — OFF';
+  if (S.phase === 'seq') sTime.textContent = ((now - seqStart) / 1000).toFixed(1) + 's';
+  resize();
+  controls.update();
+  renderer.render(scene, camera);
+  requestAnimationFrame(frame);
+}
+
+/* test hook (no gameplay use) */
+window.__g7 = {
+  get phase() { return S.phase; },
+  get total() { return S.total; },
+  get best() { return best; },
+  fastForward() { let g = 0; while (runner && runner.running && g++ < 300) runner.update(5); },
+};
+
+newSession();
+paintAll();
+requestAnimationFrame(frame);
+</script>
+</body>
+</html>

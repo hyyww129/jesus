@@ -1,0 +1,564 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRAK DPM3 · G8 Crash Investigator</title>
+<style>
+  :root {
+    --paper: #EDEFEA;
+    --ink: #232A2E;
+    --blue: #1F5FA8;
+    --orange: #E4572E;
+    --green: #39FF6A;
+    --panel: #E2E5DF;
+    --line: #C4C9C2;
+    --dark: #0B1512;
+    --green-faint: #9FD8AE;
+    --ok: #1D7A3A;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  header {
+    flex: none; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1.5px solid var(--ink);
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+  }
+  header h1 { font-size: 14px; letter-spacing: .12em; font-weight: 600; }
+  header .sub { font-size: 11px; color: var(--blue); letter-spacing: .08em; }
+  header a { color: var(--blue); font-size: 11px; margin-left: auto; text-decoration: none; border-bottom: 1px solid var(--blue); }
+
+  main { flex: 1; min-height: 0; overflow-y: auto; }
+  #wrap {
+    max-width: 880px; margin: 0 auto; padding: 0 16px 48px;
+    display: flex; flex-direction: column; gap: 12px;
+  }
+
+  /* stat strip (sticky) */
+  #stats {
+    display: grid; grid-template-columns: repeat(4, 1fr) auto; gap: 6px;
+    position: sticky; top: 0; z-index: 5; background: var(--paper); padding: 12px 0 8px;
+  }
+  .stat { border: 1.5px solid var(--ink); background: var(--panel); padding: 4px 8px; }
+  .stat .k { font-size: 9px; letter-spacing: .14em; color: var(--blue); }
+  .stat .v { font-size: 16px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .stat.dro { background: var(--dark); }
+  .stat.dro .k { color: var(--green-faint); }
+  .stat.dro .v { color: var(--green); }
+  #resetBtn {
+    font: inherit; font-size: 11px; letter-spacing: .1em; padding: 0 14px;
+    background: var(--paper); color: var(--ink); border: 1.5px solid var(--ink); cursor: pointer;
+  }
+  #resetBtn:hover { background: var(--orange); color: var(--paper); }
+
+  /* incident card */
+  #card { border: 1.5px solid var(--ink); background: var(--panel); flex: none; }
+  .head {
+    display: flex; align-items: baseline; justify-content: space-between; gap: 10px;
+    padding: 6px 10px; border-bottom: 1.5px solid var(--ink);
+    background: color-mix(in srgb, var(--blue) 10%, var(--panel));
+  }
+  .head .t { font-size: 11px; letter-spacing: .18em; font-weight: 600; }
+  .head .r { font-size: 10px; letter-spacing: .12em; color: var(--blue); white-space: nowrap; }
+  #card .head { background: color-mix(in srgb, var(--orange) 12%, var(--panel)); }
+  #cardTitle {
+    font-size: 12.5px; letter-spacing: .14em; font-weight: 600; color: var(--orange);
+    padding: 9px 12px 0;
+  }
+  #story {
+    margin: 8px 12px 12px; padding: 9px 12px; background: var(--paper);
+    border-left: 4px solid var(--orange); font-size: 13px; line-height: 1.65;
+  }
+
+  /* question blocks */
+  .q { border: 1.5px solid var(--ink); background: var(--panel); }
+  .opts { display: grid; gap: 6px; padding: 10px; }
+  .opt {
+    display: grid; grid-template-columns: 24px 1fr; gap: 10px; align-items: start;
+    text-align: left; font: inherit; font-size: 12.5px; line-height: 1.5;
+    padding: 8px 10px; background: var(--paper); color: var(--ink);
+    border: 1.5px solid var(--ink); cursor: pointer;
+  }
+  .opt:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+  .opt:not(:disabled):hover { background: color-mix(in srgb, var(--blue) 12%, var(--paper)); }
+  .opt:disabled { cursor: default; }
+  .opt .l { font-weight: 600; color: var(--blue); }
+  .opt.good { border-color: var(--ok); background: color-mix(in srgb, var(--ok) 10%, var(--paper)); }
+  .opt.good .l { color: var(--ok); }
+  .opt.bad { border-color: var(--orange); background: color-mix(in srgb, var(--orange) 14%, var(--paper)); }
+  .opt.bad .l { color: var(--orange); }
+  .opt.dim { opacity: .55; }
+
+  /* debrief */
+  #debrief { border: 1.5px solid var(--ink); background: var(--paper); display: none; }
+  #vRow { display: flex; gap: 8px; flex-wrap: wrap; padding: 10px 12px 0; }
+  .vd {
+    display: flex; align-items: baseline; gap: 8px; padding: 3px 9px;
+    border: 1.5px solid; font-size: 11px; letter-spacing: .08em; font-weight: 600;
+  }
+  .vd.ok { color: var(--ok); border-color: var(--ok); }
+  .vd.bad { color: var(--orange); border-color: var(--orange); }
+  #debText { padding: 9px 12px 12px; font-size: 13px; line-height: 1.7; }
+  #debText b { color: var(--blue); }
+  #debText .warn { color: var(--orange); font-weight: 600; }
+  #nextRow { display: none; }
+  #btnNext {
+    width: 100%; font: inherit; font-size: 14px; font-weight: 600; letter-spacing: .18em;
+    padding: 11px 0; background: var(--orange); color: var(--paper);
+    border: 1.5px solid var(--ink); cursor: pointer;
+  }
+  #btnNext:hover { background: var(--ink); }
+  .kbd { font-size: 10px; color: var(--blue); letter-spacing: .08em; padding: 2px 0 0; }
+
+  /* summary / review */
+  #summary { display: none; border: 1.5px solid var(--ink); background: var(--panel); }
+  #summary .body { padding: 12px; }
+  #summary .big { font-size: 26px; font-weight: 600; margin-bottom: 4px; }
+  #summary .big span { color: var(--blue); font-size: 16px; }
+  #summary .note { font-size: 11px; color: var(--blue); line-height: 1.5; margin-top: 6px; }
+  .rev { border: 1.5px solid var(--ink); background: var(--paper); margin-top: 10px; }
+  .rev .rh {
+    padding: 5px 10px; border-bottom: 1px solid var(--line); font-size: 11px;
+    letter-spacing: .12em; font-weight: 600; color: var(--orange);
+    display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap;
+  }
+  .rev .rh .m { color: var(--blue); font-weight: 400; letter-spacing: .06em; }
+  .rev .miss { padding: 7px 10px 0; font-size: 12px; line-height: 1.55; }
+  .rev .miss .q { border: none; background: none; }
+  .rev .miss .lab { font-size: 9.5px; letter-spacing: .14em; color: var(--blue); }
+  .rev .miss .you { color: var(--orange); }
+  .rev .miss .call { color: var(--ok); }
+  .rev .deb {
+    margin: 8px 10px 10px; padding: 7px 9px; font-size: 12px; line-height: 1.6;
+    border-left: 3px solid var(--line); background: var(--panel);
+  }
+  .rev .deb b { color: var(--blue); }
+  .rev .deb .warn { color: var(--orange); font-weight: 600; }
+</style>
+</head>
+<body>
+<header>
+  <h1>TRAK DPM3 · G8 CRASH INVESTIGATOR</h1>
+  <span class="sub">15 INCIDENT CARDS — FIND THE ROOT CAUSE, THEN THE FIX</span>
+  <a href="../index.html">← HUB</a>
+</header>
+<main><div id="wrap">
+  <div id="stats">
+    <div class="stat"><div class="k">CARD</div><div class="v" id="stCard">1/15</div></div>
+    <div class="stat dro"><div class="k">SCORE (ANSWERS)</div><div class="v" id="stScore">0/30</div></div>
+    <div class="stat"><div class="k">STREAK</div><div class="v" id="stStreak">0</div></div>
+    <div class="stat"><div class="k">SESSION BEST</div><div class="v" id="stBest">0</div></div>
+    <button id="resetBtn">RESET</button>
+  </div>
+
+  <section id="card">
+    <div class="head"><span class="t">INCIDENT REPORT</span><span class="r" id="cardTag">CARD 1 / 15</span></div>
+    <div id="cardTitle"></div>
+    <div id="story"></div>
+  </section>
+
+  <section class="q" id="q1">
+    <div class="head"><span class="t">Q1 — ROOT CAUSE</span><span class="r">WHAT ACTUALLY WENT WRONG?</span></div>
+    <div class="opts" id="q1opts"></div>
+  </section>
+
+  <section class="q" id="q2" style="display:none">
+    <div class="head"><span class="t">Q2 — PREVENTION</span><span class="r">WHAT STOPS IT HAPPENING AGAIN?</span></div>
+    <div class="opts" id="q2opts"></div>
+  </section>
+
+  <section id="debrief">
+    <div class="head"><span class="t">MACHINIST'S DEBRIEF</span><span class="r" id="debTag"></span></div>
+    <div id="vRow"></div>
+    <div id="debText"></div>
+  </section>
+  <div id="nextRow">
+    <button id="btnNext">NEXT CARD →</button>
+    <div class="kbd">KEYS: 1–4 ANSWER · ENTER = NEXT</div>
+  </div>
+
+  <section id="summary"></section>
+</div></main>
+
+<script type="module">
+import { FACTS, rpmFor, feedFor, reportScore } from '../model/machine.js';
+
+const $ = id => document.getElementById(id);
+const GAME = 'g8', LABEL = 'Crash Investigator';
+
+/* ---- numbers pulled from FACTS (never re-typed in logic) ---- */
+const TIP  = FACTS.edgeFinderTip.toFixed(3);      // 0.200 tip
+const OFF  = FACTS.edgeFinderOffset.toFixed(3);   // 0.100 centerline offset
+const CL4  = FACTS.chipload.em250;                // 1/4" EM ipt
+const CL8  = FACTS.chipload.em500;                // 1/2" EM ipt
+const RPMQ = rpmFor(FACTS.sfm.steelHSS, 0.25);    // 1/4" HSS in mild steel
+const FOK  = feedFor(RPMQ, 2, CL4).toFixed(1);    // right feed
+const FBAD = feedFor(RPMQ, 2, CL8).toFixed(1);    // the feed that snapped it
+
+/* ---- 15 scenarios. In rc/pv, opts[0] is correct; order is shuffled at deal. ---- */
+const SCEN = [
+{ title: 'RAPID INTO THE VISE JAW',
+  story: `Second shift, proven program. The operator picked up the part with an edge finder, set X zero, and hit CNC RUN. The cutter rapided down and buried itself in the vise jaw two inches left of the part. E-stop, broken 1/2" end mill, gouged jaw. The same program had run clean all week on days.`,
+  rc: [`Part zero was set off the wrong edge and never verified — no known move was commanded to prove the zero before RUN.`,
+       `The X-axis servo lost position during the rapid move.`,
+       `The program's coordinates were corrupted when it was reloaded.`,
+       `Backlash in the X screw stacked up while jogging to the edge.`],
+  pv: [`After every zero set, command a known move — go to X1.0000 — and check by eye or with calipers that the spindle really sits there on the part before pressing RUN.`,
+       `Drop the rapid override for the first move so a bad zero does less damage.`,
+       `Pick up the edge twice with the edge finder and average the two readings.`,
+       `Set zeros only with a dial indicator; edge finders are not accurate enough.`],
+  deb: `A proven program is only as good as the zero underneath it. The edge finder did its job — it found an edge — but it can't tell you it was the edge you <b>meant</b>. Days and nights had zeroed off opposite ends of the part, and nobody proved the setup. The check costs ten seconds: <b>after you set zero, command a known position like X1.0000 and look</b> — is the spindle actually an inch from the correct edge? Put a scale or calipers on it if your eye isn't sure. <span class="warn">Zero, verify, then RUN</span> — every setup, every shift, no matter whose program it is.` },
+
+{ title: 'GRINDING NOISE IN THE HEAD',
+  story: `The finish pass ended at 3000 RPM. Wanting low-range torque for a big drill, the operator grabbed the hi/lo range lever and shoved it over while the spindle was still turning. A grinding crunch from the head, then a burnt smell. Chipped back-gear teeth — machine down, gearbox open.`,
+  rc: [`The hi/lo range (back gear) was shifted with the spindle turning — gear teeth were slammed together at speed.`,
+       `The vari-speed dial was moved with the spindle stopped, jamming the drive.`,
+       `Low range can't withstand 3000 RPM, so the gear train overspun.`,
+       `The drawbar was loose and the toolholder hammered the spindle taper.`],
+  pv: [`Shift the hi/lo range lever only with the spindle fully stopped; adjust the vari-speed only while the spindle is running — the two rules are opposites.`,
+       `Shift the range lever only below about 500 RPM so the teeth mesh gently.`,
+       `Pause the lever in the middle for five seconds, then complete the shift.`,
+       `Stay in high range for every job so the lever never needs to move.`],
+  deb: `Two controls on this head, two opposite rules, and mixing them up is expensive. <b>${FACTS.rangeRule}</b> Stopped means stopped — zero RPM, not coasting; if the teeth won't drop in, rock the spindle by hand. The other rule inverts it: <b>${FACTS.variSpeedRule}</b> The vari-speed works by walking a belt across moving pulley faces, so turning it on a dead spindle grinds the belt and sheaves instead. Say it as a pair every time your hand goes up to the head: <span class="warn">range — stopped; speed — running.</span> There is no "slow enough" for a range shift. The gearbox you save will be your own.` },
+
+{ title: 'SCRAP ON THE RECUT',
+  story: `First article on an outside profile miked 0.010" big across the boss. The operator keyed a 0.010" offset move toward the part and recut the finish pass. The part now measures 0.010" SMALL across the same boss. Scrap bin, start over.`,
+  rc: [`Per-side vs. diameter confusion — 0.010" across an outside profile is 0.005" per side, but the cutter was moved a full 0.010" into the part, doubling the correction.`,
+       `The end mill deflected more on the recut because the pass was heavier.`,
+       `The offset was applied on the wrong axis, shifting the whole profile over.`,
+       `The spindle grew with heat between the first cut and the recut.`],
+  pv: [`Think per side and write the arithmetic down — diameter error ÷ 2 = per-side move — then leave stock, take a test pass, and measure before committing the finish cut.`,
+       `Apply offsets only between parts, never between passes on the same part.`,
+       `Double every offset you enter, because the control halves it internally.`,
+       `Cut outside profiles with two spring passes so deflection cancels out.`],
+  deb: `On an outside profile, every thou the cutter moves toward the part comes off <b>both sides</b> of the measurement. The boss read 0.010" over — that's 0.005" per side, so the cutter needed to move 0.005". It moved 0.010", took 0.010" off each side of the width, and the part went from ten over to ten under. Write it down before touching the offset: <b>error 0.010 ÷ 2 = 0.005 per side.</b> Then remember which direction is safe: a part still <b>big</b> can always be recut; a part gone small is scrap. <span class="warn">Sneak up</span> — leave it fat, test pass, mike it, then commit.` },
+
+{ title: 'SEVENTEEN INCHES OF Y',
+  story: `Brand-new program, first run. The operator skipped the tool-path check and went straight to CNC RUN. Event 6 held a typo — Y1.700 keyed as Y17.00 — and the machine faithfully drove the cutter through a clamp on its way across all ${FACTS.travel.y} inches of Y travel.`,
+  rc: [`The program was never proofed — the tool-path graphics would have drawn the runaway move on screen before metal was in the way.`,
+       `The Y-axis servo overran its commanded target on its own.`,
+       `The feed override was left at 100% for a first-run part.`,
+       `The control dropped the decimal point when the program loaded.`],
+  pv: [`Proof every new or edited program: run the path graphics, trace each move on screen against the print, and dry-run above or beside the part before the first cut.`,
+       `Run all first parts at 50% feed override so mistakes happen slower.`,
+       `Have a second operator re-key the program and compare the two versions.`,
+       `Program in incremental moves so oversized numbers stand out.`],
+  deb: `The control will draw you a picture — <b>look at it</b>. A Y17.00 where a Y1.700 belongs draws a line clean off the part and across the screen: impossible to miss in graphics, expensive to find with a clamp. The path check is the cheapest inspection you'll ever run — every event, to scale, before anything moves. Then prove it in air: first cycle with the part out or the head clear, eyes on the DRO. Low feed override on a first part is good insurance, but it only slows down a crash you already programmed. <span class="warn">The graphics check is the gate; everything else is a seatbelt.</span>` },
+
+{ title: 'PART ACROSS THE SHOP',
+  story: `Heavy roughing pass on a block held in a vise with a worn, bell-mouthed movable jaw. The operator ran it as a climb cut "because climb leaves a better finish." Mid-pass the cutter grabbed, dragged the block through the jaws, and threw it. Snapped end mill, dented guard.`,
+  rc: [`Climb milling pushes the work along the feed direction — the cut's pull dragged the part through the worn vise's weak grip instead of feeding against solid resistance.`,
+       `Conventional milling was engaged, lifting the part up out of the jaws.`,
+       `The RPM was too high, so the cutter rubbed and heated until it seized.`,
+       `Coolant on the jaws let the part slide under normal cutting load.`],
+  pv: [`Match the cut to the grip: dress or replace worn jaws, seat the part against a stop that takes the feed force, lighten the pass — and know which way each cut pushes before running it.`,
+       `Always climb mill, since climb presses the part down into the vise.`,
+       `Pull the vise handle with a pipe extension so the jaws can't slip.`,
+       `Slow the spindle down so the cutter can't grab the part.`],
+  deb: `Climb and conventional aren't finish preferences — they're <b>force diagrams</b>. A climb tooth comes down on top of the chip and shoves the work along the feed; a conventional tooth opposes the feed but tries to lift the part. On a rigid machine with a solid vise, climb is usually the better cut. But this vise had a bell-mouthed jaw barely gripping, and the climb pass fed the block exactly the direction the grip was weakest — so the cutter took it. <b>Workholding comes first:</b> fix the jaw, put a stop behind the part so thrust goes into steel instead of friction, then pick the milling direction. <span class="warn">A part in flight is the vise announcing it lost the argument.</span>` },
+
+{ title: 'PLUNGE THROUGH THE PART',
+  story: `A 3/8" end mill snapped mid-job. The operator loaded a fresh one — sticking out of the holder a half inch longer — and hit CNC RUN. The first Z move drove the new tool through the part and into the parallel underneath. The control did exactly what it was told: it believed the old tool's length.`,
+  rc: [`The new tool's Z offset was never re-touched — the control still held the broken tool's length, so every Z position was wrong by the difference.`,
+       `The quill crept down under cutting load during the plunge.`,
+       `The Z axis lost its reference when the spindle was stopped for the change.`,
+       `Chips under the part raised it up into the cutter's path.`],
+  pv: [`Touch off Z for every tool that enters the spindle — new, reground, or even re-chucked — and verify with a paper or feeler check above the part before cutting.`,
+       `Grind every replacement tool to the same stick-out as the one it replaces.`,
+       `Add 0.100" of clearance to all programmed Z moves as a safety margin.`,
+       `Re-touch only when the replacement tool looks obviously different.`],
+  deb: `A tool offset isn't a property of the program — it's a <b>measurement of one physical tool, in one holder, at one stick-out</b>. Change any of those and the number is fiction. This one sat half an inch longer, so "half an inch above the part" became "half an inch inside it." Make the rule mechanical: <b>if a tool comes out of the spindle, its length gets touched again before it cuts.</b> No judgment calls about whether it "looks the same." Then cheap insurance: at clearance height, slide a paper strip under the tool — if it drags lightly, the tool is where the control thinks it is. That catches both directions: <span class="warn">the short tool just cuts air; the long one costs the part and the parallel.</span>` },
+
+{ title: 'EDGE FINDER, LAUNCHED',
+  story: `Behind schedule, the operator picked up an edge with the spindle at 2500 RPM. The edge finder's tip whipped, kicked hard, and the lower half flung across the table. The X zero it left behind was off by several thousandths, and the first part cut on it went to scrap.`,
+  rc: [`The edge finder was spun far too fast — above roughly 1000 RPM the tip whips outward and kicks falsely instead of walking concentric, and it can fling apart.`,
+       `The ${TIP}" tip was worn undersize, shifting the offset.`,
+       `A burr on the part edge tripped the finder before the true edge.`,
+       `The spindle taper was dirty, so the finder body ran out of true.`],
+  pv: [`Run the edge finder slow — a few hundred RPM, well under 1000 — feed in until the tip just kicks, then set the axis ${OFF}" past the edge: half the ${TIP}" tip.`,
+       `Spin it faster so the kick-off is sharper and easier to see.`,
+       `Stop the spindle and press the tip against the edge by hand.`,
+       `Skip edge finders and sweep every edge with a dial indicator instead.`],
+  deb: `An edge finder works on geometry you can watch. At a modest speed the spring-loaded tip runs eccentric; as the edge pushes it toward center it visibly walks true, and the instant it's past center it <b>kicks off sideways — that kick is the signal</b>. At 2500 RPM centrifugal force takes over: the tip whips, kicks early and randomly, and can let go entirely. Run it at a few hundred RPM, feed in smoothly, read at the kick. Then the arithmetic the tool is built for: <b>the tip is ${TIP}" in diameter, so the spindle centerline sits ${OFF}" past the touched edge.</b> Set the axis to +0.1000 or −0.1000 — <span class="warn">the sign follows the direction you approached from.</span>` },
+
+{ title: 'DROP TEST, FAILED',
+  story: `Tool change with the power drawbar. The operator pressed RELEASE with one hand on the button and the other holding a coffee — nothing under the tool. The ${FACTS.taper} holder dropped free, bounced off the vise, and put a bright half-moon ding in the table. The new end mill chipped before it ever made a chip.`,
+  rc: [`Nothing was supporting the tool when the drawbar released — an ${FACTS.taper} holder is a self-releasing taper that drops the instant clamp force is gone.`,
+       `Air pressure to the drawbar was set too high and ejected the holder.`,
+       `The retention knob had the wrong thread and stripped out.`,
+       `The taper was galled and stored spring force that spat the tool out.`],
+  pv: [`A hand on the tool at every change: support its weight before pressing release, and keep the table under the spindle clear or protected.`,
+       `Turn the drawbar air pressure down so tools fall more gently.`,
+       `Lower the head until the cutter's flutes rest on the table, then release.`,
+       `Release in two short button taps so the taper lets go gradually.`],
+  deb: `The ${FACTS.taper} is a steep, <b>self-releasing</b> taper — that's a feature. It centers hard and lets go clean, which means the drawbar is the <b>only</b> thing holding the assembly in the spindle. Press release and the holder is in free fall — right now, no warning. So the habit is absolute: <b>hand wrapped around the holder, taking its weight, before the button gets pressed</b>; knuckles clear of the flutes; nothing precious in the drop zone — slide the vise clear or lay a board on the table for heavy tooling. A dropped holder costs a chipped cutter, a dinged table that telegraphs into every setup after it, and sometimes fingers. <span class="warn">One hand for the button, one for the tool — always.</span>` },
+
+{ title: 'THE HOLE THAT MOVED',
+  story: `Hole row on manual DRO work. The operator wanted the table at X2.5000 absolute, but the readout was showing INC — distance from the last hole. He moved until it read 2.5000, wasn't sure it took, re-zeroed and moved to 2.5000 again. The drill came down 5 inches from part zero, into clamp territory.`,
+  rc: [`ABS/INC mixup — the incremental register reads from wherever it was last zeroed, not from part zero, so "go to 2.5000" meant a different place each time it was repeated.`,
+       `The DRO scale skipped counts during the second move.`,
+       `Part zero shifted when the previous hole was drilled.`,
+       `Backlash in the screw doubled the commanded distance.`],
+  pv: [`Check which register you're reading before every positioning move: position in ABS from part zero, use INC only for deliberate hole-to-hole steps, and confirm the final position in ABS.`,
+       `Work only in INC so any one mistake stays small.`,
+       `Zero both registers at every hole so they always agree.`,
+       `Log every DRO reading on paper before each move.`],
+  deb: `ABS and INC answer two different questions. <b>ABS answers "where am I on the part?"</b> — one fixed truth, measured from part zero. <b>INC answers "how far since I last zeroed?"</b> — and it moves with you. Repeat a move in ABS and nothing happens; you're already there. Repeat it in INC and you travel the distance again — 2.500 twice is 5.000, which is how a hole ends up under a clamp. Both registers are legitimate tools: step a hole row in INC by all means. But the discipline is <span class="warn">a glance at the mode before every move, and an ABS check when you arrive.</span>` },
+
+{ title: 'SLOT FULL, TOOL GONE',
+  story: `A deep slot in 6061 with a two-flute end mill, cut dry with no air blast, full depth in one pass. Two inches in, the flutes packed, the note of the cut climbed to a squeal, chips welded themselves to the cutting edges, and the end mill snapped off in the slot.`,
+  rc: [`Chip packing — the closed slot filled and the cutter re-cut its own chips; every re-cut chip multiplies load and heat until the flutes weld up and the tool breaks.`,
+       `The RPM was too low for aluminum, so the cutter rubbed instead of cutting.`,
+       `A two-flute end mill is too weak for slotting; four flutes were needed.`,
+       `The vise let the part vibrate, chipping the cutting edges one by one.`],
+  pv: [`Get chips OUT of a closed cut: air blast or flood aimed into the slot, depth taken in step-down passes, and pauses to clear packed swarf — never let a cutter run buried in its own chips.`,
+       `Feed slower so fewer chips form in the slot.`,
+       `Use a four-flute cutter so each chip is smaller.`,
+       `Cut the slot from both ends so the chips fall out at the middle.`],
+  deb: `A chip cut once is cheap; the same chip cut twice is a <b>load spike</b>, and a slot is the worst place for it because chips have nowhere to go except back into the teeth. Aluminum makes it worse — soft, sticky, and with heat it pressure-welds to the flute face, turning a sharp edge into a blunt one that makes more heat still. The answer is evacuation, not bravery: <b>two-flute for big gullets</b> (four flutes pack a slot faster, not slower), <b>air or coolant aimed into the slot, depth in steps</b>, and an ear on the cut — a climbing pitch is the slot telling you it's full. <span class="warn">Blowing out a slot costs thirty seconds. This one cost the tool, the part, and the morning.</span>` },
+
+{ title: 'TWELVE THOU OUT OVER SIX INCHES',
+  story: `The vise came off for a plate job and went back on without its keys, eyeballed square against a T-slot. Nobody swept it. A week later QC flags a milled step running out 0.012" over its 6-inch length — every part cut since the remount is out of square.`,
+  rc: [`The fixed jaw was never indicated after the vise was remounted — every cut referenced a jaw that wasn't parallel to the X axis.`,
+       `The movable jaw tilted the parts as it clamped them.`,
+       `The table's T-slots aren't parallel to the X ways.`,
+       `The end mill wore progressively along each pass.`],
+  pv: [`Every time a vise hits the table, sweep the fixed jaw with a dial indicator, tap it parallel within tolerance across the full jaw, torque it down — then sweep again.`,
+       `Butt the vise against the table's front edge; the castings are machined square.`,
+       `Trust the vise keys — if the keys are in the slot it can't sit out of line.`,
+       `Indicate the movable jaw instead, since it's the one that touches the part last.`],
+  deb: `The fixed jaw is the <b>reference surface</b> — everything clamped registers against it, so parts can never be squarer to the machine than that jaw is. Keys and eyeballs get you close; "close" here was 0.002 per inch, which reads 0.012 across a 6-inch step. The sweep is five minutes: indicator in the spindle, tip on the fixed jaw, run X across the full face, <b>tap the high end over by half the error, sweep again</b> until the needle sits inside tolerance — then torque and sweep once more, because torquing moves things. And indicate the <b>fixed</b> jaw, never the movable one: the movable jaw floats by design. <span class="warn">Five minutes at setup, or a week of scrap found by the customer.</span>` },
+
+{ title: 'DEPTHS WANDERING EIGHT THOU',
+  story: `Second op: drill and counterbore, depths set from the part's top face. Depths wandered 0.008" part to part and QC flagged holes slightly out of square. Teardown found a curl of chip on one parallel — every few parts, a part clamped down on top of it, tipped, and sat high on one end.`,
+  rc: [`Parts were clamped on dirty parallels — a chip under one end tips the part, so the top face used as the Z reference sat high and out of parallel.`,
+       `Quill backlash varied the drilled depth from stop to stop.`,
+       `The counterbore's pilot wandered in the drilled holes.`,
+       `The vise lost clamping force as the shop warmed up.`],
+  pv: [`Wipe seats, parallels and the part's underside at every load, seat the part with a dead-blow, and tug the parallels — if one slides, the part is riding on something.`,
+       `Clamp harder so any stray chip gets crushed flat into the parallel.`,
+       `Program every depth 0.008" deeper to cover the worst-case lift.`,
+       `Deburr parts more aggressively at op 1 so fewer chips travel with them.`],
+  deb: `A chip doesn't compress. Put a 0.005" curl under one end of a part and the part is a see-saw sitting 0.005" high on that end — the "flat" top face is now tilted, every depth measured from it is wrong, and every hole drilled through it is out of square. Exactly the mix QC flagged. The fix is rhythm, not heroics: <b>brush the vise and parallels between parts, wipe the part's underside going in, tap it down until it stops moving, then check the parallels with your fingers</b> — pinched tight means seated; a parallel that slides means the part is bridging on debris. Two seconds per part. <span class="warn">Chips are part of the job; letting them into the datum stack is optional.</span>` },
+
+{ title: 'QUARTER-INCH END MILL, HALVED',
+  story: `Same job, smaller pocket: the operator swapped the 1/2" end mill for a 1/4" two-flute in mild steel, recalculated RPM by the book — and carried the ${CL8} IPT chip load straight over from the big cutter. Two corners into the pocket, the end mill snapped at the shank.`,
+  rc: [`Chip load wasn't scaled to the tool — a 1/4" end mill wants about ${CL4} IPT, half the 1/2" cutter's ${CL8}; double the bite on a far weaker core snapped it.`,
+       `The RPM came out too slow, and chatter broke the corner of the tool.`,
+       `Mild steel needs carbide — an HSS end mill can't take pocket corners.`,
+       `The tool stuck out too far from the holder and whipped in the cut.`],
+  pv: [`Recalculate BOTH numbers at every tool change: RPM = SFM × 3.82 ÷ dia, feed = RPM × flutes × chip load — with the chip load picked for THAT diameter. Smaller tool, smaller bite.`,
+       `Halve the RPM when you halve the diameter and keep the feed the same.`,
+       `Knock 10% off the feed for any tool under 1/2 inch.`,
+       `Listen to the cut and back the feed off when it starts to labor.`],
+  deb: `RPM scales with diameter and everyone remembers that half. <b>Chip load scales too</b>, and forgetting that half is what breaks tools. Worked out — 1/4" HSS in mild steel: <b>RPM = ${FACTS.sfm.steelHSS} × 3.82 ÷ 0.25 = ${RPMQ}</b>. Right feed: <b>${RPMQ} × 2 flutes × ${CL4} = ${FOK} IPM</b>. What he ran: ${RPMQ} × 2 × ${CL8} = <span class="warn">${FBAD} IPM — twice the bite per tooth</span> — on a tool with half the diameter and roughly an eighth of the bending strength. A 1/2" cutter shrugs off what kills a 1/4". The crib numbers exist for exactly this — ${CL8} IPT for a half-inch, ${CL4} for a quarter — and the two-line recalculation costs less than a minute.` },
+
+{ title: 'DRILL SMOKING, QUILL FROZEN',
+  story: `After a rigid milling op the operator set up to drill a deep 3/8" hole with the quill — and left the quill lock snugged from the milling. The feed fought the clamp: the quill advanced in jerks, the drill point rubbed and burned blue, and the depth stop's numbers meant nothing.`,
+  rc: [`The quill lock was still engaged — the feed was working against the friction clamp, so the quill stuttered instead of feeding and the drill rubbed instead of cutting.`,
+       `The drill was dull and needed a fresh grind before the hole.`,
+       `The RPM was set too high and work-hardened the steel.`,
+       `The depth stop bottomed early and blocked the quill mid-hole.`],
+  pv: [`Make lock state part of every op change: quill locked for rigid milling, unlocked for quill work — and stroke the quill by hand to feel it run free before feeding a drill.`,
+       `Leave the quill lock off permanently so it can never interfere.`,
+       `Feed harder to overpower the drag when the quill feels stiff.`,
+       `Do all drilling with head Z travel and treat the quill as fixed.`],
+  deb: `The quill lock is a friction clamp, and it's doing its job in both stories: you <b>want</b> it snug when milling — a free quill invites chatter and depth creep — and you want it <b>free</b> when drilling, because a drill needs smooth, steady pressure to keep its edges cutting. Feed against a snugged lock and the quill moves in stick-slip jerks: the point dwells, rubs, overheats — blued steel, glazed hole — and the depth numbers are noise. The habit is a two-second ritual at every op change: <b>milling? lock it. Drilling? free it, then stroke the quill by hand</b> through an inch of travel — your hand feels drag your eyes can't see. <span class="warn">The quill gives you ${FACTS.quill} inches of the best drilling feel on the machine. Let it move.</span>` },
+
+{ title: 'FLAT IN THE VISE, BANANA ON THE BENCH',
+  story: `A 3/16"-thick plate needed one face cleaned up. It came in with a bow; the operator cranked it flat in the vise and faced it — dead flat by the straightedge, still in the jaws. Released, the plate sprang back to a 0.006" bow. Flat in the vise, banana on the bench.`,
+  rc: [`Clamping distortion — the vise sprang the bowed plate flat before the cut, so the machine trued a bent spring; released, the plate returned to its bow.`,
+       `Cutting heat warped the plate as the pass crossed it.`,
+       `The cutter dulled mid-pass and pushed the plate down harder at one end.`,
+       `The parallels flexed under the clamping load.`],
+  pv: [`Clamp thin stock lightly and evenly so it lies natural, shim under the gaps instead of crushing them out, take light cuts, and face in stages — flip and skim each side.`,
+       `Clamp it harder so the plate yields and holds its new flat shape.`,
+       `Take one heavy pass so cutting heat stress-relieves the plate.`,
+       `Face thin plates standing on edge so the vise can't bend them.`],
+  deb: `The vise is strong enough to bend the part, and that's the trap. Crank a bowed plate flat and you haven't fixed the bow — <b>you've stored it</b>. The cutter machines the plate in its loaded shape, and the moment the jaws open, the stored bow comes back. Thin work wants the opposite instincts: <b>grip light and even</b> so the part sits the way it actually is; <b>shim the daylight under the bow</b> so a light grip doesn't rock; shallow passes that don't add stresses of their own; and split the work — skim one face, flip, skim the other, letting the plate settle between. If flatness really matters, plan on a few flips. <span class="warn">You can't out-clamp physics; you can only sneak up on it.</span>` },
+];
+
+/* ---- state (memory only) ---- */
+const N = SCEN.length, TOTAL = N * 2;
+let deck = [], cardIdx = 0, phase = 'rc';       // rc | pv | debrief | done
+let score = 0, streak = 0, maxStreak = 0, best = 0, answered = 0;
+let cur = null;
+const results = [];
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+function makeQ(opts) {
+  const order = shuffle(opts.map((_, i) => i));
+  return { opts: order.map(i => opts[i]), a: order.indexOf(0) };
+}
+
+/* ---- rendering ---- */
+function renderStats() {
+  $('stCard').textContent = `${Math.min(cardIdx + 1, N)}/${N}`;
+  $('stScore').textContent = `${score}/${TOTAL}`;
+  $('stStreak').textContent = String(streak);
+  $('stBest').textContent = String(best);
+}
+function renderOpts(holder, q, which) {
+  const el = $(holder);
+  el.innerHTML = '';
+  q.opts.forEach((text, i) => {
+    const b = document.createElement('button');
+    b.className = 'opt';
+    const l = document.createElement('span');
+    l.className = 'l';
+    l.textContent = 'ABCD'[i];
+    const t = document.createElement('span');
+    t.textContent = text;
+    b.append(l, t);
+    b.addEventListener('click', () => answer(which, i));
+    el.appendChild(b);
+  });
+}
+function paintOpts(holder, q, picked) {
+  [...$(holder).children].forEach((b, i) => {
+    b.disabled = true;
+    if (i === q.a) { b.classList.add('good'); b.firstChild.textContent = '✓'; }
+    else if (i === picked) { b.classList.add('bad'); b.firstChild.textContent = '✗'; }
+    else b.classList.add('dim');
+  });
+}
+
+function dealCard() {
+  const s = SCEN[deck[cardIdx]];
+  cur = { s, rc: makeQ(s.rc), pv: makeQ(s.pv), rcPick: -1, pvPick: -1, rcOk: false, pvOk: false };
+  phase = 'rc';
+  $('cardTag').textContent = `CARD ${cardIdx + 1} / ${N}`;
+  $('cardTitle').textContent = s.title;
+  $('story').textContent = s.story;
+  renderOpts('q1opts', cur.rc, 'rc');
+  $('q2').style.display = 'none';
+  $('debrief').style.display = 'none';
+  $('nextRow').style.display = 'none';
+  renderStats();
+  $('card').scrollIntoView({ block: 'nearest' });
+}
+
+function answer(which, i) {
+  if (phase !== which || !cur) return;
+  const q = cur[which];
+  const ok = i === q.a;
+  answered += 1;
+  if (ok) { score += 1; streak += 1; maxStreak = Math.max(maxStreak, streak); }
+  else streak = 0;
+  best = Math.max(best, score);
+  reportScore(GAME, { label: LABEL, score, best });
+  cur[which + 'Pick'] = i;
+  cur[which + 'Ok'] = ok;
+  paintOpts(which === 'rc' ? 'q1opts' : 'q2opts', q, i);
+  renderStats();
+  if (which === 'rc') {
+    phase = 'pv';
+    renderOpts('q2opts', cur.pv, 'pv');
+    $('q2').style.display = '';
+    $('q2').scrollIntoView({ block: 'nearest' });
+  } else {
+    phase = 'debrief';
+    results.push({ si: deck[cardIdx], rcOk: cur.rcOk, pvOk: cur.pvOk,
+      rcPick: cur.rc.opts[cur.rcPick], pvPick: cur.pv.opts[cur.pvPick] });
+    showDebrief();
+  }
+}
+
+function chip(label, ok) {
+  return `<span class="vd ${ok ? 'ok' : 'bad'}">${label} ${ok ? '✓ CORRECT' : '✗ MISSED'}</span>`;
+}
+function showDebrief() {
+  const n = (cur.rcOk ? 1 : 0) + (cur.pvOk ? 1 : 0);
+  $('debTag').textContent = `CARD SCORE ${n} / 2`;
+  $('vRow').innerHTML = chip('ROOT CAUSE', cur.rcOk) + chip('PREVENTION', cur.pvOk);
+  $('debText').innerHTML = cur.s.deb +
+    (n < 2 ? `<div class="kbd" style="margin-top:8px">This card goes to the end-of-session review.</div>` : '');
+  $('debrief').style.display = 'block';
+  $('nextRow').style.display = 'block';
+  $('btnNext').textContent = cardIdx + 1 >= N ? 'CLOSE THE CASE FILE →' : 'NEXT CARD →';
+  $('debrief').scrollIntoView({ block: 'nearest' });
+  $('btnNext').focus();
+}
+
+function next() {
+  if (phase !== 'debrief') return;
+  cardIdx += 1;
+  if (cardIdx >= N) finish();
+  else dealCard();
+}
+
+function finish() {
+  phase = 'done';
+  for (const id of ['card', 'q1', 'q2', 'debrief', 'nextRow']) $(id).style.display = 'none';
+  const acc = answered ? Math.round(100 * score / answered) : 0;
+  const missed = results.filter(r => !r.rcOk || !r.pvOk);
+  let h = `<div class="head"><span class="t">INVESTIGATION COMPLETE</span><span class="r">${N} CARDS · ${TOTAL} CALLS</span></div>
+    <div class="body">
+      <div class="big">${score}<span> / ${TOTAL}</span> · ${acc}%</div>
+      <div class="note">Longest streak this session: ${maxStreak} correct calls in a row · session best score: ${best}.</div>`;
+  if (missed.length) {
+    h += `<div class="note" style="margin-top:10px;letter-spacing:.14em">CASE REVIEW — ${missed.length} CARD${missed.length > 1 ? 'S' : ''} MISSED. READ THE CALL YOU GOT WRONG, THEN THE DEBRIEF.</div>`;
+    for (const r of missed) {
+      const s = SCEN[r.si];
+      h += `<div class="rev"><div class="rh"><span>${s.title}</span>
+        <span class="m">${r.rcOk ? '' : 'ROOT CAUSE ✗ '}${r.pvOk ? '' : 'PREVENTION ✗'}</span></div>`;
+      if (!r.rcOk) h += `<div class="miss"><span class="lab">ROOT CAUSE — YOUR CALL:</span> <span class="you">${r.rcPick}</span><br>
+        <span class="lab">THE CALL:</span> <span class="call">${s.rc[0]}</span></div>`;
+      if (!r.pvOk) h += `<div class="miss"><span class="lab">PREVENTION — YOUR CALL:</span> <span class="you">${r.pvPick}</span><br>
+        <span class="lab">THE CALL:</span> <span class="call">${s.pv[0]}</span></div>`;
+      h += `<div class="deb">${s.deb}</div></div>`;
+    }
+  } else {
+    h += `<div class="note" style="margin-top:10px">Clean sheet — every root cause and every prevention called right. That's the investigator the shop wants first on scene.</div>`;
+  }
+  h += `<div class="note" style="margin-top:12px">RESET deals the ${N} cards again in a fresh order with shuffled options.</div></div>`;
+  const sum = $('summary');
+  sum.innerHTML = h;
+  sum.style.display = 'block';
+  renderStats();
+  reportScore(GAME, { label: LABEL, score, best });
+}
+
+function reset() {
+  deck = shuffle([...SCEN.keys()]);
+  cardIdx = 0; score = 0; streak = 0; maxStreak = 0; answered = 0;
+  results.length = 0;
+  $('summary').style.display = 'none';
+  for (const id of ['card', 'q1']) $(id).style.display = '';
+  reportScore(GAME, { label: LABEL, score, best });
+  dealCard();
+}
+
+/* ---- wiring ---- */
+$('btnNext').addEventListener('click', next);
+$('resetBtn').addEventListener('click', reset);
+window.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && phase === 'debrief') { next(); return; }
+  const k = '1234'.indexOf(e.key);
+  if (k >= 0 && (phase === 'rc' || phase === 'pv')) answer(phase, k);
+});
+
+/* test hook (read-only) */
+window.__g8 = {
+  get card() { return cardIdx + 1; }, get phase() { return phase; },
+  get score() { return score; }, get streak() { return streak; },
+  get maxStreak() { return maxStreak; }, get best() { return best; },
+  get answer() { return phase === 'rc' ? cur.rc.a : phase === 'pv' ? cur.pv.a : -1; },
+  get scenario() { return cur ? cur.s.title : ''; },
+};
+
+reset();
+</script>
+</body>
+</html>

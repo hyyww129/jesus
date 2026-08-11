@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRAK DPM3 · G3 Zero Hunt</title>
+<style>
+  :root {
+    --paper: #EDEFEA;
+    --ink: #232A2E;
+    --blue: #1F5FA8;
+    --orange: #E4572E;
+    --green: #39FF6A;
+    --panel: #E2E5DF;
+    --line: #C4C9C2;
+    --dark: #0B1512;
+    --green-dim: #7FD693;
+    --green-faint: #9FD8AE;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  header {
+    flex: none; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1.5px solid var(--ink);
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+  }
+  header h1 { font-size: 14px; letter-spacing: .12em; font-weight: 600; }
+  header .sub { font-size: 11px; color: var(--blue); letter-spacing: .08em; }
+  header a { color: var(--blue); font-size: 11px; margin-left: auto; text-decoration: none; border-bottom: 1px solid var(--blue); }
+  main { flex: 1; display: flex; min-height: 0; }
+  #left {
+    width: 46%; min-width: 430px; max-width: 620px;
+    border-right: 1.5px solid var(--ink);
+    display: flex; flex-direction: column; gap: 8px;
+    padding: 10px 12px; overflow-y: auto;
+  }
+  #right { flex: 1; position: relative; min-width: 0; }
+  canvas#c { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+
+  #stats { display: grid; grid-template-columns: repeat(3, 1fr) auto; gap: 6px; }
+  .stat { border: 1.5px solid var(--ink); background: var(--panel); padding: 4px 8px; }
+  .stat .k { font-size: 9px; letter-spacing: .14em; color: var(--blue); }
+  .stat .v { font-size: 15px; font-weight: 600; white-space: nowrap; }
+  #resetBtn {
+    font: inherit; font-size: 11px; letter-spacing: .1em; padding: 0 12px;
+    background: var(--paper); color: var(--ink); border: 1.5px solid var(--ink); cursor: pointer;
+  }
+  #resetBtn:hover { background: var(--orange); color: var(--paper); }
+
+  #command { border: 1.5px solid var(--ink); background: var(--panel); padding: 7px 10px; }
+  #cmdTag {
+    display: inline-block; font-size: 10px; letter-spacing: .14em;
+    padding: 1px 7px; border: 1.5px solid var(--blue); color: var(--blue); margin-right: 8px;
+  }
+  #cmdTag.hot { border-color: var(--orange); color: var(--orange); }
+  #cmdRound { font-size: 10px; letter-spacing: .1em; }
+  #cmdText { font-size: 13.5px; font-weight: 600; margin-top: 4px; letter-spacing: .02em; line-height: 1.45; }
+  #cmdText b { color: var(--orange); }
+  #cmdNote { font-size: 9.5px; color: var(--blue); margin-top: 3px; letter-spacing: .04em; line-height: 1.5; }
+
+  #dro { background: var(--dark); border: 1.5px solid var(--ink); padding: 6px 12px 8px; }
+  .dhead, .drow {
+    display: grid; grid-template-columns: 26px 1fr 150px; align-items: baseline; column-gap: 10px;
+  }
+  .dhead { font-size: 9px; letter-spacing: .16em; color: var(--green-faint); padding-bottom: 2px; border-bottom: 1px solid #1d3a2a; }
+  .drow { padding: 2px 0; }
+  .drow .ax { color: var(--green-faint); font-size: 14px; font-weight: 600; }
+  .drow .val { font-size: 29px; color: var(--green); text-align: right; font-variant-numeric: tabular-nums; letter-spacing: .03em; }
+  .drow .val.lock { color: var(--orange); }
+  .drow .tag { font-size: 10px; letter-spacing: .12em; color: #2a4436; text-align: right; }
+  .drow .tag.lock { color: var(--orange); }
+  #droFoot { font-size: 9px; letter-spacing: .1em; color: var(--green-faint); margin-top: 4px; display: flex; justify-content: space-between; }
+
+  #jogs { border: 1.5px solid var(--ink); background: var(--panel); padding: 7px 10px 9px; }
+  #jogs .t { font-size: 10px; letter-spacing: .14em; color: var(--blue); }
+  .jrow { display: grid; grid-template-columns: 20px 1fr 1fr; gap: 6px; margin-top: 6px; align-items: center; }
+  .jrow .jax { font-weight: 600; font-size: 13px; }
+  .jrow button {
+    font: inherit; font-size: 12px; padding: 8px 0;
+    background: var(--paper); color: var(--ink); border: 1.5px solid var(--ink);
+    cursor: pointer; user-select: none; -webkit-user-select: none; touch-action: none;
+  }
+  .jrow button:hover { background: var(--blue); color: var(--paper); }
+  .jrow button:active, .jrow button.live { background: var(--orange); color: var(--paper); }
+  .jrow button:disabled { opacity: .45; cursor: default; }
+  #jogHint { font-size: 9.5px; color: var(--blue); letter-spacing: .05em; margin-top: 7px; line-height: 1.5; }
+  #warn { font-size: 10.5px; color: var(--orange); font-weight: 600; letter-spacing: .04em; min-height: 15px; margin-top: 5px; line-height: 1.4; }
+
+  #answer { border: 1.5px solid var(--orange); background: var(--panel); padding: 8px 10px; }
+  #answer[hidden] { display: none; }
+  #answer .t { font-size: 10px; letter-spacing: .14em; color: var(--orange); font-weight: 600; }
+  #ansRow { display: flex; gap: 8px; align-items: center; margin-top: 6px; }
+  #ansAxis { font-size: 16px; font-weight: 600; white-space: nowrap; }
+  #ansIn {
+    flex: 1; min-width: 0; font: inherit; font-size: 18px; font-variant-numeric: tabular-nums;
+    padding: 5px 8px; background: var(--dark); color: var(--green);
+    border: 1.5px solid var(--ink); outline: none;
+  }
+  #ansIn:focus { border-color: var(--orange); }
+  #ansIn.shake { animation: shk .3s; }
+  @keyframes shk { 25% { transform: translateX(-4px);} 75% { transform: translateX(4px);} }
+  #setBtn {
+    font: inherit; font-size: 13px; font-weight: 600; letter-spacing: .14em; padding: 8px 16px;
+    background: var(--blue); color: var(--paper); border: 1.5px solid var(--ink); cursor: pointer;
+  }
+  #setBtn:hover { background: var(--orange); }
+  #setBtn:disabled { opacity: .45; cursor: default; }
+  #nextBtn {
+    font: inherit; font-size: 13px; font-weight: 600; letter-spacing: .2em; padding: 9px 0;
+    background: var(--blue); color: var(--paper); border: 1.5px solid var(--ink); cursor: pointer;
+  }
+  #nextBtn:hover { background: var(--orange); }
+  #nextBtn[hidden] { display: none; }
+
+  #teach {
+    flex: 1 0 auto; min-height: 110px; overflow: visible;
+    border: 1.5px solid var(--ink); background: var(--paper);
+    padding: 8px 10px; font-size: 11.5px; line-height: 1.55;
+  }
+  #teach .miss { color: var(--orange); font-weight: 600; }
+  #teach .good { color: var(--blue); font-weight: 600; }
+  #teach .rule { color: var(--blue); }
+  #teach .mono { font-variant-numeric: tabular-nums; }
+  #teach svg { display: block; width: 100%; height: auto; margin-top: 6px; border: 1px solid var(--line); background: var(--paper); }
+
+  #prog { display: grid; grid-template-columns: repeat(10, 1fr); gap: 3px; }
+  #prog span {
+    border: 1px solid var(--line); font-size: 9px; text-align: center;
+    padding: 2px 0; color: var(--line); background: var(--paper);
+  }
+  #prog span.ok { border-color: var(--blue); color: var(--blue); font-weight: 600; }
+  #prog span.bad { border-color: var(--orange); color: var(--orange); font-weight: 600; }
+  #prog span.cur { border-color: var(--orange); color: var(--orange); }
+
+  #end {
+    position: fixed; inset: 0; z-index: 20;
+    background: color-mix(in srgb, var(--ink) 55%, transparent);
+    display: flex; align-items: center; justify-content: center;
+  }
+  #end[hidden] { display: none; }
+  #endCard { background: var(--paper); border: 2px solid var(--ink); padding: 16px 22px 18px; width: min(560px, 92vw); }
+  #endCard h2 { font-size: 13px; letter-spacing: .18em; color: var(--blue); }
+  #endTotal { font-size: 34px; font-weight: 600; margin: 6px 0 2px; }
+  #endTotal em { font-style: normal; font-size: 13px; color: var(--blue); letter-spacing: .1em; }
+  #endNew { color: var(--orange); font-size: 11px; letter-spacing: .14em; font-weight: 600; min-height: 15px; }
+  #endLines { font-size: 11.5px; line-height: 1.7; margin: 8px 0 12px; border-top: 1px dashed var(--line); padding-top: 8px; }
+  #endLines b { color: var(--orange); }
+  #againBtn {
+    font: inherit; font-size: 13px; letter-spacing: .18em; padding: 8px 18px;
+    background: var(--blue); color: var(--paper); border: 1.5px solid var(--ink); cursor: pointer;
+  }
+  #againBtn:hover { background: var(--orange); }
+</style>
+</head>
+<body>
+<header>
+  <h1>TRAK DPM3 · ZERO HUNT</h1>
+  <span class="sub">G3 — EDGE-FIND · KICK · SET THE DRO</span>
+  <a href="../index.html">← HUB</a>
+</header>
+<main>
+  <section id="left">
+    <div id="stats">
+      <div class="stat"><div class="k">SCENARIO</div><div class="v" id="stRound">1/10</div></div>
+      <div class="stat"><div class="k">SCORE</div><div class="v" id="stScore">0</div></div>
+      <div class="stat"><div class="k">SESSION BEST</div><div class="v" id="stBest">—</div></div>
+      <button id="resetBtn">RESET</button>
+    </div>
+
+    <div id="command">
+      <span id="cmdTag">JOG</span><span id="cmdRound">SCENARIO 1 / 10</span>
+      <div id="cmdText">—</div>
+      <div id="cmdNote">—</div>
+    </div>
+
+    <div id="dro">
+      <div class="dhead"><span>AX</span><span></span><span style="text-align:right">STATE</span></div>
+      <div class="drow"><span class="ax">X</span><span class="val" id="droX">+0.0000</span><span class="tag" id="tagX">—</span></div>
+      <div class="drow"><span class="ax">Y</span><span class="val" id="droY">+0.0000</span><span class="tag" id="tagY">—</span></div>
+      <div id="droFoot"><span>READING IS STALE UNTIL YOU SET IT</span><span>0.0001" COUNT</span></div>
+    </div>
+
+    <div id="jogs">
+      <div class="t">JOG — TAP = 0.0010" · HOLD = FEED 0.020 → 0.900 IN/S</div>
+      <div class="jrow"><span class="jax">X</span>
+        <button data-jog data-axis="x" data-dir="-1" id="jxm">X− ←</button>
+        <button data-jog data-axis="x" data-dir="1" id="jxp">X+ →</button></div>
+      <div class="jrow"><span class="jax">Y</span>
+        <button data-jog data-axis="y" data-dir="-1" id="jym">Y− ↓ (toward you)</button>
+        <button data-jog data-axis="y" data-dir="1" id="jyp">Y+ ↑ (away)</button></div>
+      <div id="jogHint">KEYS — ← → = X · ↓ ↑ = Y · ENTER = SET / NEXT. Screen convention: X+ is RIGHT, Y+ is UP (away from operator) — screen-y runs opposite to canvas pixel y.</div>
+      <div id="warn"></div>
+    </div>
+
+    <div id="answer" hidden>
+      <div class="t" id="ansTitle">TIP KICKED — WHAT DO YOU SET X TO?</div>
+      <div id="ansRow">
+        <span id="ansAxis">SET X =</span>
+        <input id="ansIn" type="text" inputmode="text" autocomplete="off" spellcheck="false" placeholder="−0.1000">
+        <button id="setBtn">SET</button>
+      </div>
+    </div>
+
+    <button id="nextBtn" hidden>NEXT SCENARIO →</button>
+
+    <div id="teach"></div>
+
+    <div id="prog"></div>
+  </section>
+
+  <section id="right">
+    <canvas id="c"></canvas>
+  </section>
+</main>
+
+<div id="end" hidden>
+  <div id="endCard">
+    <h2>10 SCENARIOS COMPLETE</h2>
+    <div id="endTotal">0/10 <em>CORRECT — HIGHER IS BETTER</em></div>
+    <div id="endNew"></div>
+    <div id="endLines"></div>
+    <button id="againBtn">PLAY AGAIN</button>
+  </div>
+</div>
+
+<script type="module">
+import { FACTS, reportScore } from '../model/machine.js';
+
+const $ = id => document.getElementById(id);
+const R   = FACTS.edgeFinderOffset;   // 0.100" — centerline offset at the kiss
+const TIP = FACTS.edgeFinderTip;      // 0.200" — tip diameter
+const TAP = 0.001;                    // in per tap
+const HOLD_DELAY = 0.28, FEED0 = 0.02, FEED1 = 0.9, RAMP = 1.8; // hold-feed ramp
+const N = 10, TOLV = 5e-5;            // exact-value tolerance (±0.0000 at 4 places)
+
+const EDGES = {
+  L: { axis: 'x', name: 'LEFT',   out: -1 },
+  R: { axis: 'x', name: 'RIGHT',  out:  1 },
+  B: { axis: 'y', name: 'BOTTOM', out: -1 },
+  T: { axis: 'y', name: 'TOP',    out:  1 },
+};
+const ZEROS = {
+  ll: 'LOWER-LEFT corner', lr: 'LOWER-RIGHT corner',
+  ul: 'UPPER-LEFT corner', ur: 'UPPER-RIGHT corner', c: 'CENTER of the part',
+};
+/* 10 fixed scenarios: all four faces, zero on the touched face (corner) or at
+   center, both signs. Expected value is derived, never hand-typed. */
+const SCN = [
+  { W: 4.000, H: 2.500, edge: 'L', zero: 'll' },
+  { W: 4.000, H: 2.500, edge: 'R', zero: 'lr' },
+  { W: 3.000, H: 2.000, edge: 'B', zero: 'll' },
+  { W: 3.000, H: 2.000, edge: 'T', zero: 'ul' },
+  { W: 4.000, H: 2.500, edge: 'L', zero: 'c'  },
+  { W: 3.500, H: 2.000, edge: 'R', zero: 'c'  },
+  { W: 4.000, H: 2.500, edge: 'B', zero: 'c'  },
+  { W: 3.000, H: 1.750, edge: 'T', zero: 'c'  },
+  { W: 2.500, H: 1.500, edge: 'R', zero: 'ur' },
+  { W: 3.250, H: 2.250, edge: 'B', zero: 'c'  },
+];
+function zeroPt(s) {
+  const m = { ll: [0, 0], lr: [s.W, 0], ul: [0, s.H], ur: [s.W, s.H], c: [s.W / 2, s.H / 2] };
+  return { x: m[s.zero][0], y: m[s.zero][1] };
+}
+function facePos(s) { return s.edge === 'L' ? 0 : s.edge === 'R' ? s.W : s.edge === 'B' ? 0 : s.H; }
+function kissCenter(s) { return facePos(s) + EDGES[s.edge].out * R; }
+function expectedFor(s) { return +(kissCenter(s) - zeroPt(s)[EDGES[s.edge].axis]).toFixed(4); }
+
+const q4 = v => Math.round(v * 10000) / 10000;
+const fmtV = v => { const r = Math.abs(v) < 0.00005 ? 0 : v; return (r < 0 ? '−' : '+') + Math.abs(r).toFixed(4); };
+
+/* ---------- state (memory only) ---------- */
+const S = {
+  i: 0, score: 0, best: null,
+  phase: 'jog',              // jog | kick | answer | feedback | done
+  f: { x: 0, y: 0 },         // finder centerline, part coords (in)
+  droOff: { x: 0, y: 0 },    // stale datum: DRO = pos + off
+  kickT: 0, locked: null,    // locked = frozen commanded-axis DRO reading
+  results: [],               // {n, expected, given, ok}
+  warnT: 0,
+  t: 0,
+};
+const cur = () => SCN[S.i];
+
+function startScenario(i) {
+  S.i = i;
+  const s = cur(), e = EDGES[s.edge];
+  const dist = 1.05 + Math.random() * 0.45;
+  if (e.axis === 'x') {
+    S.f.x = facePos(s) + e.out * dist;
+    S.f.y = q4(Math.min(s.H - 0.35, Math.max(0.35, s.H / 2 + (Math.random() - 0.5) * 0.6)));
+  } else {
+    S.f.y = facePos(s) + e.out * dist;
+    S.f.x = q4(Math.min(s.W - 0.35, Math.max(0.35, s.W / 2 + (Math.random() - 0.5) * 0.6)));
+  }
+  S.f.x = q4(S.f.x); S.f.y = q4(S.f.y);
+  S.droOff = { x: q4(Math.random() * 6 - 3), y: q4(Math.random() * 6 - 3) };
+  S.phase = 'jog'; S.kickT = 0; S.locked = null;
+  releaseAll();
+  $('answer').hidden = true;
+  $('nextBtn').hidden = true;
+  $('warn').textContent = '';
+  $('ansIn').value = '';
+  renderPrompt(); renderProg();
+}
+
+function renderPrompt() {
+  const s = cur(), e = EDGES[s.edge], A = e.axis.toUpperCase();
+  $('cmdRound').textContent = `SCENARIO ${S.i + 1} / ${N}`;
+  const tag = $('cmdTag');
+  if (S.phase === 'jog' || S.phase === 'kick') { tag.textContent = 'JOG'; tag.classList.remove('hot'); }
+  else { tag.textContent = 'SET ' + A; tag.classList.add('hot'); }
+  const from = { L: 'from the LEFT (−X side)', R: 'from the RIGHT (+X side)',
+                 B: 'from BELOW (−Y side)', T: 'from ABOVE (+Y side)' }[s.edge];
+  $('cmdText').innerHTML =
+    `Part ${s.W.toFixed(3)} × ${s.H.toFixed(3)}. Touch the <b>${e.name}</b> edge ${from}. ` +
+    `Part zero: <b>${ZEROS[s.zero]}</b>.`;
+  $('cmdNote').textContent = S.phase === 'answer' || S.phase === 'feedback'
+    ? `The tip kicked and you stopped. The ${A} reading is locked. Type the signed value you punch into SET ${A}.`
+    : `Creep the Ø${TIP.toFixed(3)}" tip onto that face. It kicks at the kiss — then you tell the DRO where ${A} really is.`;
+  $('ansTitle').textContent = `TIP KICKED — WHAT DO YOU SET ${A} TO?`;
+  $('ansAxis').textContent = `SET ${A} =`;
+}
+
+/* ---------- movement: axis moves, part is solid, snap to tangency ---------- */
+function tryMove(axis, delta) {
+  if (S.phase !== 'jog' || !delta) return;
+  const s = cur();
+  const p = S.f[axis];
+  const lim = 2.05;                                     // keep the finder inside the drawn view
+  const span  = axis === 'x' ? s.W : s.H;               // faces of interest sit at 0 and span
+  const oPos  = axis === 'x' ? S.f.y : S.f.x;
+  const oSpan = axis === 'x' ? s.H : s.W;
+  let t = Math.max(-lim, Math.min(span + lim, p + delta));
+  const e = oPos < 0 ? -oPos : (oPos > oSpan ? oPos - oSpan : 0);  // lateral miss distance
+  if (e < R - 1e-9) {   // the tip circle's path intersects the part: clamp at tangency
+    const sh = e === 0 ? R : Math.sqrt(R * R - e * e);
+    const lo = -sh, hi = span + sh;                     // forbidden interval for the centerline
+    const loKey = axis === 'x' ? 'L' : 'B', hiKey = axis === 'x' ? 'R' : 'T';
+    if (p <= lo + 1e-4 && t > lo + 1e-9) { t = lo; onContact(loKey, e === 0); }
+    else if (p >= hi - 1e-4 && t < hi - 1e-9) { t = hi; onContact(hiKey, e === 0); }
+  }
+  S.f[axis] = q4(t);
+}
+
+function onContact(edgeKey, isFace) {
+  const s = cur(), want = EDGES[s.edge];
+  if (isFace && edgeKey === s.edge) { startKick(); return; }
+  releaseAll();
+  if (!isFace) {
+    warn(`CORNER CONTACT — that is the corner, not a flat kiss. Slide along the part until the tip faces the ${want.name} FACE square-on, then feed in again.`);
+  } else {
+    warn(`WRONG FACE — that is the ${EDGES[edgeKey].name} face. The scenario calls for the ${want.name} face: back off, go around, approach from outside the ${want.name} edge.`);
+  }
+}
+function warn(msg) { $('warn').textContent = msg; S.warnT = S.t; }
+
+/* ---------- tap / hold jog engine ---------- */
+const holds = new Map();
+const keyOf = (a, d) => a + (d > 0 ? '+' : '-');
+function press(a, d) {
+  if (S.phase !== 'jog') return;
+  const k = keyOf(a, d);
+  if (holds.has(k)) return;
+  holds.set(k, { a, d, t: 0 });
+  tryMove(a, d * TAP);
+  const btn = $('j' + a + (d > 0 ? 'p' : 'm'));
+  if (btn) btn.classList.add('live');
+}
+function release(a, d) {
+  holds.delete(keyOf(a, d));
+  const btn = $('j' + a + (d > 0 ? 'p' : 'm'));
+  if (btn) btn.classList.remove('live');
+}
+function releaseAll() { for (const h of [...holds.values()]) release(h.a, h.d); }
+function updateHolds(dt) {
+  if (S.phase !== 'jog') return;
+  for (const h of holds.values()) {
+    h.t += dt;
+    if (h.t <= HOLD_DELAY) continue;
+    const u = Math.min(1, (h.t - HOLD_DELAY) / RAMP);
+    tryMove(h.a, h.d * (FEED0 + (FEED1 - FEED0) * u) * dt);
+  }
+}
+/* ---------- kick + answer ---------- */
+function startKick() {
+  releaseAll();
+  S.phase = 'kick'; S.kickT = 0;
+  const a = EDGES[cur().edge].axis;
+  S.locked = q4(S.f[a] + S.droOff[a]);   // stale reading, frozen at the kiss
+}
+function enterAnswer() {
+  S.phase = 'answer';
+  $('answer').hidden = false;
+  $('setBtn').disabled = false;
+  $('ansIn').disabled = false;
+  renderPrompt();
+  $('ansIn').focus();
+}
+
+function parseVal(str) {
+  const t = str.trim().replace(/[−–]/g, '-').replace(/"$/, '');
+  if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(t)) return null;
+  return parseFloat(t);
+}
+
+function submit() {
+  if (S.phase !== 'answer') return;
+  const v = parseVal($('ansIn').value);
+  if (v === null) {
+    $('ansIn').classList.remove('shake'); void $('ansIn').offsetWidth;
+    $('ansIn').classList.add('shake');
+    warn('Type a signed decimal, e.g. −0.1000 or +1.8500.');
+    return;
+  }
+  const s = cur(), exp = expectedFor(s);
+  const ok = Math.abs(v - exp) <= TOLV;
+  if (ok) S.score++;
+  S.results.push({ n: S.i + 1, expected: exp, given: v, ok });
+  S.phase = 'feedback';
+  $('setBtn').disabled = true;
+  $('ansIn').disabled = true;
+  if (ok) {  // the DRO now really reads part coordinates on that axis
+    const a = EDGES[s.edge].axis;
+    S.droOff[a] = q4(exp - S.f[a]);
+    S.locked = null;
+    $('tag' + a.toUpperCase()).textContent = 'SET ✓';
+  }
+  teachAnswer(s, v, ok);
+  $('nextBtn').hidden = false;
+  $('nextBtn').focus();
+  reportScore('g3', { label: 'Zero Hunt', score: S.score, best: S.best,
+                      detail: `scenario ${S.i + 1}/${N}` });
+  renderProg(); renderStats();
+}
+
+function next() {
+  if (S.phase !== 'feedback') return;
+  if (S.i + 1 >= N) endGame(); else { startScenario(S.i + 1); teachIdle(); }
+}
+
+function endGame() {
+  S.phase = 'done';
+  const isNew = S.best === null || S.score > S.best;
+  if (isNew) S.best = S.score;
+  $('end').hidden = false;
+  $('endTotal').innerHTML = `${S.score}/${N} <em>CORRECT — HIGHER IS BETTER</em>`;
+  $('endNew').textContent = isNew ? '★ NEW SESSION BEST' : '';
+  const misses = S.results.filter(r => !r.ok);
+  const missLines = misses.length
+    ? misses.map(r => {
+        const s = SCN[r.n - 1], A = EDGES[s.edge].axis.toUpperCase();
+        return `#${r.n} ${EDGES[s.edge].name} face, zero ${ZEROS[s.zero]} → SET ${A} = <b>${fmtV(r.expected)}</b> (you: ${fmtV(r.given)})`;
+      }).join('<br>')
+    : '<b>Perfect.</b> Every zero would have been dead on.';
+  $('endLines').innerHTML =
+    `${missLines}<br><span style="color:var(--blue)">The whole game is one sentence: the tip is Ø${TIP.toFixed(3)}", ` +
+    `so at the kiss the spindle ℄ sits ${R.toFixed(3)}" OUTSIDE the face you touched — sign follows the side you came from, ` +
+    `and zero-at-center adds half the part dimension.</span>`;
+  reportScore('g3', { label: 'Zero Hunt', score: S.score, best: S.best, detail: `finished ${N}/${N}` });
+  renderStats();
+}
+
+function resetGame() {
+  S.score = 0; S.results = [];
+  $('end').hidden = true;
+  startScenario(0);
+  teachIdle();
+  renderStats();
+  reportScore('g3', { label: 'Zero Hunt', score: 0, best: S.best, detail: 'reset' });
+}
+
+/* ---------- teaching ---------- */
+function teachIdle() {
+  $('teach').innerHTML =
+    `<span class="good">THE RULE</span> — the edge finder tip is Ø<span class="mono">${TIP.toFixed(3)}"</span>. ` +
+    `When it kisses a face and kicks, the spindle centerline is <b>not</b> on the face — it is ` +
+    `<span class="mono">${R.toFixed(3)}"</span> (the tip radius) <b>outside</b> it, on the side you approached from.<br>` +
+    `<span class="rule">Touch LEFT face from the left → ℄ is 0.100 in −X → zero on that face means SET X = −0.1000. ` +
+    `RIGHT face from the right → +0.1000. Same for Y (BOTTOM −, TOP +). ` +
+    `Zero at CENTER: add half the part dimension → touching the left face of a 4.000 part: SET X = −(2.000 + 0.100) = −2.1000.</span>`;
+}
+
+function teachAnswer(s, given, ok) {
+  const e = EDGES[s.edge], A = e.axis.toUpperCase();
+  const exp = expectedFor(s);
+  const dist = Math.abs(facePos(s) - zeroPt(s)[e.axis]);
+  const sideWord = (e.out < 0 ? '−' : '+') + A;
+  const head = ok
+    ? `<span class="good">CORRECT ✓ — SET ${A} = <span class="mono">${fmtV(exp)}</span></span>`
+    : `<span class="miss">MISS ✗ — you set <span class="mono">${fmtV(given)}</span>, the DRO needed <span class="mono">${fmtV(exp)}</span></span>`;
+  const l1 = `Tip Ø${TIP.toFixed(3)}" → radius ${R.toFixed(3)}". At the kiss the spindle ℄ sits ` +
+    `<span class="mono">${R.toFixed(4)}"</span> outside the ${e.name} face — on its <b>${sideWord}</b> side.`;
+  const l2 = s.zero === 'c'
+    ? `Zero is at the part CENTER: the ${e.name} face is <span class="mono">${dist.toFixed(4)}"</span> from zero and the ℄ is ` +
+      `<span class="mono">${R.toFixed(4)}"</span> beyond it → SET ${A} = ${e.out < 0 ? '−' : '+'}(${dist.toFixed(4)} + ${R.toFixed(4)}) = <b class="mono">${fmtV(exp)}</b>.`
+    : `Zero (${ZEROS[s.zero]}) lies ON the touched face, so only the tip radius separates ℄ from zero → ` +
+      `SET ${A} = <b class="mono">${fmtV(exp)}</b>.`;
+  const l3 = ok ? '' :
+    `<br><span class="rule">Your zero would land <span class="mono">${fmtV(given - exp)}</span> off — every feature on the part shifts by exactly that much.</span>`;
+  $('teach').innerHTML = `${head}<br>${l1}<br>${l2}${l3}` + diagramSVG(s);
+  $('left').scrollTop = $('left').scrollHeight;   // bring the worked diagram into view
+}
+
+/* ---------- to-scale answer diagram (SVG) ---------- */
+const INK = '#232A2E', BLUE = '#1F5FA8', ORNG = '#E4572E', PAPER = '#EDEFEA', LINE = '#C4C9C2';
+const txt = (x, y, str, fill, size, anchor, bold) =>
+  `<text x="${x}" y="${y}" fill="${fill || INK}" font-size="${size || 11}" text-anchor="${anchor || 'middle'}"` +
+  `${bold ? ' font-weight="600"' : ''} font-family="IBM Plex Mono,ui-monospace,monospace" paint-order="stroke" stroke="${PAPER}" stroke-width="3">${str}</text>`;
+const ln = (x1, y1, x2, y2, stroke, w, dash) =>
+  `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${stroke || INK}" stroke-width="${w || 1.4}"${dash ? ` stroke-dasharray="${dash}"` : ''}/>`;
+function arrowH(x1, x2, y, color) {  // horizontal dimension arrows (outside style when short)
+  const c = color || INK, s = Math.sign(x2 - x1) || 1;
+  if (Math.abs(x2 - x1) < 26) {
+    return ln(x1 - s * 16, y, x1, y, c, 1.3) + ln(x2 + s * 16, y, x2, y, c, 1.3) +
+      `<path d="M${x1} ${y} l${-7 * s} -3.4 v6.8 z" fill="${c}"/><path d="M${x2} ${y} l${7 * s} -3.4 v6.8 z" fill="${c}"/>`;
+  }
+  return ln(x1, y, x2, y, c, 1.3) +
+    `<path d="M${x1} ${y} l${7 * s} -3.4 v6.8 z" fill="${c}"/><path d="M${x2} ${y} l${-7 * s} -3.4 v6.8 z" fill="${c}"/>`;
+}
+function arrowV(y1, y2, x, color) {
+  const c = color || INK, s = Math.sign(y2 - y1) || 1;
+  if (Math.abs(y2 - y1) < 26) {
+    return ln(x, y1 - s * 16, x, y1, c, 1.3) + ln(x, y2 + s * 16, x, y2, c, 1.3) +
+      `<path d="M${x} ${y1} l-3.4 ${-7 * s} h6.8 z" fill="${c}"/><path d="M${x} ${y2} l-3.4 ${7 * s} h6.8 z" fill="${c}"/>`;
+  }
+  return ln(x, y1, x, y2, c, 1.3) +
+    `<path d="M${x} ${y1} l-3.4 ${7 * s} h6.8 z" fill="${c}"/><path d="M${x} ${y2} l-3.4 ${-7 * s} h6.8 z" fill="${c}"/>`;
+}
+const vtxt = (x, y, str, fill, size, bold) =>   // text rotated to read along a vertical arrow
+  `<g transform="rotate(-90 ${x} ${y})">${txt(x, y, str, fill, size, 'middle', bold)}</g>`;
+const datum = (x, y) =>
+  `<circle cx="${x}" cy="${y}" r="6" fill="none" stroke="${INK}" stroke-width="1.4"/>` +
+  `<path d="M${x} ${y} L${x + 6} ${y} A6 6 0 0 0 ${x} ${y - 6} z" fill="${INK}"/>` +
+  `<path d="M${x} ${y} L${x - 6} ${y} A6 6 0 0 0 ${x} ${y + 6} z" fill="${INK}"/>`;
+
+function diagramSVG(s) {
+  const e = EDGES[s.edge], horiz = e.axis === 'x';
+  const face = facePos(s), cl = kissCenter(s), z = zeroPt(s)[e.axis];
+  const exp = expectedFor(s), dist = Math.abs(face - z), centerZero = s.zero === 'c';
+  const inner = face - e.out * (centerZero ? dist + 0.42 : 0.85);  // how much part to show
+  const lo = Math.min(cl + e.out * 0.4, inner), hi = Math.max(cl + e.out * 0.4, inner);
+  const hatch =
+    `<defs><pattern id="h${horiz ? 'x' : 'y'}" width="9" height="9" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">` +
+    `<line x1="0" y1="0" x2="0" y2="9" stroke="${LINE}" stroke-width="1.1"/></pattern></defs>`;
+
+  if (horiz) {
+    const Wpx = 470, Hpx = 236, pad = 26;
+    const k = (Wpx - 2 * pad) / (hi - lo);
+    const X = w => pad + (w - lo) * k;
+    const midY = 104, r = R * k;
+    const pA = Math.min(X(face), X(inner)), pB = Math.max(X(face), X(inner));
+    let o = `<svg viewBox="0 0 ${Wpx} ${Hpx}" xmlns="http://www.w3.org/2000/svg">${hatch}`;
+    o += `<rect x="${pA}" y="52" width="${pB - pA}" height="104" fill="url(#hx)" stroke="none"/>`;
+    o += ln(X(inner), 52, X(inner), 156, LINE, 1.2, '5 4');                       // break line
+    o += ln(X(face), 52, X(face), 156, INK, 2.6);                                 // the face
+    o += ln(X(face), 52, pB, 52, INK, 1.6) + ln(X(face), 156, pB, 156, INK, 1.6); // part top/bottom
+    o += txt((pA + pB) / 2, 108, 'PART', LINE, 12, 'middle', true);
+    o += txt(X(face), 176, `${e.name} FACE`, INK, 10, 'middle', true);
+    o += `<circle cx="${X(cl)}" cy="${midY}" r="${r}" fill="rgba(31,95,168,.14)" stroke="${BLUE}" stroke-width="2"/>`;
+    o += ln(X(cl), 26, X(cl), 168, BLUE, 1.3, '10 4 2 4');                        // centerline
+    o += txt(X(cl), 20, 'SPINDLE ℄', BLUE, 10, 'middle', true);
+    o += arrowH(X(cl), X(face), 40, ORNG);                                        // 0.100 dim
+    o += ln(X(face), 34, X(face), 46, ORNG, 1) + ln(X(cl), 34, X(cl), 46, ORNG, 1);
+    o += txt((X(cl) + X(face)) / 2, 32, `${R.toFixed(4)}" = TIP Ø${TIP.toFixed(3)} ÷ 2`, ORNG, 10, 'middle', true);
+    o += datum(X(z), 192);
+    o += centerZero
+      ? txt(X(z), 216, 'X0 (PART ZERO)', INK, 10, 'middle', true)
+      : txt(X(z) + e.out * 13, 196, 'X0 (PART ZERO)', INK, 10, e.out > 0 ? 'start' : 'end', true);
+    if (centerZero) {
+      o += arrowH(X(face), X(z), 192) + txt((X(face) + X(z)) / 2, 187, `${dist.toFixed(4)}"`, INK, 10);
+      o += ln(X(face), 160, X(face), 198, LINE, 1);
+    }
+    o += arrowH(X(z), X(cl), 228, BLUE);
+    o += txt((X(z) + X(cl)) / 2, 224, `SET X = ${fmtV(exp)}`, BLUE, 11.5, 'middle', true);
+    o += txt(Wpx - 8, 14, '+X →', INK, 10, 'end', true);
+    return o + '</svg>';
+  }
+
+  /* vertical (Y faces) — +Y drawn UP */
+  const Wpx = 470, Hpx = 250, pad = 24;
+  const k = (Hpx - 2 * pad) / (hi - lo);
+  const Y = w => Hpx - pad - (w - lo) * k;     // screen flip: +Y up
+  const midX = 200, r = R * k;
+  const pA = Math.min(Y(face), Y(inner)), pB = Math.max(Y(face), Y(inner));
+  let o = `<svg viewBox="0 0 ${Wpx} ${Hpx}" xmlns="http://www.w3.org/2000/svg">${hatch}`;
+  o += `<rect x="130" y="${pA}" width="160" height="${pB - pA}" fill="url(#hy)" stroke="none"/>`;
+  o += ln(130, Y(inner), 290, Y(inner), LINE, 1.2, '5 4');                 // break line
+  o += ln(130, Y(face), 290, Y(face), INK, 2.6);                           // the face
+  o += ln(130, Y(face), 130, Y(inner), INK, 1.6) + ln(290, Y(face), 290, Y(inner), INK, 1.6);
+  o += txt(210, (pA + pB) / 2 + 4, 'PART', LINE, 12, 'middle', true);
+  o += `<circle cx="${midX}" cy="${Y(cl)}" r="${r}" fill="rgba(31,95,168,.14)" stroke="${BLUE}" stroke-width="2"/>`;
+  o += ln(96, Y(cl), 310, Y(cl), BLUE, 1.3, '10 4 2 4');                   // centerline
+  o += txt(118, Y(cl) + (e.out < 0 ? 17 : -9), 'SPINDLE ℄', BLUE, 10, 'start', true);
+  o += arrowV(Y(cl), Y(face), 106, ORNG);                                  // 0.100 dim
+  o += ln(100, Y(face), 112, Y(face), ORNG, 1) + ln(100, Y(cl), 112, Y(cl), ORNG, 1);
+  o += txt(52, (Y(cl) + Y(face)) / 2 + 1, `${R.toFixed(4)}"`, ORNG, 10, 'middle', true);
+  o += txt(52, (Y(cl) + Y(face)) / 2 + 13, `(TIP Ø ÷ 2)`, ORNG, 9, 'middle');
+  o += datum(312, Y(z));
+  if (centerZero) {
+    const zLbl = Y(z) + (e.out < 0 ? -8 : 14);            // datum label away from the face
+    o += txt(326, zLbl + 4, 'Y0 (PART ZERO)', INK, 10, 'start', true);
+    o += txt(296, Y(face) + (e.out < 0 ? 14 : -7), `${e.name} FACE`, INK, 10, 'start', true);
+    o += ln(294, Y(face), 402, Y(face), LINE, 1) + ln(320, Y(z), 402, Y(z), LINE, 1);
+    o += arrowV(Y(face), Y(z), 396) + vtxt(387, (Y(face) + Y(z)) / 2, `${dist.toFixed(4)}"`, INK, 10);
+  } else {
+    o += txt(326, Y(z) - 4, `${e.name} FACE = Y0`, INK, 10, 'start', true);
+    o += txt(326, Y(z) + 11, '(PART ZERO)', INK, 9, 'start');
+  }
+  o += ln(320, Y(z), 436, Y(z), LINE, 1) + ln(310, Y(cl), 436, Y(cl), LINE, 1);
+  o += arrowV(Y(z), Y(cl), 430, BLUE);
+  o += vtxt(447, (Y(z) + Y(cl)) / 2, `SET Y = ${fmtV(exp)}`, BLUE, 11, true);
+  o += txt(14, 16, '+Y ↑', INK, 10, 'start', true);
+  return o + '</svg>';
+}
+/* ---------- canvas scene (top view, world inches -> screen px) ---------- */
+const canvas = $('c'), ctx = canvas.getContext('2d');
+
+function fitCanvas() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const w = canvas.clientWidth, h = canvas.clientHeight;
+  if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+    canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  }
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  return { w, h };
+}
+
+function draw() {
+  const { w, h } = fitCanvas();
+  const s = cur(), e = EDGES[s.edge];
+  const xmin = -2.2, xmax = s.W + 2.2, ymin = -2.2, ymax = s.H + 2.2;
+  const k = Math.min(w / (xmax - xmin), h / (ymax - ymin));
+  const ox = (w - k * (xmax - xmin)) / 2, oy = (h - k * (ymax - ymin)) / 2;
+  const X = wx => ox + (wx - xmin) * k;
+  const Y = wy => h - oy - (wy - ymin) * k;      // +Y up: screen-y inverted from canvas px
+
+  /* table + T-slots (slots run along X) */
+  ctx.fillStyle = '#E6E8E2';
+  ctx.fillRect(0, 0, w, h);
+  for (let i = -2; i <= 2; i++) {
+    const cy = s.H / 2 + i * 2.5, half = 0.31;
+    ctx.fillStyle = '#D8DCD4';
+    ctx.fillRect(0, Y(cy + half), w, (2 * half) * k);
+    ctx.strokeStyle = '#C4C9C2'; ctx.lineWidth = 1;
+    for (const yy of [cy + half, cy - half]) {
+      ctx.beginPath(); ctx.moveTo(0, Y(yy)); ctx.lineTo(w, Y(yy)); ctx.stroke();
+    }
+  }
+
+  /* part: paper fill + diagonal hatch + ink border */
+  const px = X(0), py = Y(s.H), pw = s.W * k, ph = s.H * k;
+  ctx.fillStyle = '#EDEFEA';
+  ctx.fillRect(px, py, pw, ph);
+  ctx.save();
+  ctx.beginPath(); ctx.rect(px, py, pw, ph); ctx.clip();
+  ctx.strokeStyle = 'rgba(35,42,46,0.12)'; ctx.lineWidth = 1;
+  for (let d = -ph; d < pw + ph; d += 13) {
+    ctx.beginPath(); ctx.moveTo(px + d, py + ph); ctx.lineTo(px + d + ph, py); ctx.stroke();
+  }
+  ctx.restore();
+  ctx.strokeStyle = '#232A2E'; ctx.lineWidth = 2;
+  ctx.strokeRect(px, py, pw, ph);
+
+  /* commanded face highlight (pulses until kissed) */
+  const facing = facePos(s);
+  const pulse = S.phase === 'jog' ? 0.45 + 0.35 * Math.sin(S.t * 5) : 0.9;
+  ctx.strokeStyle = `rgba(228,87,46,${pulse})`; ctx.lineWidth = 4;
+  ctx.beginPath();
+  if (e.axis === 'x') { ctx.moveTo(X(facing), Y(0)); ctx.lineTo(X(facing), Y(s.H)); }
+  else { ctx.moveTo(X(0), Y(facing)); ctx.lineTo(X(s.W), Y(facing)); }
+  ctx.stroke();
+
+  ctx.font = '600 11px "IBM Plex Mono", ui-monospace, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  const faceLbl = S.phase === 'jog' ? `${e.name} FACE — TOUCH ME` : `${e.name} FACE`;
+  if (e.axis === 'x') {
+    ctx.save();
+    ctx.translate(X(facing) + e.out * 16, Y(s.H * 0.76)); ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#E4572E'; ctx.fillText(faceLbl, 0, 0);
+    ctx.restore();
+  } else {
+    ctx.fillStyle = '#E4572E';
+    ctx.fillText(faceLbl, X(s.W * 0.24), Y(facing) - e.out * 16);
+  }
+
+  /* dimensions */
+  drawDimH(X, Y, 0, s.W, s.edge === 'B' ? s.H + 0.55 : -0.55, `${s.W.toFixed(3)}"`);
+  drawDimV(X, Y, 0, s.H, s.edge === 'R' ? -0.55 : s.W + 0.55, `${s.H.toFixed(3)}"`);
+
+  /* zero datum */
+  const z = zeroPt(s);
+  const zx = X(z.x), zy = Y(z.y);
+  ctx.strokeStyle = '#232A2E'; ctx.fillStyle = '#232A2E'; ctx.lineWidth = 1.5;
+  ctx.beginPath(); ctx.arc(zx, zy, 8, 0, Math.PI * 2); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(zx, zy); ctx.arc(zx, zy, 8, -Math.PI / 2, 0); ctx.closePath(); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(zx, zy); ctx.arc(zx, zy, 8, Math.PI / 2, Math.PI); ctx.closePath(); ctx.fill();
+  const zdx = z.x <= 0.01 ? -1 : z.x >= s.W - 0.01 ? 1 : 0;
+  const zdy = z.y <= 0.01 ? -1 : z.y >= s.H - 0.01 ? 1 : 0.9;
+  haloText(`X0·Y0`, zx + zdx * 34 + (zdx === 0 ? 30 : 0), zy - zdy * 18, '#232A2E', '600 11px "IBM Plex Mono", ui-monospace, monospace');
+
+  /* edge finder: body + tip (tip kicks off-center on contact) */
+  const fx = X(S.f.x), fy = Y(S.f.y);
+  const tangent = e.axis === 'x' ? [0, 1] : [1, 0];
+  let off = 0;
+  if (S.phase === 'kick' || S.phase === 'answer' || S.phase === 'feedback') {
+    const t = S.phase === 'kick' ? S.kickT : 0.55 + S.t;
+    off = t < 0.55
+      ? 0.085 * Math.sin(t * 34) * Math.exp(-t * 2.0) + 0.05 * Math.min(1, t * 4)
+      : 0.05 + 0.006 * Math.sin(S.t * 9);
+  }
+  const tx = fx + tangent[0] * off * k, ty = fy - tangent[1] * off * k;
+  ctx.strokeStyle = 'rgba(31,95,168,0.55)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(fx, fy, 0.1875 * k, 0, Math.PI * 2); ctx.stroke();   // Ø0.375 body
+  const kicked = off !== 0;
+  ctx.fillStyle = kicked ? 'rgba(228,87,46,0.85)' : 'rgba(31,95,168,0.8)';
+  ctx.beginPath(); ctx.arc(tx, ty, (TIP / 2) * k, 0, Math.PI * 2); ctx.fill();  // Ø0.200 tip
+  ctx.strokeStyle = '#232A2E'; ctx.lineWidth = 1.2;
+  ctx.beginPath(); ctx.arc(tx, ty, (TIP / 2) * k, 0, Math.PI * 2); ctx.stroke();
+  /* spindle centerline cross */
+  ctx.strokeStyle = kicked ? '#E4572E' : '#1F5FA8'; ctx.lineWidth = 1.2;
+  ctx.setLineDash([7, 4, 2, 4]);
+  ctx.beginPath(); ctx.moveTo(fx - 34, fy); ctx.lineTo(fx + 34, fy);
+  ctx.moveTo(fx, fy - 34); ctx.lineTo(fx, fy + 34); ctx.stroke();
+  ctx.setLineDash([]);
+  if (kicked) {
+    haloText('KICK!', fx + 30, fy - 30, '#E4572E', '600 15px "IBM Plex Mono", ui-monospace, monospace');
+  } else if (S.phase === 'jog') {
+    const lx = Math.max(84, Math.min(w - 84, fx));
+    haloText('EDGE FINDER Ø0.200 TIP', lx, fy + 0.32 * k + 12, '#1F5FA8', '600 10px "IBM Plex Mono", ui-monospace, monospace');
+  }
+
+  /* convention legend + axis arrows */
+  ctx.fillStyle = 'rgba(237,239,234,0.92)';
+  ctx.strokeStyle = '#232A2E'; ctx.lineWidth = 1;
+  ctx.fillRect(8, 8, 476, 22); ctx.strokeRect(8, 8, 476, 22);
+  ctx.fillStyle = '#232A2E'; ctx.textAlign = 'left';
+  ctx.font = '10px "IBM Plex Mono", ui-monospace, monospace';
+  ctx.fillText('TOP VIEW · X+ = RIGHT · Y+ = UP (AWAY FROM OPERATOR) · screen-y inverted', 14, 19);
+  const ax0 = 26, ay0 = h - 24;
+  ctx.strokeStyle = '#232A2E'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.moveTo(ax0, ay0); ctx.lineTo(ax0 + 46, ay0); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ax0 + 46, ay0); ctx.lineTo(ax0 + 38, ay0 - 4); ctx.lineTo(ax0 + 38, ay0 + 4); ctx.closePath();
+  ctx.fillStyle = '#232A2E'; ctx.fill();
+  ctx.beginPath(); ctx.moveTo(ax0, ay0); ctx.lineTo(ax0, ay0 - 46); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(ax0, ay0 - 46); ctx.lineTo(ax0 - 4, ay0 - 38); ctx.lineTo(ax0 + 4, ay0 - 38); ctx.closePath(); ctx.fill();
+  ctx.font = '600 11px "IBM Plex Mono", ui-monospace, monospace';
+  ctx.fillText('X+', ax0 + 52, ay0 + 4);
+  ctx.fillText('Y+', ax0 - 8, ay0 - 54);
+}
+
+function haloText(str, x, y, color, font) {
+  ctx.font = font; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.strokeStyle = 'rgba(237,239,234,0.9)'; ctx.lineWidth = 4; ctx.lineJoin = 'round';
+  ctx.strokeText(str, x, y);
+  ctx.fillStyle = color; ctx.fillText(str, x, y);
+}
+function drawDimH(X, Y, w1, w2, wy, label) {
+  const x1 = X(w1), x2 = X(w2), y = Y(wy);
+  ctx.strokeStyle = '#232A2E'; ctx.fillStyle = '#232A2E'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x1, y); ctx.lineTo(x2, y); ctx.stroke();
+  for (const [xx, sg] of [[x1, 1], [x2, -1]]) {
+    ctx.beginPath(); ctx.moveTo(xx, y); ctx.lineTo(xx + sg * 8, y - 3.5); ctx.lineTo(xx + sg * 8, y + 3.5); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(xx, y - 6); ctx.lineTo(xx, y + 6); ctx.stroke();
+  }
+  haloText(label, (x1 + x2) / 2, y - 11, '#232A2E', '600 11px "IBM Plex Mono", ui-monospace, monospace');
+}
+function drawDimV(X, Y, w1, w2, wx, label) {
+  const y1 = Y(w1), y2 = Y(w2), x = X(wx);
+  ctx.strokeStyle = '#232A2E'; ctx.fillStyle = '#232A2E'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(x, y1); ctx.lineTo(x, y2); ctx.stroke();
+  for (const [yy, sg] of [[y1, -1], [y2, 1]]) {
+    ctx.beginPath(); ctx.moveTo(x, yy); ctx.lineTo(x - 3.5, yy + sg * 8); ctx.lineTo(x + 3.5, yy + sg * 8); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x - 6, yy); ctx.lineTo(x + 6, yy); ctx.stroke();
+  }
+  ctx.save();
+  ctx.translate(x - 11, (y1 + y2) / 2); ctx.rotate(-Math.PI / 2);
+  haloText(label, 0, 0, '#232A2E', '600 11px "IBM Plex Mono", ui-monospace, monospace');
+  ctx.restore();
+}
+
+/* ---------- HUD renders ---------- */
+function renderDro() {
+  const s = cur(), lockedAxis = S.locked !== null ? EDGES[s.edge].axis : null;
+  for (const a of ['x', 'y']) {
+    const A = a.toUpperCase(), el = $('dro' + A), tag = $('tag' + A);
+    if (a === lockedAxis) {
+      el.textContent = fmtV(S.locked).replace('−', '-');
+      el.classList.add('lock'); tag.textContent = 'LOCKED @ KISS'; tag.classList.add('lock');
+    } else {
+      el.textContent = fmtV(S.f[a] + S.droOff[a]).replace('−', '-');
+      el.classList.remove('lock'); tag.classList.remove('lock');
+      if (!(S.phase === 'feedback' && tag.textContent === 'SET ✓')) tag.textContent = '—';
+    }
+  }
+}
+function renderStats() {
+  $('stRound').textContent = `${Math.min(S.i + 1, N)}/${N}`;
+  $('stScore').textContent = S.score;
+  $('stBest').textContent = S.best === null ? '—' : `${S.best}/${N}`;
+}
+function renderProg() {
+  const box = $('prog');
+  if (!box.children.length) for (let i = 0; i < N; i++) box.appendChild(document.createElement('span'));
+  for (let i = 0; i < N; i++) {
+    const el = box.children[i], r = S.results[i];
+    el.className = r ? (r.ok ? 'ok' : 'bad') : (i === S.i && S.phase !== 'done' ? 'cur' : '');
+    el.textContent = r ? (r.ok ? '✓' : '✗') : i + 1;
+  }
+}
+
+/* ---------- input wiring ---------- */
+document.querySelectorAll('[data-jog]').forEach(b => {
+  const a = b.dataset.axis, d = +b.dataset.dir;
+  b.addEventListener('pointerdown', ev => {
+    ev.preventDefault();
+    try { b.setPointerCapture(ev.pointerId); } catch (_) {}
+    press(a, d);
+  });
+  for (const evn of ['pointerup', 'pointercancel']) b.addEventListener(evn, () => release(a, d));
+  b.addEventListener('contextmenu', ev => ev.preventDefault());
+});
+$('setBtn').addEventListener('click', () => submit());
+$('nextBtn').addEventListener('click', () => next());
+$('resetBtn').addEventListener('click', e => { resetGame(); e.currentTarget.blur(); });
+$('againBtn').addEventListener('click', e => { resetGame(); e.currentTarget.blur(); });
+
+const KEYMAP = {
+  ArrowLeft: ['x', -1], ArrowRight: ['x', 1],
+  ArrowUp: ['y', 1], ArrowDown: ['y', -1],   // ArrowUp = Y+ (away from operator)
+};
+window.addEventListener('keydown', e => {
+  if (e.key === 'Enter') {
+    if (S.phase === 'answer') { e.preventDefault(); if (!e.repeat) submit(); }
+    else if (S.phase === 'feedback') { e.preventDefault(); if (!e.repeat) next(); }
+    return;
+  }
+  if (e.target === $('ansIn')) return;
+  const m = KEYMAP[e.key];
+  if (!m) return;
+  e.preventDefault();
+  if (!e.repeat) press(m[0], m[1]);
+});
+window.addEventListener('keyup', e => { const m = KEYMAP[e.key]; if (m) release(m[0], m[1]); });
+window.addEventListener('blur', releaseAll);
+
+/* ---------- main loop ---------- */
+let last = performance.now();
+function frame(now) {
+  const dt = Math.min(0.05, (now - last) / 1000);
+  last = now;
+  S.t += dt;
+  updateHolds(dt);
+  if (S.phase === 'kick') {
+    S.kickT += dt;
+    if (S.kickT >= 0.55) enterAnswer();
+  }
+  if (S.warnT && S.t - S.warnT > 6) { $('warn').textContent = ''; S.warnT = 0; }
+  renderDro(); renderStats();
+  draw();
+  requestAnimationFrame(frame);
+}
+
+startScenario(0);
+teachIdle();
+renderStats();
+requestAnimationFrame(frame);
+
+/* test hooks (memory only) */
+window.__game = { S, SCN, cur, tryMove, press, release, submit, next, resetGame,
+                  expectedFor, kissCenter, zeroPt, R, TIP };
+window.__gameReady = true;
+</script>
+</body>
+</html>

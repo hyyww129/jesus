@@ -1,0 +1,687 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TRAK DPM3 · G6 Power-Up Sequence</title>
+<style>
+  :root {
+    --paper: #EDEFEA;
+    --ink: #232A2E;
+    --blue: #1F5FA8;
+    --orange: #E4572E;
+    --green: #39FF6A;
+    --panel: #E2E5DF;
+    --line: #C4C9C2;
+    --dark: #0B1512;
+    --green-faint: #9FD8AE;
+    --ok: #1D7A3A;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  html, body { height: 100%; }
+  body {
+    background: var(--paper); color: var(--ink);
+    font-family: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Menlo, Consolas, monospace;
+    overflow: hidden; display: flex; flex-direction: column;
+  }
+  header {
+    flex: none; display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap;
+    padding: 10px 16px; border-bottom: 1.5px solid var(--ink);
+    background: color-mix(in srgb, var(--paper) 88%, transparent);
+  }
+  header h1 { font-size: 14px; letter-spacing: .12em; font-weight: 600; }
+  header .sub { font-size: 11px; color: var(--blue); letter-spacing: .08em; }
+  header a { color: var(--blue); font-size: 11px; margin-left: auto; text-decoration: none; border-bottom: 1px solid var(--blue); }
+
+  /* stat strip */
+  #stats {
+    flex: none; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)) auto;
+    gap: 6px; padding: 10px 14px 0;
+  }
+  .stat { border: 1.5px solid var(--ink); background: var(--panel); padding: 4px 8px; }
+  .stat .k { font-size: 9px; letter-spacing: .14em; color: var(--blue); }
+  .stat .v { font-size: 16px; font-weight: 600; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  .stat.dro { background: var(--dark); }
+  .stat.dro .k { color: var(--green-faint); }
+  .stat.dro .v { color: var(--green); }
+  #resetBtn {
+    font: inherit; font-size: 11px; letter-spacing: .1em; padding: 0 14px;
+    background: var(--paper); color: var(--ink); border: 1.5px solid var(--ink); cursor: pointer;
+  }
+  #resetBtn:hover { background: var(--orange); color: var(--paper); }
+
+  main { flex: 1; display: flex; min-height: 0; }
+  #board {
+    flex: 1; min-width: 0; min-height: 0;
+    display: grid; grid-template-columns: 1fr 1fr; gap: 12px; padding: 12px 14px;
+  }
+  #deckCol { display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+
+  .colHead {
+    flex: none; display: flex; justify-content: space-between; align-items: baseline; gap: 8px;
+    padding: 6px 10px; border-bottom: 1.5px solid var(--ink);
+    background: color-mix(in srgb, var(--blue) 10%, var(--panel));
+    font-size: 10px; letter-spacing: .16em; font-weight: 600;
+  }
+  .colHead em { font-style: normal; color: var(--blue); font-size: 9px; letter-spacing: .1em; white-space: nowrap; }
+  .colHead.rej { background: color-mix(in srgb, var(--orange) 14%, var(--panel)); }
+  .colHead.rej em { color: var(--orange); }
+
+  #deckWrap {
+    flex: 1; min-height: 0; border: 1.5px solid var(--ink); background: var(--panel);
+    display: flex; flex-direction: column;
+  }
+  #deck {
+    flex: 1; min-height: 0; overflow-y: auto; padding: 8px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  #deck:empty::before {
+    content: 'DECK EMPTY'; display: block; text-align: center; padding: 12px 6px;
+    font-size: 9.5px; letter-spacing: .14em; color: var(--ink); opacity: .5;
+    border: 1.5px dashed var(--line);
+  }
+  #rejectBin {
+    flex: none; min-height: 118px; max-height: 40%;
+    border: 1.5px solid var(--ink); background: var(--panel);
+    display: flex; flex-direction: column;
+  }
+  #binList {
+    flex: 1; min-height: 40px; overflow-y: auto; padding: 8px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  #binList:empty::before {
+    content: 'DROP CARDS THAT ARE WRONG PRACTICE — ALWAYS — HERE';
+    display: block; text-align: center; padding: 14px 8px;
+    font-size: 9.5px; letter-spacing: .12em; color: var(--orange); opacity: .8;
+    border: 1.5px dashed var(--orange);
+  }
+  #deckWrap.hint, #rejectBin.hint { outline: 2px solid var(--blue); outline-offset: -2px; }
+
+  #seqCol {
+    border: 1.5px solid var(--ink); background: var(--panel);
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  #slots {
+    flex: 1; min-height: 0; overflow-y: auto; padding: 8px;
+    display: flex; flex-direction: column; gap: 6px;
+  }
+  .slot {
+    display: flex; align-items: stretch; min-height: 46px;
+    border: 1.5px dashed var(--line); background: var(--paper);
+  }
+  .slot .n {
+    flex: none; width: 28px; display: flex; align-items: center; justify-content: center;
+    border-right: 1px dashed var(--line); color: var(--blue); font-size: 12px; font-weight: 600;
+  }
+  .slot .sb { flex: 1; min-width: 0; display: flex; padding: 3px; }
+  .slot.hint { border: 1.5px solid var(--blue); background: color-mix(in srgb, var(--blue) 8%, var(--paper)); }
+  .slot.ok { border: 1.5px solid var(--ok); background: color-mix(in srgb, var(--ok) 7%, var(--paper)); }
+  .slot.ok .n { color: var(--ok); }
+  .slot.bad { border: 1.5px solid var(--orange); background: color-mix(in srgb, var(--orange) 7%, var(--paper)); }
+  .slot.bad .n { color: var(--orange); }
+  .slot .mark {
+    flex: none; align-self: center; margin: 0 6px 0 4px; padding: 2px 6px;
+    font-size: 9px; letter-spacing: .1em; white-space: nowrap;
+    color: var(--paper); background: var(--orange);
+  }
+  #seqFoot { flex: none; padding: 8px; border-top: 1.5px solid var(--ink); display: grid; gap: 6px; }
+  #checkBtn {
+    font: inherit; font-size: 13px; font-weight: 600; letter-spacing: .16em;
+    padding: 9px 0; border: 1.5px solid var(--ink); cursor: pointer;
+    background: var(--blue); color: var(--paper);
+  }
+  #checkBtn:disabled { opacity: .45; cursor: default; }
+  #checkBtn:not(:disabled):hover { background: var(--orange); }
+  #hint { font-size: 10px; line-height: 1.5; opacity: .85; min-height: 28px; }
+
+  /* cards */
+  .card {
+    width: 100%; border: 1.5px solid var(--ink); background: var(--paper);
+    padding: 5px 8px; font-size: 11px; line-height: 1.35;
+    cursor: grab; user-select: none; -webkit-user-select: none; touch-action: none;
+  }
+  .card:hover { border-color: var(--blue); }
+  .card .tag { display: block; font-size: 8.5px; letter-spacing: .14em; color: var(--blue); margin-bottom: 2px; }
+  .card.sel { outline: 2px solid var(--blue); outline-offset: 1px; background: color-mix(in srgb, var(--blue) 9%, var(--paper)); }
+  .card.lift { opacity: .35; }
+  .card.ghost {
+    position: fixed; z-index: 50; pointer-events: none; margin: 0;
+    box-shadow: 4px 4px 0 rgba(35, 42, 46, .25);
+  }
+  .card.okC { border: 1.5px solid var(--ok); background: color-mix(in srgb, var(--ok) 7%, var(--paper)); }
+  .card.badC { border: 1.5px solid var(--orange); background: color-mix(in srgb, var(--orange) 8%, var(--paper)); }
+
+  /* side panel */
+  #side {
+    width: 342px; flex: none; border-left: 1.5px solid var(--ink);
+    background: color-mix(in srgb, var(--panel) 55%, var(--paper));
+    padding: 12px 14px; overflow-y: auto;
+  }
+  #side .ct { font-size: 11px; letter-spacing: .18em; font-weight: 600; margin-bottom: 8px; }
+  .cribBox { border: 1.5px solid var(--ink); background: var(--paper); padding: 8px 10px 10px; margin-bottom: 12px; }
+  .cribBox .bt { font-size: 9.5px; letter-spacing: .16em; color: var(--blue); margin-bottom: 6px; }
+  .formula { font-size: 12px; line-height: 1.5; padding: 3px 0; border-bottom: 1px dashed var(--line); }
+  .formula:last-child { border-bottom: none; }
+  .formula b { color: var(--blue); }
+  .formula .warn { color: var(--orange); font-weight: 600; }
+  .fine { font-size: 10px; opacity: .8; line-height: 1.5; margin-top: 4px; }
+  .fbScore {
+    font-size: 14px; font-weight: 600; letter-spacing: .08em; padding: 6px 9px;
+    border: 1.5px solid var(--ink); margin-bottom: 8px;
+    background: var(--dark); color: var(--orange);
+  }
+  .fbScore.good { color: var(--green); }
+  .fb {
+    border: 1.5px solid var(--line); border-left: 4px solid var(--orange);
+    background: var(--paper); padding: 6px 8px; margin-bottom: 6px;
+  }
+  .fb.ok { border-left-color: var(--ok); }
+  .fb .h { font-size: 11px; font-weight: 600; color: var(--orange); margin-bottom: 3px; line-height: 1.4; }
+  .fb.ok .h { color: var(--ok); }
+  .fb .b { font-size: 11px; line-height: 1.5; }
+  .ord { margin: 0 0 6px 18px; padding: 0; font-size: 11px; }
+  .ord li { margin: 3px 0; line-height: 1.4; }
+  .ord b { color: var(--blue); font-size: 9.5px; letter-spacing: .1em; }
+  .big { font-size: 24px; font-weight: 600; margin: 2px 0 4px; }
+  .big span { color: var(--blue); font-size: 13px; }
+</style>
+</head>
+<body>
+<header>
+  <h1>TRAK DPM3 · G6 POWER-UP SEQUENCE</h1>
+  <span class="sub">STARTUP &amp; SHUTDOWN — DRAG THE DAY INTO ORDER</span>
+  <a href="../index.html">← HUB</a>
+</header>
+
+<div id="stats">
+  <div class="stat dro"><div class="k">SCORE</div><div class="v" id="sScore">0</div></div>
+  <div class="stat dro"><div class="k">TIMER</div><div class="v" id="sTime">0:00</div></div>
+  <div class="stat dro"><div class="k">SESSION BEST</div><div class="v" id="sBest">—</div></div>
+  <div class="stat"><div class="k">ROUND</div><div class="v" id="sRound">1/2 STARTUP</div></div>
+  <button id="resetBtn">RESET</button>
+</div>
+
+<main>
+  <section id="board">
+    <div id="deckCol">
+      <div id="deckWrap" data-drop="deck">
+        <div class="colHead"><span>SHUFFLED DECK</span><em id="deckCount"></em></div>
+        <div id="deck"></div>
+      </div>
+      <div id="rejectBin" data-drop="bin">
+        <div class="colHead rej"><span>REJECT BIN</span><em id="binCount"></em></div>
+        <div id="binList"></div>
+      </div>
+    </div>
+    <div id="seqCol">
+      <div class="colHead"><span id="seqName">SEQUENCE — STARTUP</span><em id="seqFill"></em></div>
+      <div id="slots"></div>
+      <div id="seqFoot">
+        <button id="checkBtn" disabled>CHECK ORDER</button>
+        <div id="hint"></div>
+      </div>
+    </div>
+  </section>
+
+  <aside id="side">
+    <div class="ct">SHIFT RULES</div>
+    <div class="cribBox">
+      <div class="bt">DRIVETRAIN — THE TWO THAT BREAK MACHINES</div>
+      <div class="formula"><span class="warn">SPEED</span> — <span id="ruleVari"></span></div>
+      <div class="formula"><span class="warn">RANGE</span> — <span id="ruleRange"></span></div>
+    </div>
+    <div class="cribBox">
+      <div class="bt">SCORING</div>
+      <div class="formula"><b>+10</b> per real step in its correct slot</div>
+      <div class="formula"><b>+10</b> per trap card sent to the REJECT bin</div>
+      <div class="fine">STARTUP max 120 · SHUTDOWN max 90 · session total 210. Exact order is graded — every miss is explained.</div>
+    </div>
+    <div class="ct">FEEDBACK</div>
+    <div id="teach"></div>
+  </aside>
+</main>
+
+<script type="module">
+import { FACTS, reportScore } from '../model/machine.js';
+
+const $ = id => document.getElementById(id);
+const GAME_ID = 'g6', GAME_LABEL = 'Power-Up Sequence';
+
+/* ---------- decks (order below IS the correct order) ---------- */
+const STARTUP = [
+  { tag: 'PPE',
+    text: 'PPE on — safety glasses, boots; nothing loose, nothing dangling',
+    why: 'Dress for the machine before you touch the machine. Every later step puts your hands within reach of iron that moves.' },
+  { tag: 'WALK-AROUND',
+    text: 'Walk the machine — no tools on the table, ways clear, no coolant puddles on the floor',
+    why: 'Inspect while everything is still dead. Find yesterday’s leftovers before anything can move or spin.' },
+  { tag: 'WAY LUBE',
+    text: 'Check the way-lube reservoir level — top up with spec oil if low',
+    why: 'Lube level before power because you never run dry ways — the first table move of the day should ride on oil.' },
+  { tag: 'DRAWBAR AIR',
+    text: 'Check air pressure for the power drawbar (per the placard)',
+    why: 'The drawbar holds the NMTB40 tool with shop air. Prove placard pressure before the machine can ever ask for a tool.' },
+  { tag: 'POWER ON',
+    text: 'Main disconnect ON → control boots → release E-stop → control in DRO',
+    why: 'Power comes on only after the physical checks pass: disconnect ON, let the SMX boot, release the E-stop, land in DRO.' },
+  { tag: 'E-STOP TEST',
+    text: 'E-stop function test',
+    why: 'Prove the kill switch before anything can spin. The E-stop test always comes before the first spindle start of the day.' },
+  { tag: 'AXIS CHECK',
+    text: 'Handwheel each axis a small move — smooth, DRO tracking',
+    why: 'A small move on each handwheel proves motion is smooth and the DRO tracks it. Catch a bound way by hand, not at rapid.' },
+  { tag: 'WARM-UP',
+    text: 'Spindle at LOW warm-up RPM for a minute — and listen',
+    why: 'Bearings warm at low RPM before they see speed — and only after the E-stop is proven. A minute of listening catches trouble the numbers won’t show.' },
+  { tag: 'PROGRAM CHECK',
+    text: 'Verify or clear yesterday’s program',
+    why: 'Last: never run a mystery program. Check what is in the control once the machine itself is proven healthy.' },
+];
+
+const SHUTDOWN = [
+  { tag: 'SPINDLE SAFE',
+    text: 'Spindle stopped, tool removed and stored, drawbar rested',
+    why: 'Make it safe first — nothing that can spin, and no tool left in the taper to drop, before any cleanup starts.' },
+  { tag: 'SAVE TO USB',
+    text: 'Save programs to USB — named YYMMDD-partname',
+    why: 'Save while the control is up and the job is fresh. A power flick later can eat unsaved work; the date-name finds it tomorrow.' },
+  { tag: 'PARK MACHINE',
+    text: 'Table to a home-ish position, quill retracted',
+    why: 'Park before cleaning: table to a home-ish spot, quill in, so the slides sit protected and nothing overhangs the bed.' },
+  { tag: 'CHIPS & WAYS',
+    text: 'Chips: brush to pan; wipe the ways; way wipers clean',
+    why: 'Chips leave by brush and pan. Grit left on the ways tonight is lapping compound under the slides tomorrow.' },
+  { tag: 'PENDANT WIPE',
+    text: 'Wipe the control pendant with a dry cloth',
+    why: 'The pendant gets wiped after the dirty work, with a DRY cloth — it is electronics, not a machine slide.' },
+  { tag: 'POWER OFF',
+    text: 'Control off per the manual → main disconnect OFF',
+    why: 'Shut the control down cleanly FIRST, then the disconnect — never pull power out from under a running control.' },
+  { tag: '5S & LOG',
+    text: '5S — tools home, floor clean, logbook filled',
+    why: 'The day closes at shop level: tools home, floor clean, logbook filled, so the next operator starts from zero.' },
+];
+
+const TRAPS = {
+  range: { tag: 'BACK GEAR', trap: true,
+    text: 'Change hi/lo range while the spindle is running',
+    why: FACTS.rangeRule + ' Shifting the back gear under power grinds its teeth — stop the spindle, then shift.' },
+  vari: { tag: 'VARI-SPEED', trap: true,
+    text: 'Set the vari-speed with the spindle stopped',
+    why: FACTS.variSpeedRule + ' Cranking vari-speed on a dead spindle drags the belt across stopped pulleys and eats the drive.' },
+  air: { tag: 'CHIP CLEANUP', trap: true,
+    text: 'Blow chips off the table with compressed air',
+    why: 'Air blast drives chips under the way covers, into the wipers, and at eyes. Chips move by brush and pan — never by air.' },
+  fingers: { tag: 'CHIP CLEANUP', trap: true,
+    text: 'Clear stringy chips with your fingers',
+    why: 'Stringy chips are razor wire. They come off with a chip hook or pliers — never fingers, gloved or not.' },
+  gloves: { tag: 'GLOVES', trap: true,
+    text: 'Wear gloves while operating the spindle',
+    why: 'A glove near a turning spindle gets caught and winds the hand in. Bare hands and snug sleeves around rotation.' },
+};
+
+const ROUNDS = [
+  { name: 'STARTUP', steps: STARTUP, traps: [TRAPS.range, TRAPS.vari, TRAPS.gloves] },
+  { name: 'SHUTDOWN', steps: SHUTDOWN, traps: [TRAPS.air, TRAPS.fingers] },
+];
+
+/* ---------- state ---------- */
+const S = {
+  round: 0, score: 0, best: null, pts: [null, null],
+  checked: false, done: false,
+  t0: null, elapsed: 0, running: false,
+};
+let cards = [], slotEls = [], sel = null, swallowClick = false, lastHint = null;
+
+$('ruleVari').textContent = FACTS.variSpeedRule;
+$('ruleRange').textContent = FACTS.rangeRule;
+
+function shuffle(a) {
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+/* ---------- selection (click-to-place fallback) ---------- */
+function setSel(card) {
+  clearSel();
+  sel = card;
+  card.el.classList.add('sel');
+}
+function clearSel() {
+  if (sel) sel.el.classList.remove('sel');
+  sel = null;
+}
+function swallow() {
+  swallowClick = true;
+  setTimeout(() => { swallowClick = false; }, 0);
+}
+function cardTap(card) {
+  if (sel && sel !== card) {
+    const slotEl = card.el.closest('.slot');
+    if (slotEl) { placeCard(sel, { type: 'slot', el: slotEl }); return; }
+    setSel(card); return;
+  }
+  if (sel === card) clearSel(); else setSel(card);
+}
+function containerClick(type, el) {
+  if (swallowClick) { swallowClick = false; return; }
+  if (S.checked || !sel) return;
+  placeCard(sel, { type, el });
+}
+
+/* ---------- placement ---------- */
+function placeCard(card, t) {
+  if (S.checked) return;
+  if (t.type === 'slot') {
+    const sb = t.el.querySelector('.sb');
+    const occ = sb.querySelector('.card');
+    if (occ && occ !== card.el) $('deck').appendChild(occ);
+    sb.appendChild(card.el);
+  } else if (t.type === 'bin') {
+    $('binList').appendChild(card.el);
+  } else {
+    $('deck').appendChild(card.el);
+  }
+  clearSel();
+  startClock();
+  refresh();
+}
+function dropTargetAt(x, y) {
+  const t = document.elementFromPoint(x, y);
+  if (!t || !t.closest) return null;
+  const slot = t.closest('.slot');
+  if (slot) return { type: 'slot', el: slot };
+  const d = t.closest('[data-drop]');
+  if (d) return { type: d.dataset.drop, el: d };
+  return null;
+}
+function hoverHint(t) {
+  const el = t ? t.el : null;
+  if (lastHint && lastHint !== el) lastHint.classList.remove('hint');
+  if (el) el.classList.add('hint');
+  lastHint = el;
+}
+
+/* ---------- cards: pointer-event drag + tap ---------- */
+function makeCardEl(card) {
+  const el = document.createElement('div');
+  el.className = 'card';
+  const tg = document.createElement('span'); tg.className = 'tag'; tg.textContent = card.tag;
+  const tx = document.createElement('span'); tx.className = 'tx'; tx.textContent = card.text;
+  el.append(tg, tx);
+  el.__card = card;
+
+  let px = 0, py = 0, ghost = null, moved = false, armed = false;
+  el.addEventListener('pointerdown', e => {
+    if (S.checked) return;
+    if (e.button !== undefined && e.button !== 0) return;
+    px = e.clientX; py = e.clientY;
+    moved = false; armed = true;
+    try { el.setPointerCapture(e.pointerId); } catch (err) { /* fine */ }
+  });
+  el.addEventListener('pointermove', e => {
+    if (!armed || S.checked) return;
+    if (!moved && Math.hypot(e.clientX - px, e.clientY - py) < 6) return;
+    if (!moved) {
+      moved = true;
+      clearSel();
+      ghost = el.cloneNode(true);
+      ghost.classList.add('ghost');
+      ghost.style.width = el.getBoundingClientRect().width + 'px';
+      document.body.appendChild(ghost);
+      el.classList.add('lift');
+    }
+    e.preventDefault();
+    ghost.style.left = (e.clientX + 12) + 'px';
+    ghost.style.top = (e.clientY - 16) + 'px';
+    hoverHint(dropTargetAt(e.clientX, e.clientY));
+  });
+  const cleanup = () => {
+    if (ghost) ghost.remove();
+    ghost = null; moved = false; armed = false;
+    el.classList.remove('lift');
+    hoverHint(null);
+  };
+  el.addEventListener('pointerup', e => {
+    if (!armed) return;
+    if (!moved) {
+      cleanup();
+      if (!S.checked) cardTap(card);
+      swallow();
+      return;
+    }
+    const t = dropTargetAt(e.clientX, e.clientY);
+    cleanup();
+    if (t) placeCard(card, t);
+    swallow();
+  });
+  el.addEventListener('pointercancel', cleanup);
+  return el;
+}
+
+/* ---------- round lifecycle ---------- */
+function buildRound(i) {
+  S.round = i; S.checked = false;
+  clearSel();
+  const R = ROUNDS[i];
+  cards = [
+    ...R.steps.map((s, k) => ({ ...s, ord: k + 1 })),
+    ...R.traps.map(t => ({ ...t })),
+  ];
+  shuffle(cards);
+  const deck = $('deck');
+  deck.innerHTML = ''; $('binList').innerHTML = '';
+  for (const c of cards) { c.el = makeCardEl(c); deck.appendChild(c.el); }
+  const slots = $('slots');
+  slots.innerHTML = ''; slotEls = [];
+  for (let k = 0; k < R.steps.length; k++) {
+    const s = document.createElement('div');
+    s.className = 'slot';
+    s.innerHTML = `<span class="n">${k + 1}</span><span class="sb"></span>`;
+    s.addEventListener('click', () => containerClick('slot', s));
+    slots.appendChild(s); slotEls.push(s);
+  }
+  $('seqName').textContent = 'SEQUENCE — ' + R.name;
+  $('sRound').textContent = `${i + 1}/2 ${R.name}`;
+  const btn = $('checkBtn');
+  btn.textContent = 'CHECK ORDER'; btn.disabled = true;
+  teachDefault();
+  refresh();
+}
+
+function refresh() {
+  const deckN = $('deck').children.length;
+  $('deckCount').textContent = deckN + (deckN === 1 ? ' CARD' : ' CARDS');
+  $('binCount').textContent = $('binList').children.length + ' REJECTED';
+  const filled = slotEls.filter(s => s.querySelector('.card')).length;
+  $('seqFill').textContent = filled + '/' + slotEls.length + ' PLACED';
+  if (S.checked) return;
+  const ready = deckN === 0 && filled === slotEls.length;
+  $('checkBtn').disabled = !ready;
+  $('hint').textContent = ready
+    ? 'All cards placed. CHECK ORDER grades the sequence — exact order counts.'
+    : (deckN > 0
+      ? 'Drag a card (or click card, then slot). Real steps into numbered slots; wrong practice into the REJECT bin.'
+      : 'Every numbered slot needs a card — pull one back from the REJECT bin.');
+}
+
+/* ---------- clock ---------- */
+function startClock() {
+  if (S.running || S.done) return;
+  S.running = true;
+  S.t0 = performance.now() - S.elapsed * 1000;
+}
+function fmtTime(sec) {
+  return Math.floor(sec / 60) + ':' + String(Math.floor(sec % 60)).padStart(2, '0');
+}
+setInterval(() => {
+  if (S.running) S.elapsed = (performance.now() - S.t0) / 1000;
+  $('sTime').textContent = fmtTime(S.elapsed);
+}, 250);
+
+/* ---------- teaching panel ---------- */
+function fbAdd(parent, ok, head, body) {
+  const d = document.createElement('div');
+  d.className = 'fb' + (ok ? ' ok' : '');
+  const h = document.createElement('div'); h.className = 'h'; h.textContent = head;
+  const b = document.createElement('div'); b.className = 'b'; b.textContent = body;
+  d.append(h, b);
+  parent.appendChild(d);
+}
+function teachDefault() {
+  const R = ROUNDS[S.round];
+  const t = $('teach'); t.innerHTML = '';
+  const box = document.createElement('div');
+  box.className = 'cribBox';
+  const bt = document.createElement('div'); bt.className = 'bt';
+  bt.textContent = `ROUND ${S.round + 1} — ${R.name}`;
+  box.appendChild(bt);
+  const lines = [
+    `Build the ${R.name.toLowerCase()} checklist: ${R.steps.length} real steps into slots 1–${R.steps.length}, top to bottom.`,
+    `${R.traps.length} trap cards are shuffled in. They are wrong practice — always — and belong in the REJECT bin.`,
+    'Drag with the pointer, or click a card and then click its slot. Click a placed card to pick it up again.',
+    'Exact order is graded. Every miss is explained — the WHY is the lesson.',
+  ];
+  for (const l of lines) {
+    const f = document.createElement('div'); f.className = 'formula'; f.textContent = l;
+    box.appendChild(f);
+  }
+  t.appendChild(box);
+}
+function mark(slotEl, txt) {
+  const m = document.createElement('span');
+  m.className = 'mark'; m.textContent = txt;
+  slotEl.appendChild(m);
+}
+
+/* ---------- grading ---------- */
+function grade() {
+  const R = ROUNDS[S.round];
+  let correct = 0, caught = 0;
+  const fb = [];
+  slotEls.forEach((slotEl, i) => {
+    const cardEl = slotEl.querySelector('.card');
+    const card = cardEl.__card;
+    if (card.trap) {
+      slotEl.classList.add('bad');
+      mark(slotEl, 'TRAP — REJECT');
+      fb.push({ ok: false, h: `STEP ${i + 1}: “${card.text}” is a trap — it never belongs in the sequence.`, b: card.why });
+    } else if (card.ord === i + 1) {
+      correct++;
+      slotEl.classList.add('ok');
+    } else {
+      slotEl.classList.add('bad');
+      mark(slotEl, '→ STEP ' + card.ord);
+      fb.push({ ok: false, h: `STEP ${i + 1}: ${card.tag} is out of order — it belongs at step ${card.ord}.`, b: card.why });
+    }
+  });
+  [...$('binList').children].forEach(cardEl => {
+    const card = cardEl.__card;
+    if (card.trap) {
+      caught++;
+      cardEl.classList.add('okC');
+      fb.push({ ok: true, h: `TRAP CAUGHT: “${card.text}”`, b: card.why });
+    } else {
+      cardEl.classList.add('badC');
+      fb.push({ ok: false, h: `REJECTED A REAL STEP: ${card.tag} is step ${card.ord} of ${R.name.toLowerCase()}.`, b: card.why });
+    }
+  });
+
+  const pts = correct * 10 + caught * 10;
+  const max = R.steps.length * 10 + R.traps.length * 10;
+  S.pts[S.round] = pts;
+  S.score = (S.pts[0] || 0) + (S.pts[1] || 0);
+  S.checked = true;
+  clearSel();
+  $('sScore').textContent = S.score;
+
+  /* feedback panel */
+  const t = $('teach'); t.innerHTML = '';
+  const head = document.createElement('div');
+  head.className = 'fbScore' + (pts === max ? ' good' : '');
+  head.textContent = `${R.name}: ${pts} / ${max}` + (pts === max ? ' — PERFECT' : '');
+  t.appendChild(head);
+  if (pts === max) {
+    fbAdd(t, true, 'Clean sequence, every trap caught.',
+      'Exact order, no junk in the checklist — this is the habit the real machine expects every single day.');
+  }
+  for (const f of fb) fbAdd(t, f.ok, f.h, f.b);
+  const box = document.createElement('div');
+  box.className = 'cribBox';
+  const bt = document.createElement('div'); bt.className = 'bt';
+  bt.textContent = 'CORRECT ORDER — ' + R.name;
+  box.appendChild(bt);
+  const ol = document.createElement('ol'); ol.className = 'ord';
+  for (const s of R.steps) {
+    const li = document.createElement('li');
+    const b = document.createElement('b'); b.textContent = s.tag;
+    li.appendChild(b);
+    li.appendChild(document.createTextNode(' — ' + s.text));
+    ol.appendChild(li);
+  }
+  box.appendChild(ol);
+  const tr = document.createElement('div'); tr.className = 'fine';
+  tr.textContent = 'Traps this round: ' + R.traps.map(x => '“' + x.text + '”').join(' · ');
+  box.appendChild(tr);
+  t.appendChild(box);
+
+  const btn = $('checkBtn');
+  if (S.round === 0) {
+    btn.textContent = 'NEXT ROUND — SHUTDOWN →';
+    btn.disabled = false;
+    $('hint').textContent = `${R.name} scored ${pts}/${max}. Read the feedback, then run the SHUTDOWN deck.`;
+  } else {
+    S.done = true; S.running = false;
+    if (S.best === null || S.score > S.best) S.best = S.score;
+    $('sBest').textContent = S.best;
+    const sum = document.createElement('div');
+    sum.className = 'cribBox';
+    const sbt = document.createElement('div'); sbt.className = 'bt'; sbt.textContent = 'SESSION COMPLETE';
+    const big = document.createElement('div'); big.className = 'big';
+    big.textContent = S.score + ' ';
+    const bsp = document.createElement('span'); bsp.textContent = '/ 210'; big.appendChild(bsp);
+    const l1 = document.createElement('div'); l1.className = 'formula';
+    l1.textContent = `STARTUP ${S.pts[0]}/120 · SHUTDOWN ${S.pts[1]}/90 · time ${fmtTime(S.elapsed)}`;
+    const l2 = document.createElement('div'); l2.className = 'formula';
+    l2.textContent = 'SESSION BEST ' + S.best + ' / 210';
+    sum.append(sbt, big, l1, l2);
+    t.prepend(sum);
+    btn.textContent = 'PLAY AGAIN ↻';
+    btn.disabled = false;
+    $('hint').textContent = `Session total ${S.score}/210. PLAY AGAIN reshuffles both decks; the session best stays.`;
+  }
+  reportScore(GAME_ID, {
+    label: GAME_LABEL, score: S.score, best: S.best ?? S.score,
+    detail: `${R.name.toLowerCase()} ${pts}/${max}`,
+  });
+}
+
+/* ---------- controls ---------- */
+$('checkBtn').addEventListener('click', () => {
+  if (!S.checked) { grade(); return; }
+  if (S.round === 0) buildRound(1);
+  else resetAll();
+});
+$('deckWrap').addEventListener('click', () => containerClick('deck', $('deckWrap')));
+$('rejectBin').addEventListener('click', () => containerClick('bin', $('rejectBin')));
+$('resetBtn').addEventListener('click', () => {
+  resetAll();
+  reportScore(GAME_ID, { label: GAME_LABEL, score: 0, best: S.best ?? 0, detail: 'reset' });
+});
+
+function resetAll() {
+  S.score = 0; S.pts = [null, null]; S.done = false;
+  S.elapsed = 0; S.running = false; S.t0 = null;
+  $('sScore').textContent = '0';
+  $('sTime').textContent = '0:00';
+  buildRound(0);
+}
+
+buildRound(0);
+window.__g6Ready = true;
+</script>
+</body>
+</html>
