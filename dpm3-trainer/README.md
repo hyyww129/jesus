@@ -23,6 +23,8 @@ browsers refuse to load from `file://`.
 | `model/viewer.html` | The 3D model: orbit, jog, labels, demo cycles |
 | `model/vendor/` | Three.js r128 + OrbitControls, vendored so everything works offline |
 | `games/g1…g8` | The eight games, one self-contained file each |
+| `dist/dpm3-trainer-standalone.html` | Single-file build of everything — download it, double-click it, no server needed |
+| `tools/bundle.mjs` | Regenerates the standalone build: `node tools/bundle.mjs` |
 
 Boot-camp usage per day: G1 + G6 (Day 1) · G2 + G3 (Day 2) · G4 + G5 (Day 3) ·
 G5 contours + G7 (Day 4) · G8 (Days 5–6).
