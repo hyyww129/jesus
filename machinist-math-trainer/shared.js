@@ -165,6 +165,14 @@
           'placeholder="' + esc(q.unit ? 'answer in ' + q.unit : 'type your answer') + '" aria-label="answer">' +
           '<button class="primary" data-go>CHECK</button></div>';
       }
+      /* practice-only help: a where-do-I-start hint and a full walkthrough.
+         The quiz stays help-free — that's what practice is for. */
+      if (!isQuiz) {
+        h += '<div class="btnrow help-row" style="margin-top:10px">' +
+          (q.hint ? '<button data-hint>💡 WHERE DO I START?</button>' : '') +
+          '<button data-walk>WALK ME THROUGH IT</button></div>' +
+          '<div class="hint-slot"></div>';
+      }
       h += '<div class="fb-slot"></div>';
       container.innerHTML = h;
       if (q.type === 'mc') {
@@ -188,30 +196,85 @@
         });
         input.focus();
       }
+      var hintBtn = container.querySelector('[data-hint]');
+      if (hintBtn) hintBtn.addEventListener('click', function () {
+        hintBtn.disabled = true;
+        container.querySelector('.hint-slot').innerHTML =
+          '<div class="hintbox"><span class="t">WHERE TO START</span>' + q.hint + '</div>';
+      });
+      var walkBtn = container.querySelector('[data-walk]');
+      if (walkBtn) walkBtn.addEventListener('click', function () { walkThrough(q); });
     }
 
-    function showFeedback(q, ok, userShown, diagText) {
-      var slot = container.querySelector('.fb-slot');
-      var h = '<div class="feedback ' + (ok ? 'good' : 'bad') + '">' +
-        (ok ? '<b>Right.</b>' : '<b>Not this time.</b>') +
-        (ok ? '' : ' You answered <span class="num">' + esc(userShown) + '</span>. ') +
-        (q.explain || '');
-      if (!ok && diagText) h += '<span class="diag">Your mistake: ' + diagText + '</span>';
-      h += '</div><div class="btnrow" style="margin-top:12px">' +
-        '<button class="primary" data-next>' + (i + 1 >= qs.length ? 'SEE RESULT' : 'NEXT QUESTION') + '</button></div>';
-      slot.innerHTML = h;
-      /* freeze inputs */
-      container.querySelectorAll('.choices button, .answer-row button, .answer-row input')
+    function stepsBlock(q) {
+      return q.steps ? '<div class="steps"><span class="t">THE WHOLE PATH</span>' + q.steps + '</div>' : '';
+    }
+    function diagHtml(diag) {
+      if (!diag) return '';
+      if (typeof diag === 'string') return '<span class="diag">Your mistake: ' + diag + '</span>';
+      return '<span class="diag"><b>' + diag.label + '.</b>' +
+        '<span class="pathrow wrong">Where your number probably came from: <span class="path">' + diag.your + '</span></span>' +
+        '<span class="pathrow right">The right path: <span class="path">' + diag.right + '</span></span></span>';
+    }
+    function freeze() {
+      container.querySelectorAll('.choices button, .answer-row button, .answer-row input, [data-hint], [data-walk]')
         .forEach(function (el) { el.disabled = true; });
+    }
+    function nextBtnHtml(extra) {
+      return '<div class="btnrow" style="margin-top:12px">' + (extra || '') +
+        '<button class="primary" data-next>' + (i + 1 >= qs.length ? 'SEE RESULT' : 'NEXT QUESTION') + '</button></div>';
+    }
+    function wireNext(slot) {
       slot.querySelector('[data-next]').addEventListener('click', function () { i++; render(); });
-      slot.querySelector('[data-next]').focus();
+      var retry = slot.querySelector('[data-retry]');
+      if (retry) retry.addEventListener('click', function () { render(); });
+      (retry || slot.querySelector('[data-next]')).focus();
     }
 
+    /* "I don't know where to start" escape hatch: full worked path, honest miss. */
+    function walkThrough(q) {
+      if (!q._attempted) {
+        q._attempted = true;
+        results.push({ q: q, ok: false, walked: true });
+        if (opts.onAnswer) opts.onAnswer(q, false);
+      }
+      freeze();
+      var slot = container.querySelector('.fb-slot');
+      slot.innerHTML = '<div class="feedback good"><b>Smart ask — here is the whole path.</b> ' +
+        (q.explain || '') + stepsBlock(q) +
+        '<span class="diag">Counted as a miss in the running score — understanding first, the points come back on the next one.</span></div>' +
+        nextBtnHtml();
+      wireNext(slot);
+    }
+
+    function showFeedback(q, ok, userShown, diag, isRetry) {
+      var slot = container.querySelector('.fb-slot');
+      var h;
+      if (ok) {
+        h = '<div class="feedback good">' +
+          (isRetry ? '<b>There it is — got it on the retry.</b> The first attempt is what counted for the score; the method is what you keep. '
+                   : '<b>Right.</b> ') +
+          (q.explain || '') + '</div>' + nextBtnHtml();
+      } else {
+        var retryBtn = isQuiz ? '' : '<button data-retry>TRY IT AGAIN</button>';
+        h = '<div class="feedback bad"><b>Not this time.</b> You answered <span class="num">' + esc(userShown) + '</span>. ' +
+          (q.explain || '') + diagHtml(diag) + stepsBlock(q) + '</div>' + nextBtnHtml(retryBtn);
+      }
+      slot.innerHTML = h;
+      freeze();
+      wireNext(slot);
+    }
+
+    /* only the FIRST attempt on a question counts toward the score */
     function finishAnswer(q, ok, userShown, diagText) {
-      if (ok) correct++;
-      results.push({ q: q, ok: ok });
-      if (opts.onAnswer) opts.onAnswer(q, ok);
-      showFeedback(q, ok, userShown, diagText);
+      var first = !q._attempted;
+      if (first) {
+        q._attempted = true;
+        if (ok) correct++;
+        results.push({ q: q, ok: ok });
+        if (opts.onAnswer) opts.onAnswer(q, ok);
+      }
+      showFeedback(q, ok, userShown, diagText, !first);
     }
 
     function answerMC(q, k, btn) {
@@ -251,7 +314,7 @@
       var misses = results.filter(function (r) { return !r.ok; });
       if (misses.length) {
         h += '<div style="text-align:left">' + misses.map(function (r) {
-          return '<div class="feedback bad" style="margin-top:8px"><b>Missed:</b> ' + r.q.q +
+          return '<div class="feedback bad" style="margin-top:8px"><b>' + (r.walked ? 'Walked through:' : 'Missed:') + '</b> ' + r.q.q +
             '<br>' + (r.q.explain || '') + '</div>';
         }).join('') + '</div>';
       }
@@ -276,16 +339,28 @@
       return { type: 'num', a: dec, tol: 0.0005, from: 'Module 1',
         q: 'Convert <span class="num">' + f[0] + '/' + f[1] + '</span> to a decimal.',
         explain: f[0] + ' ÷ ' + f[1] + ' = <span class="num">' + fmtExact(dec) + '</span>.',
+        hint: 'A fraction IS a division: read ' + f[0] + '/' + f[1] + ' as "' + f[0] + ' divided by ' + f[1] + '". Top goes in first.',
+        steps: '1 · ' + f[0] + '/' + f[1] + ' = <span class="num">' + f[0] + ' ÷ ' + f[1] + '</span><br>' +
+          '2 · Divide: <span class="res">' + fmtExact(dec) + '</span>',
         diagnose: m1DiagF2D(f[0], f[1], dec) };
     }
     if (kind === 'thou') {
       var v = pick([0.062, 0.125, 0.250, 0.375, 0.437, 0.500, 0.750, 0.031, 0.812]);
-      return { type: 'num', a: Math.round(v * 1000), tol: 0.6, unit: 'thou', from: 'Module 1',
+      var th = Math.round(v * 1000);
+      return { type: 'num', a: th, tol: 0.6, unit: 'thou', from: 'Module 1',
         q: 'How many <b>thou</b> is <span class="num">' + fmtExact(v, 3) + '"</span>?',
-        explain: 'One thou = 0.001". Multiply by 1000: ' + fmtExact(v, 3) + ' × 1000 = <span class="num">' + Math.round(v * 1000) + '</span> thou.',
+        explain: 'One thou = 0.001". Multiply by 1000: ' + fmtExact(v, 3) + ' × 1000 = <span class="num">' + th + '</span> thou.',
+        hint: 'A thou is 0.001". Slide the decimal point three places to the right — done.',
+        steps: '1 · thou = inches × 1000<br>' +
+          '2 · <span class="num">' + fmtExact(v, 3) + ' → ' + (v * 10).toFixed(2) + ' → ' + (v * 100).toFixed(1) + ' → ' + th + '</span><br>' +
+          '3 · Answer: <span class="res">' + th + ' thou</span>',
         diagnose: function (u) {
-          if (Math.abs(u - v) < 0.002) return 'you gave the decimal back — thou means ×1000.';
-          if (Math.abs(u - v * 100) < 1 || Math.abs(u - v * 10000) < 1) return 'decimal point slipped one place — ×1000 exactly.';
+          if (Math.abs(u - v) < 0.002) return { label: 'Units mix-up',
+            your: 'you handed the inches back: ' + fmtExact(v, 3),
+            right: fmtExact(v, 3) + ' × 1000 = ' + th + ' thou' };
+          if (Math.abs(u - v * 100) < 1 || Math.abs(u - v * 10000) < 1) return { label: 'Decimal-place slip',
+            your: 'the point moved, but not exactly three places → ' + u,
+            right: fmtExact(v, 3) + ' × 1000 = ' + th + ' — three slides exactly' };
           return null;
         } };
     }
@@ -323,10 +398,18 @@
 
   function m1DiagF2D(n, d, dec) {
     return function (v) {
-      if (Math.abs(v - d / n) <= 0.002 && n !== d) return 'you inverted the fraction — you did ' + d + ' ÷ ' + n + ' instead of ' + n + ' ÷ ' + d + '.';
-      if (Math.abs(v - dec * 10) <= 0.005 || Math.abs(v - dec / 10) <= 0.005) return 'right digits, decimal point slipped one place.';
-      if (Math.abs(v - dec) <= 0.005) return 'you rounded too early — carry it to four places.';
-      return 'formula check: a fraction IS a division. Top ÷ bottom, always.';
+      if (Math.abs(v - d / n) <= 0.002 && n !== d) return { label: 'Inverted fraction',
+        your: d + ' ÷ ' + n + ' = ' + fmtExact(d / n) + ' — bottom ÷ top',
+        right: n + ' ÷ ' + d + ' = ' + fmtExact(dec) + ' — top ÷ bottom, always' };
+      if (Math.abs(v - dec * 10) <= 0.005 || Math.abs(v - dec / 10) <= 0.005) return { label: 'Decimal-place slip',
+        your: 'right digits, wrong spot: ' + fmtExact(v),
+        right: n + ' ÷ ' + d + ' = ' + fmtExact(dec) };
+      if (Math.abs(v - dec) <= 0.005) return { label: 'Rounded too early',
+        your: fmtExact(v) + ' — cut short',
+        right: 'carry it out: ' + n + ' ÷ ' + d + ' = ' + fmtExact(dec) };
+      return { label: 'Wrong operation',
+        your: 'whatever produced ' + fmtExact(v) + ' was not top ÷ bottom',
+        right: n + ' ÷ ' + d + ' = ' + fmtExact(dec) };
     };
   }
 
@@ -373,7 +456,7 @@
       if (k === 1) { parts.playground(panes); }
       if (k === 2) {
         var c = document.createElement('div');
-        c.className = 'card'; c.innerHTML = '<h2>Practice — mistakes get named here</h2><div class="body"></div>';
+        c.className = 'card'; c.innerHTML = '<h2>Practice — stuck? tap WHERE DO I START · mistakes get named</h2><div class="body"></div>';
         panes.appendChild(c);
         runSet(c.querySelector('.body'), { mode: 'practice', title: 'PRACTICE', questions: parts.practiceQs() });
       }

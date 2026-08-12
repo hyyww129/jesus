@@ -187,16 +187,31 @@
   /* ============ question generators (practice + quiz) ============ */
   var POOL = [[1,2],[1,4],[3,4],[1,8],[3,8],[5,8],[7,8],[1,16],[3,16],[5,16],[7,16],[9,16],[11,16],[13,16],[15,16],[3,32],[5,32],[7,32],[9,32],[11,32],[15,32],[19,32],[21,32],[25,32],[27,32],[31,32],[3,64],[5,64],[9,64],[11,64],[17,64],[23,64],[33,64],[43,64],[63,64]];
 
+  function slideChain(v, a) {
+    return M.fmtExact(v, 3) + ' → ' + (v * 10).toFixed(2) + ' → ' + (v * 100).toFixed(1) + ' → ' + a;
+  }
   function genF2D() {
     var f = M.pick(POOL), n = f[0], d = f[1], dec = n / d;
     return { type: 'num', a: dec, tol: 0.0005,
       q: 'Convert <span class="num">' + n + '/' + d + '</span> to a decimal (four places).',
       explain: 'A fraction is a division: ' + n + ' ÷ ' + d + ' = <span class="num">' + M.fmtExact(dec) + '</span>.',
+      hint: 'A fraction IS a division — nothing more. Read ' + n + '/' + d + ' as "<b>' + n + ' divided by ' + d + '</b>". Top number goes into the calculator first.',
+      steps: '1 · Read it as a division: ' + n + '/' + d + ' = <span class="num">' + n + ' ÷ ' + d + '</span><br>' +
+        '2 · Divide it out: ' + n + ' ÷ ' + d + ' = <span class="num">' + M.fmtExact(dec) + '</span><br>' +
+        '3 · Say it like a machinist: <span class="res">' + M.fmtExact(dec * 1000, 1).replace(/\.0$/, '') + ' thou</span>',
       diagnose: function (v) {
-        if (n !== d && Math.abs(v - d / n) <= 0.002) return '<b>inverted fraction</b> — you divided ' + d + ' ÷ ' + n + '. Top goes inside: ' + n + ' ÷ ' + d + '.';
-        if (Math.abs(v - dec * 10) <= 0.005 || Math.abs(v - dec / 10) <= 0.005) return '<b>decimal-place slip</b> — right digits, point moved one spot.';
-        if (Math.abs(v - dec) <= 0.006) return '<b>rounded too early</b> — carry the division out to four places.';
-        return '<b>wrong operation</b> — a fraction is always top ÷ bottom.';
+        if (n !== d && Math.abs(v - d / n) <= 0.002) return { label: 'Inverted fraction',
+          your: d + ' ÷ ' + n + ' = ' + M.fmtExact(d / n) + ' — bottom ÷ top',
+          right: n + ' ÷ ' + d + ' = ' + M.fmtExact(dec) + ' — top ÷ bottom, always' };
+        if (Math.abs(v - dec * 10) <= 0.005 || Math.abs(v - dec / 10) <= 0.005) return { label: 'Decimal-place slip',
+          your: 'right digits, but the point landed at ' + M.fmtExact(v),
+          right: n + ' ÷ ' + d + ' = ' + M.fmtExact(dec) };
+        if (Math.abs(v - dec) <= 0.006) return { label: 'Rounded too early',
+          your: M.fmtExact(v) + ' — the division got cut short',
+          right: 'carry it to four places: ' + n + ' ÷ ' + d + ' = ' + M.fmtExact(dec) };
+        return { label: 'Wrong operation',
+          your: 'whatever produced ' + M.fmtExact(v) + ' was not top ÷ bottom',
+          right: n + ' ÷ ' + d + ' = ' + M.fmtExact(dec) };
       } };
   }
   function genThou() {
@@ -205,10 +220,20 @@
     return { type: 'num', a: a, tol: 0.6, unit: 'thou',
       q: '<span class="num">' + M.fmtExact(v, 3) + '"</span> is how many <b>thou</b>?',
       explain: 'Thou = thousandths, so multiply by 1000: ' + M.fmtExact(v, 3) + ' × 1000 = <span class="num">' + a + '</span> thou.',
+      hint: 'A thou is 0.001" — one thousandth. So this is a <b>slide-the-decimal</b> problem: move the point three places to the right and you are done.',
+      steps: '1 · One thou = 0.001", so thou = inches × 1000<br>' +
+        '2 · Slide the point three places right: <span class="num">' + slideChain(v, a) + '</span><br>' +
+        '3 · Answer: <span class="res">' + a + ' thou</span> — the three digits after the point ARE the thou',
       diagnose: function (u) {
-        if (Math.abs(u - v) < 0.002) return '<b>units mix-up</b> — that\'s the decimal again. Thou is the decimal × 1000.';
-        if (Math.abs(u - a / 10) < 0.6 || Math.abs(u - a * 10) < 6) return '<b>decimal-place slip</b> — the point moved one spot. Slide it exactly three places.';
-        return '<b>conversion error</b> — slide the decimal three places right: 0.001" = 1 thou.';
+        if (Math.abs(u - v) < 0.002) return { label: 'Units mix-up',
+          your: 'you handed the inches back: ' + M.fmtExact(v, 3) + '. The question wants thou, a different unit',
+          right: M.fmtExact(v, 3) + ' × 1000 = ' + a + ' thou' };
+        if (Math.abs(u - a / 10) < 0.6 || Math.abs(u - a * 10) < 6) return { label: 'Decimal-place slip',
+          your: 'the point moved, but not exactly three places → ' + u,
+          right: slideChain(v, a) + ' — three slides, no more, no fewer' };
+        return { label: 'Conversion error',
+          your: u + ' does not come from × 1000',
+          right: M.fmtExact(v, 3) + ' × 1000 = ' + a + ' thou' };
       } };
   }
   function genTenth() {
@@ -217,12 +242,22 @@
     return { type: 'num', a: t, tol: 0.4, unit: 'tenths',
       q: 'A machinist says "hold <span class="num">' + M.fmtExact(v, 4) + '"</span>". How many <b>tenths</b> is that?',
       explain: 'A shop "tenth" = 0.0001" (a tenth of a thou). ' + M.fmtExact(v, 4) + ' ÷ 0.0001 = <span class="num">' + t + '</span> tenths.',
+      hint: 'Careful — a shop "tenth" is NOT 0.1". It is a tenth <b>of a thou</b>: 0.0001". Ask: how many 0.0001-inch steps fit in this number?',
+      steps: '1 · One tenth = 0.0001" (a tenth of a thou, not of an inch)<br>' +
+        '2 · ' + M.fmtExact(v, 4) + ' ÷ 0.0001 → slide the point four places → <span class="num">' + t + '</span><br>' +
+        '3 · Sanity check: ' + t + ' tenths = ' + (t / 10) + ' thou — tiny, as it should be',
       diagnose: function (u) {
         /* check the tighter, smaller-magnitude trap first: for small t the ±0.4
            thou-window around v×1000 would swallow the v×10 answer too */
-        if (Math.abs(u - v * 10) < v * 2) return '<b>tenth-of-an-inch trap</b> — in the shop a "tenth" is a tenth of a THOU, not of an inch.';
-        if (Math.abs(u - v * 1000) < 0.4) return '<b>units mix-up</b> — you counted thou. A tenth is ten times smaller: 0.0001".';
-        return '<b>conversion error</b> — divide by 0.0001 (slide the decimal four places).';
+        if (Math.abs(u - v * 10) < v * 2) return { label: 'Tenth-of-an-inch trap',
+          your: 'you treated a tenth as 0.1": ' + M.fmtExact(v, 4) + ' ÷ 0.1 = ' + (v * 10),
+          right: 'a shop tenth is 0.0001": ' + M.fmtExact(v, 4) + ' ÷ 0.0001 = ' + t };
+        if (Math.abs(u - v * 1000) < 0.4) return { label: 'Units mix-up',
+          your: 'you counted thou: ' + M.fmtExact(v, 4) + ' × 1000 = ' + (v * 1000),
+          right: 'tenths are 10× finer: ' + M.fmtExact(v, 4) + ' ÷ 0.0001 = ' + t };
+        return { label: 'Conversion error',
+          your: u + ' does not come from ÷ 0.0001',
+          right: M.fmtExact(v, 4) + ' ÷ 0.0001 = ' + t + ' tenths' };
       } };
   }
   function genD2F() {
@@ -242,8 +277,17 @@
     return { type: 'mc', a: 0, choices: choices,
       q: '<span class="num">' + M.fmtExact(dec) + '"</span> — which mark is that on the ruler?',
       explain: correct + ' = ' + r[0] + ' ÷ ' + r[1] + ' = ' + M.fmtExact(dec) + '.',
-      diagnose: function () {
-        return '<b>neighbor mark</b> — one small mark off. Divide the fraction out and match decimals exactly.';
+      hint: 'Work backwards: divide each choice out (top ÷ bottom) and see which decimal lands exactly on <b>' + M.fmtExact(dec) + '</b>. Close is not equal.',
+      steps: choices.map(function (c, ci) {
+        var cv = M.parseNum(c);
+        return (ci === 0 ? '<span class="res">' : '<span class="num">') + c + ' = ' + M.fmtExact(cv) + '</span>' +
+          (ci === 0 ? ' ← the match' : '');
+      }).join('<br>'),
+      diagnose: function (chosen) {
+        var cv = M.parseNum(choices[chosen]);
+        return { label: 'Neighbor mark',
+          your: choices[chosen] + ' = ' + M.fmtExact(cv) + ' — close, but ' + Math.round(Math.abs(cv - dec) * 1000) + ' thou off',
+          right: correct + ' = ' + M.fmtExact(dec) + ' — divide it out and match every digit' };
       } };
   }
   function genCompare() {
@@ -251,27 +295,48 @@
     var off = M.pick([0.004, -0.004, 0.006, -0.006, 0.009, -0.009]);
     var other = Math.round((dec + off) * 10000) / 10000;
     var a = dec > other ? 0 : 1;
-    return { type: 'mc', a: a,
-      choices: [M.fracStr(f[0], f[1]), M.fmtExact(other) + '"'],
+    var fs = M.fracStr(f[0], f[1]);
+    var choices = [fs, M.fmtExact(other) + '"'];
+    return { type: 'mc', a: a, choices: choices,
       q: 'Which is <b>larger</b>?',
-      explain: M.fracStr(f[0], f[1]) + ' = ' + M.fmtExact(dec) + '. Put both in decimals, then compare: ' +
+      explain: fs + ' = ' + M.fmtExact(dec) + '. Put both in decimals, then compare: ' +
         M.fmtExact(dec) + ' vs ' + M.fmtExact(other) + ' — a difference of ' + Math.round(Math.abs(off) * 1000) + ' thou.',
-      diagnose: function () { return '<b>compared without converting</b> — turn the fraction into a decimal first, every time.'; } };
+      hint: 'Never compare a fraction to a decimal by feel. Convert the fraction to its decimal first (top ÷ bottom) — then it is just two decimals side by side.',
+      steps: '1 · Convert: ' + fs + ' = <span class="num">' + M.fmtExact(dec) + '</span><br>' +
+        '2 · Line them up: ' + M.fmtExact(dec) + ' vs ' + M.fmtExact(other) + '<br>' +
+        '3 · <span class="res">' + (a === 0 ? fs : M.fmtExact(other) + '"') + '</span> is larger, by ' + Math.round(Math.abs(off) * 1000) + ' thou',
+      diagnose: function (chosen) {
+        var vals = [dec, other];
+        return { label: 'Compared without converting',
+          your: 'picked ' + choices[chosen] + ' = ' + M.fmtExact(vals[chosen]) + ' — the smaller one',
+          right: choices[a] + ' = ' + M.fmtExact(vals[a]) + ' wins by ' + Math.round(Math.abs(off) * 1000) + ' thou' };
+      } };
   }
   function genAdd() {
     var pairs = [[[1,4],[1,8]], [[1,2],[1,16]], [[3,8],[1,16]], [[1,4],[1,16]], [[1,8],[1,32]], [[1,2],[1,8]]];
     var p = M.pick(pairs);
     var a = p[0][0] / p[0][1] + p[1][0] / p[1][1];
+    var d1 = p[0][0] / p[0][1], d2 = p[1][0] / p[1][1];
     var f1 = M.fracStr(p[0][0], p[0][1]), f2 = M.fracStr(p[1][0], p[1][1]);
     var wrongAdd = (p[0][0] + p[1][0]) / (p[0][1] + p[1][1]);
     return { type: 'num', a: a, tol: 0.0005,
       q: 'A step of <span class="num">' + f1 + '</span> plus a step of <span class="num">' + f2 + '</span> — total, in decimal?',
-      explain: f1 + ' = ' + M.fmtExact(p[0][0] / p[0][1]) + ' and ' + f2 + ' = ' + M.fmtExact(p[1][0] / p[1][1]) +
+      explain: f1 + ' = ' + M.fmtExact(d1) + ' and ' + f2 + ' = ' + M.fmtExact(d2) +
         '. Add the decimals: <span class="num">' + M.fmtExact(a) + '</span>.',
+      hint: 'Do not try to add the fractions as fractions. Convert <b>each one</b> to its own decimal first — then it is plain addition.',
+      steps: '1 · First fraction: ' + f1 + ' = <span class="num">' + M.fmtExact(d1) + '</span><br>' +
+        '2 · Second fraction: ' + f2 + ' = <span class="num">' + M.fmtExact(d2) + '</span><br>' +
+        '3 · Add the decimals: ' + M.fmtExact(d1) + ' + ' + M.fmtExact(d2) + ' = <span class="res">' + M.fmtExact(a) + '</span>',
       diagnose: function (v) {
-        if (Math.abs(v - wrongAdd) <= 0.003) return '<b>added tops and bottoms</b> — fractions never add that way. Convert each to a decimal first, then add.';
-        if (Math.abs(v - Math.abs(p[0][0] / p[0][1] - p[1][0] / p[1][1])) <= 0.001) return '<b>subtracted instead of adding</b>.';
-        return '<b>conversion slip</b> — do each fraction alone, write both decimals down, then add.';
+        if (Math.abs(v - wrongAdd) <= 0.003) return { label: 'Added tops and bottoms',
+          your: '(' + p[0][0] + '+' + p[1][0] + ')/(' + p[0][1] + '+' + p[1][1] + ') = ' + M.fmtExact(wrongAdd) + ' — fractions never add that way',
+          right: M.fmtExact(d1) + ' + ' + M.fmtExact(d2) + ' = ' + M.fmtExact(a) };
+        if (Math.abs(v - Math.abs(d1 - d2)) <= 0.001) return { label: 'Subtracted instead of adding',
+          your: M.fmtExact(Math.max(d1, d2)) + ' − ' + M.fmtExact(Math.min(d1, d2)) + ' = ' + M.fmtExact(Math.abs(d1 - d2)),
+          right: M.fmtExact(d1) + ' + ' + M.fmtExact(d2) + ' = ' + M.fmtExact(a) };
+        return { label: 'Conversion slip',
+          your: 'one of the two fractions turned into the wrong decimal on the way to ' + v,
+          right: f1 + ' = ' + M.fmtExact(d1) + ', ' + f2 + ' = ' + M.fmtExact(d2) + ', sum ' + M.fmtExact(a) };
       } };
   }
 

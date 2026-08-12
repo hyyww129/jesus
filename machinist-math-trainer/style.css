@@ -132,6 +132,26 @@ input[type="range"] { width: 100%; accent-color: var(--blue); min-height: 44px; 
 .feedback b { display: block; margin-bottom: 4px; }
 .feedback .num { font-family: var(--mono); color: var(--blue); font-weight: 700; }
 .feedback .diag { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); font-weight: 600; }
+.feedback .res { font-family: var(--mono); color: var(--orange); font-weight: 700; }
+.feedback .pathrow { display: block; font-weight: 400; font-size: 13.5px; margin-top: 5px; }
+.feedback .pathrow .path { font-family: var(--mono); font-weight: 700; }
+.feedback .pathrow.wrong .path { color: var(--orange); }
+.feedback .pathrow.right .path { color: var(--blue); }
+.feedback .steps {
+  font-family: var(--mono); font-size: 13.5px; line-height: 1.9; color: var(--ink);
+  background: #F6F7F3; border: 1.5px dashed var(--line); border-radius: 5px;
+  padding: 9px 12px; margin-top: 10px; overflow-x: auto;
+}
+.feedback .steps .t, .hintbox .t {
+  display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+  color: var(--soft); margin-bottom: 3px;
+}
+.help-row button { min-height: 44px; font-size: 12px; }
+.hintbox {
+  margin-top: 10px; padding: 10px 14px; font-size: 14px; line-height: 1.6;
+  border: 1.5px dashed var(--blue); border-radius: 6px; background: #EFF4FA;
+}
+.hintbox .t { color: var(--blue); }
 .scorebar {
   display: flex; gap: 16px; flex-wrap: wrap; font-family: var(--mono); font-size: 12.5px;
   padding: 9px 14px; border-top: 1.5px solid var(--ink); background: var(--panel);
