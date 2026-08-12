@@ -33,7 +33,7 @@
 <div class="overlay" id="dailyOverlay" style="display:none" role="dialog" aria-modal="true" aria-label="Daily 10">
   <div class="panel">
     <div class="card" style="margin:0;border:none">
-      <h2>Daily 10 — spaced review <button id="dailyClose" style="float:right;min-height:32px;padding:2px 12px;margin-top:-6px">CLOSE ✕</button></h2>
+      <h2 class="with-close">Daily 10 — spaced review <button id="dailyClose">CLOSE ✕</button></h2>
       <div class="body" id="dailyBody"></div>
     </div>
   </div>
@@ -48,8 +48,8 @@
   function ring(pct) {
     var r = 24, c = 2 * Math.PI * r, off = c * (1 - pct / 100);
     return '<svg class="ring" width="62" height="62" viewBox="0 0 62 62" aria-label="confidence ' + pct + '%">' +
-      '<circle cx="31" cy="31" r="' + r + '" fill="none" stroke="#D7DBD3" stroke-width="6"/>' +
-      '<circle cx="31" cy="31" r="' + r + '" fill="none" stroke="' + (pct >= 90 ? 'var(--good-bd)' : 'var(--blue)') + '" stroke-width="6" ' +
+      '<circle class="track" cx="31" cy="31" r="' + r + '" fill="none" stroke-width="6"/>' +
+      '<circle class="arc' + (pct >= 90 ? ' pass' : '') + '" cx="31" cy="31" r="' + r + '" fill="none" stroke-width="6" ' +
       'stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" ' +
       'stroke-linecap="butt" transform="rotate(-90 31 31)"/>' +
       '<text x="31" y="36" text-anchor="middle">' + pct + '%</text></svg>';
@@ -99,6 +99,12 @@
   document.getElementById('dailyClose').addEventListener('click', function () {
     overlay.style.display = 'none';
     drawGrid();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && overlay.style.display === 'flex') {
+      overlay.style.display = 'none';
+      drawGrid();
+    }
   });
 
   drawGrid();

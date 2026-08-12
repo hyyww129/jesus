@@ -56,7 +56,7 @@
       '<h2>Playground — the zoomable inch</h2><div class="body">' +
       '<div class="btnrow" id="detailRow" style="margin-bottom:10px"></div>' +
       '<div class="scrollbox"><svg id="ruler" height="150" role="img" aria-label="one inch ruler"></svg></div>' +
-      '<p class="hint">Tap a mark — or press and <b>drag</b> across the ruler — and watch the fraction, the division, and the decimal move together. Finer detail = more marks per inch.</p>' +
+      '<p class="hint">Tap a mark — or press and <b>drag</b> across the ruler (arrow keys work too) — and watch the fraction, the division, and the decimal move together. Finer detail = more marks per inch.</p>' +
       '<div class="pg-split" style="margin-top:12px">' +
       '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody">tap a mark on the ruler</span></div>' +
       '<div class="pg-live"><div id="droBox"></div></div>' +
@@ -145,6 +145,15 @@
           n + ' mark' + (n > 1 ? 's' : '') + ' of 1/' + d + ' each. ' +
           (r[1] <= 8 ? 'A coarse mark — you could eyeball this one.' : 'Marks this fine are ~' + Math.round(1000 / d) + ' thou apart.'));
       draw();
+      /* keep the selected mark in view when it moved by keyboard or zoom —
+         never mid-drag, where re-scrolling would jump the selection */
+      if (!dragging) {
+        var box = svg.parentNode;
+        var W = widthFor(detail), x = PAD + (W - PAD * 2) * n / d;
+        if (x < box.scrollLeft + 20 || x > box.scrollLeft + box.clientWidth - 20) {
+          box.scrollLeft = Math.max(0, x - box.clientWidth / 2);
+        }
+      }
     }
 
     function pickFromEvent(ev) {
@@ -160,6 +169,15 @@
     svg.addEventListener('pointermove', function (ev) { if (dragging) pickFromEvent(ev); });
     svg.addEventListener('pointerup', function () { dragging = false; });
     svg.addEventListener('pointercancel', function () { dragging = false; });
+    /* keyboard: the ruler is walkable with arrow keys too */
+    svg.setAttribute('tabindex', '0');
+    svg.addEventListener('keydown', function (ev) {
+      var step = ev.key === 'ArrowRight' ? 1 : ev.key === 'ArrowLeft' ? -1 : 0;
+      if (!step) return;
+      ev.preventDefault();
+      var n = Math.max(0, Math.min(detail, sel + step));
+      if (n !== sel) { sel = n; update(); }
+    });
 
     draw(); update();
     window.__m1 = { select: function (n, d) { detail = d || detail; sel = n; draw(); update(); },
@@ -200,8 +218,10 @@
       q: 'A machinist says "hold <span class="num">' + M.fmtExact(v, 4) + '"</span>". How many <b>tenths</b> is that?',
       explain: 'A shop "tenth" = 0.0001" (a tenth of a thou). ' + M.fmtExact(v, 4) + ' ÷ 0.0001 = <span class="num">' + t + '</span> tenths.',
       diagnose: function (u) {
+        /* check the tighter, smaller-magnitude trap first: for small t the ±0.4
+           thou-window around v×1000 would swallow the v×10 answer too */
+        if (Math.abs(u - v * 10) < v * 2) return '<b>tenth-of-an-inch trap</b> — in the shop a "tenth" is a tenth of a THOU, not of an inch.';
         if (Math.abs(u - v * 1000) < 0.4) return '<b>units mix-up</b> — you counted thou. A tenth is ten times smaller: 0.0001".';
-        if (Math.abs(u - v * 10) < 0.4) return '<b>tenth-of-an-inch trap</b> — in the shop a "tenth" is a tenth of a THOU, not of an inch.';
         return '<b>conversion error</b> — divide by 0.0001 (slide the decimal four places).';
       } };
   }

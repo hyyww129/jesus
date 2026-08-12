@@ -171,11 +171,21 @@
         container.querySelectorAll('.choices button').forEach(function (b) {
           b.addEventListener('click', function () { answerMC(q, Number(b.dataset.k), b); });
         });
+        /* keyboard parity with the numeric input.focus() below — otherwise
+           NEXT removes the focused button and keyboard users fall back to <body> */
+        container.querySelector('.choices button').focus();
       } else {
         var input = container.querySelector('input');
         var go = function () { answerNum(q, input.value); };
         container.querySelector('[data-go]').addEventListener('click', go);
-        input.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
+        input.addEventListener('keydown', function (e) {
+          if (e.key !== 'Enter') return;
+          /* preventDefault stops the same keystroke's synthesized keypress from
+             clicking the NEXT button we focus in showFeedback — without it the
+             feedback screen is skipped entirely on keyboard submits */
+          e.preventDefault();
+          go();
+        });
         input.focus();
       }
     }
