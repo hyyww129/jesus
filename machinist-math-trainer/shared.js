@@ -111,6 +111,112 @@
     return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
+  /* ---------------- voice: how a machinist SAYS a number ----------------
+     speakText uses the browser's built-in speech (no network, no accounts).
+     Two reading styles, used deliberately:
+       literal — digit by digit ("zero point zero zero zero five"), safe for
+                 reading questions aloud because it never reveals the answer;
+       shop    — how it's said on the floor ("five tenths", "three hundred
+                 seventy-five thou"), shown AFTER answering and in playgrounds. */
+  function intWords(n) {
+    n = Math.round(Math.abs(n));
+    var ones = ['zero','one','two','three','four','five','six','seven','eight','nine','ten',
+      'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+    var tens = ['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+    if (n < 20) return ones[n];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? '-' + ones[n % 10] : '');
+    if (n < 1000) return ones[Math.floor(n / 100)] + ' hundred' + (n % 100 ? ' ' + intWords(n % 100) : '');
+    return intWords(Math.floor(n / 1000)) + ' thousand' + (n % 1000 ? ' ' + intWords(n % 1000) : '');
+  }
+  function digitWords(str) {
+    var map = { '0':'zero','1':'one','2':'two','3':'three','4':'four','5':'five',
+      '6':'six','7':'seven','8':'eight','9':'nine','.':'point','-':'minus','−':'minus' };
+    return String(str).split('').map(function (c) { return map[c] || ''; })
+      .filter(Boolean).join(' ');
+  }
+  /* shop-style words for an inch measurement */
+  function sayMeasure(v, asTyped) {
+    v = Number(v);
+    var neg = v < 0, av = Math.abs(v);
+    var inches = Math.floor(av + 1e-9);
+    var frac = Math.round((av - inches) * 1e6) / 1e6;
+    var shop;
+    if (frac === 0) {
+      shop = intWords(inches) + (inches === 1 ? ' inch' : ' inches');
+    } else {
+      var tenthsInt = Math.round(frac * 10000);
+      var isTenthExact = Math.abs(frac * 10000 - tenthsInt) < 1e-4;
+      var fracWords;
+      if (!isTenthExact) {
+        /* finer than tenths (e.g. 1/64 = 15.625 thou): decimal thou */
+        var thouStr = String(Math.round(frac * 1e6) / 1000);
+        var parts = thouStr.split('.');
+        fracWords = intWords(+parts[0]) + (parts[1] ? ' point ' + digitWords(parts[1]) : '') + ' thou';
+      } else if (tenthsInt % 10 === 0) {
+        fracWords = intWords(tenthsInt / 10) + ' thou';
+      } else if (tenthsInt < 10) {
+        fracWords = intWords(tenthsInt) + (tenthsInt === 1 ? ' tenth' : ' tenths');
+      } else if (tenthsInt % 10 === 5) {
+        fracWords = intWords(Math.floor(tenthsInt / 10)) + ' and a half thou';
+      } else {
+        var r = tenthsInt % 10;
+        fracWords = intWords(Math.floor(tenthsInt / 10)) + ' thou and ' + intWords(r) + (r === 1 ? ' tenth' : ' tenths');
+      }
+      shop = inches > 0
+        ? intWords(inches) + (inches === 1 ? ' inch' : ' inches') + ' and ' + fracWords
+        : fracWords;
+    }
+    if (neg) shop = 'minus ' + shop;
+    var literal = digitWords(asTyped !== undefined ? asTyped : (av < 1 ? v.toFixed(4).replace(/0+$/, '').replace(/\.$/, '.0') : String(v)));
+    return { shop: shop, literal: literal };
+  }
+  function sayFraction(n, d) {
+    var names = { 2:'half',4:'quarter',8:'eighth',16:'sixteenth',32:'thirty-second',64:'sixty-fourth' };
+    var w = names[d];
+    if (!w) return intWords(n) + ' over ' + intWords(d);
+    if (n === 1) return 'one ' + w;
+    return intWords(n) + ' ' + (d === 2 ? 'halves' : w + 's');
+  }
+  /* read a question's HTML aloud — numbers spoken LITERALLY so nothing leaks */
+  function spokenFromHtml(html) {
+    var s = String(html).replace(/<[^>]*>/g, ' ').replace(/&\w+;/g, ' ');
+    s = s.replace(/(\d+)\s*\/\s*(\d+)/g, function (m, a, b) { return sayFraction(+a, +b); });
+    s = s.replace(/(\d*\.\d+)\s*(?:")?/g, function (m, d) { return digitWords(d) + ' inches, '; });
+    s = s.replace(/(\d+)"/g, function (m, d) { return intWords(+d) + ' inches'; });
+    return s.replace(/\s+/g, ' ').trim();
+  }
+  /* how to SAY the correct answer, shop-style (shown after answering) */
+  function sayAnswer(q) {
+    if (q.type === 'mc') {
+      var c = String(q.choices[q.a]).replace(/<[^>]*>/g, '').replace(/"/g, '').trim();
+      var m = c.match(/^(\d+)\/(\d+)$/);
+      if (m) return sayFraction(+m[1], +m[2]);
+      var d = parseFloat(c);
+      if (!isNaN(d)) return sayMeasure(d, c).shop;
+      return null;
+    }
+    if (q.unit === 'thou') return intWords(Math.round(q.a)) + ' thou';
+    if (q.unit === 'tenths') return intWords(Math.round(q.a)) + (Math.round(q.a) === 1 ? ' tenth' : ' tenths');
+    var s = sayMeasure(q.a);
+    return s.shop + ' — read off the DRO as ' + s.literal;
+  }
+  function speakText(t) {
+    try {
+      if (!window.speechSynthesis) return;
+      var u = new SpeechSynthesisUtterance(t);
+      u.rate = 0.92;
+      var vs = speechSynthesis.getVoices();
+      var v = null;
+      for (var k = 0; k < vs.length; k++) {
+        if (/en[-_]US/i.test(vs[k].lang)) { v = vs[k]; break; }
+        if (!v && /^en/i.test(vs[k].lang)) v = vs[k];
+      }
+      if (v) u.voice = v;
+      speechSynthesis.cancel();
+      speechSynthesis.speak(u);
+    } catch (e) { /* no speech on this device — buttons just do nothing */ }
+  }
+
   /* ---------------- DRO panel ---------------- */
   /* dro(el, axisLabel) -> {set(valueString, meaningHTML)} */
   function dro(el, axisLabel) {
@@ -155,7 +261,7 @@
         ' — QUESTION ' + (i + 1) + ' / ' + qs.length +
         (isQuiz ? '' : ' · running: ' + correct + ' right') +
         (q.from ? ' · from ' + esc(q.from) : '') + '</div>' +
-        '<div class="q-text">' + q.q + '</div>';
+        '<div class="q-text">' + q.q + ' <button class="say" data-read aria-label="read the question aloud">🔊 READ IT</button></div>';
       if (q.type === 'mc') {
         h += '<div class="choices">' + q.order.map(function (ci, k) {
           return '<button data-k="' + k + '">' + String.fromCharCode(65 + k) + ' · ' + q.choices[ci] + '</button>';
@@ -204,6 +310,23 @@
       });
       var walkBtn = container.querySelector('[data-walk]');
       if (walkBtn) walkBtn.addEventListener('click', function () { walkThrough(q); });
+      var readBtn = container.querySelector('[data-read]');
+      if (readBtn) readBtn.addEventListener('click', function () {
+        /* numbers read digit-by-digit on purpose — hearing "zero point one eight
+           seven" teaches how to READ the numeral without handing over the answer */
+        speakText(spokenFromHtml(q.q));
+      });
+    }
+
+    function sayLineHtml(q) {
+      var say = sayAnswer(q);
+      if (!say) return '';
+      return '<span class="sayline">SAY IT LIKE A MACHINIST: <i>&ldquo;' + say + '&rdquo;</i>' +
+        ' <button class="say" data-sayans aria-label="hear it spoken">🔊 HEAR IT</button></span>';
+    }
+    function wireSay(slot, q) {
+      var b = slot.querySelector('[data-sayans]');
+      if (b) b.addEventListener('click', function () { speakText(sayAnswer(q)); });
     }
 
     function stepsBlock(q) {
@@ -241,10 +364,11 @@
       freeze();
       var slot = container.querySelector('.fb-slot');
       slot.innerHTML = '<div class="feedback good"><b>Smart ask — here is the whole path.</b> ' +
-        (q.explain || '') + stepsBlock(q) +
+        (q.explain || '') + stepsBlock(q) + sayLineHtml(q) +
         '<span class="diag">Counted as a miss in the running score — understanding first, the points come back on the next one.</span></div>' +
         nextBtnHtml();
       wireNext(slot);
+      wireSay(slot, q);
     }
 
     function showFeedback(q, ok, userShown, diag, isRetry) {
@@ -254,15 +378,16 @@
         h = '<div class="feedback good">' +
           (isRetry ? '<b>There it is — got it on the retry.</b> The first attempt is what counted for the score; the method is what you keep. '
                    : '<b>Right.</b> ') +
-          (q.explain || '') + '</div>' + nextBtnHtml();
+          (q.explain || '') + sayLineHtml(q) + '</div>' + nextBtnHtml();
       } else {
         var retryBtn = isQuiz ? '' : '<button data-retry>TRY IT AGAIN</button>';
         h = '<div class="feedback bad"><b>Not this time.</b> You answered <span class="num">' + esc(userShown) + '</span>. ' +
-          (q.explain || '') + diagHtml(diag) + stepsBlock(q) + '</div>' + nextBtnHtml(retryBtn);
+          (q.explain || '') + diagHtml(diag) + stepsBlock(q) + sayLineHtml(q) + '</div>' + nextBtnHtml(retryBtn);
       }
       slot.innerHTML = h;
       freeze();
       wireNext(slot);
+      wireSay(slot, q);
     }
 
     /* only the FIRST attempt on a question counts toward the score */
@@ -498,6 +623,8 @@
     state: state, save: save, rec: rec,
     recordQuiz: recordQuiz, nudge: nudge, isUnlocked: isUnlocked,
     fmt: fmt, fmtExact: fmtExact, signed: signed,
+    intWords: intWords, digitWords: digitWords, sayMeasure: sayMeasure,
+    sayFraction: sayFraction, spokenFromHtml: spokenFromHtml, speakText: speakText,
     gcd: gcd, reduceFrac: reduceFrac, fracStr: fracStr,
     parseNum: parseNum, shuffle: shuffle, pick: pick, esc: esc,
     dro: dro, runSet: runSet, daily10Questions: daily10Questions,

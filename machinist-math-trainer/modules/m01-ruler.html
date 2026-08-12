@@ -59,7 +59,9 @@
       '<p class="hint">Tap a mark — or press and <b>drag</b> across the ruler (arrow keys work too) — and watch the fraction, the division, and the decimal move together. Finer detail = more marks per inch.</p>' +
       '<div class="pg-split" style="margin-top:12px">' +
       '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody">tap a mark on the ruler</span></div>' +
-      '<div class="pg-live"><div id="droBox"></div></div>' +
+      '<div class="pg-live"><div id="droBox"></div>' +
+      '<button id="sayBtn">🔊 SAY THIS MEASUREMENT</button>' +
+      '<p class="hint" id="sayText" style="margin-top:0"></p></div>' +
       '</div></div>';
     panes.appendChild(card);
 
@@ -144,6 +146,11 @@
         : '<b>' + M.fmtExact(thou, 1).replace(/\.0$/, '') + ' thou</b> from the left end — ' +
           n + ' mark' + (n > 1 ? 's' : '') + ' of 1/' + d + ' each. ' +
           (r[1] <= 8 ? 'A coarse mark — you could eyeball this one.' : 'Marks this fine are ~' + Math.round(1000 / d) + ' thou apart.'));
+      var sayEl = document.getElementById('sayText');
+      if (sayEl) {
+        sayEl.textContent = n === 0 ? '' :
+          'Said out loud: “' + M.sayFraction(r[0], r[1]) + '” — “' + M.sayMeasure(dec).shop + '”';
+      }
       draw();
       /* keep the selected mark in view when it moved by keyboard or zoom —
          never mid-drag, where re-scrolling would jump the selection */
@@ -155,6 +162,18 @@
         }
       }
     }
+
+    function currentSpeech() {
+      var n = sel, d = detail;
+      if (n === 0) return 'zero. The left end of the inch.';
+      var r = M.reduceFrac(n, d);
+      var s = M.sayMeasure(n / d);
+      var words = M.sayFraction(r[0], r[1]) + '. On the DRO: ' + s.literal + '. On the floor you say: ' + s.shop + '.';
+      return words;
+    }
+    card.querySelector('#sayBtn').addEventListener('click', function () {
+      M.speakText(currentSpeech());
+    });
 
     function pickFromEvent(ev) {
       var rect = svg.getBoundingClientRect();
