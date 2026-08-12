@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Machinist Math Trainer</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <div class="eyebrow">TRAK DPM3 · ProtoTRAK SMX · Shop Math From Zero</div>
+    <h1>Machinist <span class="b">Math</span> Trainer</h1>
+    <p class="sub">Ten modules, in order, from reading a ruler to trig and tolerances.
+      Pass each quiz at 90% to unlock the next. Every number on every screen shows its
+      math moving live — you never just get an answer.
+      Progress lives in this browser tab only; close the tab and it resets.</p>
+  </header>
+
+  <div class="card">
+    <h2>Spaced review</h2>
+    <div class="body">
+      <div class="btnrow">
+        <button class="accent" id="dailyBtn">DAILY 10 — mixed questions from everything you've unlocked</button>
+      </div>
+      <p class="hint" id="dailyHint"></p>
+    </div>
+  </div>
+
+  <div class="mod-grid" id="grid"></div>
+</div>
+
+<div class="overlay" id="dailyOverlay" style="display:none" role="dialog" aria-modal="true" aria-label="Daily 10">
+  <div class="panel">
+    <div class="card" style="margin:0;border:none">
+      <h2>Daily 10 — spaced review <button id="dailyClose" style="float:right;min-height:32px;padding:2px 12px;margin-top:-6px">CLOSE ✕</button></h2>
+      <div class="body" id="dailyBody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var M = window.MMT;
+
+  function ring(pct) {
+    var r = 24, c = 2 * Math.PI * r, off = c * (1 - pct / 100);
+    return '<svg class="ring" width="62" height="62" viewBox="0 0 62 62" aria-label="confidence ' + pct + '%">' +
+      '<circle cx="31" cy="31" r="' + r + '" fill="none" stroke="#D7DBD3" stroke-width="6"/>' +
+      '<circle cx="31" cy="31" r="' + r + '" fill="none" stroke="' + (pct >= 90 ? 'var(--good-bd)' : 'var(--blue)') + '" stroke-width="6" ' +
+      'stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" ' +
+      'stroke-linecap="butt" transform="rotate(-90 31 31)"/>' +
+      '<text x="31" y="36" text-anchor="middle">' + pct + '%</text></svg>';
+  }
+
+  function drawGrid() {
+    var grid = document.getElementById('grid');
+    grid.innerHTML = M.MODULES.map(function (m) {
+      var r = M.rec(m.id);
+      var unlocked = M.isUnlocked(m.id);
+      var status = r.passed ? 'PASSED ✓ ' + r.best + '%'
+        : unlocked ? (r.attempts ? 'BEST ' + r.best + '%' : 'READY')
+        : 'LOCKED';
+      var bottom;
+      if (!unlocked) {
+        bottom = '<div class="lock-note">pass Module ' + (m.n - 1) + ' to unlock</div>';
+      } else if (!m.built) {
+        bottom = '<div class="lock-note">unlocked — this module isn\'t built yet</div>';
+      } else {
+        bottom = '<a class="btn ' + (r.passed ? '' : 'primary') + '" href="' + m.file + '">' +
+          (r.passed ? 'REPLAY' : r.attempts ? 'CONTINUE' : 'START') + '</a>';
+      }
+      return '<div class="mod-card' + (unlocked ? '' : ' locked') + '">' +
+        '<div class="top"><span class="n">MODULE ' + String(m.n).padStart(2, '0') + '</span>' +
+        '<span class="st' + (r.passed ? ' pass' : '') + '">' + status + '</span></div>' +
+        '<div class="mid">' + ring(Math.round(r.confidence)) +
+        '<div><h3>' + m.title + '</h3><p>' + m.desc + '</p></div></div>' +
+        '<div class="bottom">' + bottom + '</div></div>';
+    }).join('');
+    var unlockedBuilt = M.MODULES.filter(function (m) { return m.built && M.isUnlocked(m.id); });
+    document.getElementById('dailyHint').textContent =
+      'Pulls from: ' + unlockedBuilt.map(function (m) { return 'Module ' + m.n; }).join(', ') +
+      '. Right answers nudge that module\'s confidence up 1%, misses pull it down 2%.';
+  }
+
+  var overlay = document.getElementById('dailyOverlay');
+  document.getElementById('dailyBtn').addEventListener('click', function () {
+    var qs = M.daily10Questions();
+    if (!qs.length) return;
+    overlay.style.display = 'flex';
+    M.runSet(document.getElementById('dailyBody'), {
+      mode: 'practice', title: 'DAILY 10', questions: qs,
+      onAnswer: function (q, ok) { if (q.moduleId) M.nudge(q.moduleId, ok); },
+      onFinish: function () { drawGrid(); },
+    });
+  });
+  document.getElementById('dailyClose').addEventListener('click', function () {
+    overlay.style.display = 'none';
+    drawGrid();
+  });
+
+  drawGrid();
+})();
+</script>
+</body>
+</html>

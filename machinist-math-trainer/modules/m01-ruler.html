@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 1 · Reading a Ruler &amp; Thousandths</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← HUB</a>
+    <div class="eyebrow">Module 01 · Machinist Math Trainer</div>
+    <h1>Reading a Ruler &amp; <span class="b">Thousandths</span></h1>
+    <p class="sub">Fractions are divisions. A thou is 0.001". Everything on a mill is
+      one of those two ideas — this module makes both automatic.</p>
+  </header>
+  <div id="mmt-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var M = window.MMT;
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>A machinist\'s inch gets cut in half, over and over: <b>1/2 → 1/4 → 1/8 → 1/16 → 1/32 → 1/64</b>. ' +
+  'Every mark on a shop ruler is one of those. That\'s the whole ruler.</p>' +
+  '<p>The trick that unlocks everything: <span class="term">a fraction IS a division</span>. ' +
+  '3/8 doesn\'t just <i>mean</i> three-eighths — it\'s the instruction "divide 3 by 8". Do the division and you get the decimal the DRO speaks:</p>' +
+  '<div class="worked">3/8 &nbsp;=&nbsp; <span class="num">3 ÷ 8</span><br>' +
+  '8 into 3.000: &nbsp;8 × <span class="num">3</span> = 24 → remainder 6 &nbsp;·&nbsp; 8 × <span class="num">7</span> = 56 → remainder 4 &nbsp;·&nbsp; 8 × <span class="num">5</span> = 40 → done<br>' +
+  '3/8 &nbsp;=&nbsp; <span class="res">0.375"</span></div>' +
+  '<p>Now the machinist\'s units. A <span class="term">thou</span> is 0.001" — one thousandth of an inch. ' +
+  'A sheet of printer paper is about 4 thou thick; a human hair about 3. So 0.375" is <b>375 thou</b> — just slide the decimal three places.</p>' +
+  '<p>A <span class="term">tenth</span>, in shop talk, is NOT 0.1". It\'s a tenth <i>of a thou</i>: <b>0.0001"</b>. ' +
+  'When a machinist says "hold it within two tenths," they mean 0.0002". This trips up every beginner once — let it be zero times for you.</p>' +
+  '<p>Rulers stop at 1/64 (about 16 thou between marks). Anything finer, you measure with calipers and micrometers — that\'s Module 10.</p>' +
+  '<table class="ref"><tr><th>Fraction</th><th>Decimal</th><th>Thou</th></tr>' +
+  [['1/16','0.0625',62.5],['1/8','0.125',125],['1/4','0.250',250],['3/8','0.375',375],['1/2','0.500',500],['5/8','0.625',625],['3/4','0.750',750],['7/8','0.875',875]]
+    .map(function (r) { return '<tr><td>' + r[0] + '</td><td>' + r[1] + '"</td><td>' + r[2] + '</td></tr>'; }).join('') +
+  '</table>' +
+  '<p style="margin-top:10px">Head to the <b>Playground</b> and drag along the ruler — watch the division do its work live.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  var DENOMS = [4, 8, 16, 32, 64];
+
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — the zoomable inch</h2><div class="body">' +
+      '<div class="btnrow" id="detailRow" style="margin-bottom:10px"></div>' +
+      '<div class="scrollbox"><svg id="ruler" height="150" role="img" aria-label="one inch ruler"></svg></div>' +
+      '<p class="hint">Tap a mark — or press and <b>drag</b> across the ruler — and watch the fraction, the division, and the decimal move together. Finer detail = more marks per inch.</p>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody">tap a mark on the ruler</span></div>' +
+      '<div class="pg-live"><div id="droBox"></div></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var svg = card.querySelector('#ruler');
+    var eqBody = card.querySelector('#eqBody');
+    var droCtl = M.dro(card.querySelector('#droBox'), 'INCH');
+    var detail = 8;           /* current denominator */
+    var sel = 3;              /* selected numerator at current detail (3/8 to start) */
+
+    var detailRow = card.querySelector('#detailRow');
+    DENOMS.forEach(function (d) {
+      var b = document.createElement('button');
+      b.textContent = '1/' + d + 's';
+      b.className = d === detail ? 'on' : '';
+      b.addEventListener('click', function () {
+        /* keep the same physical spot selected when zooming */
+        sel = Math.round(sel * d / detail);
+        detail = d;
+        detailRow.querySelectorAll('button').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        draw(); update();
+      });
+      detailRow.appendChild(b);
+    });
+
+    var PAD = 30;
+    function widthFor(d) { return Math.max(620, d * 22) + PAD * 2; }
+
+    function rank(n, d) { /* how "major" a tick is: 0 = inch ends, then halves, quarters… */
+      var r = M.reduceFrac(n, d);
+      return Math.log2(r[1]);
+    }
+
+    function draw() {
+      var W = widthFor(detail), H = 150;
+      svg.setAttribute('width', W);
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      var inner = W - PAD * 2;
+      var s = '<rect x="' + PAD + '" y="30" width="' + inner + '" height="6" fill="#232A2E"/>';
+      for (var n = 0; n <= detail; n++) {
+        var x = PAD + inner * n / detail;
+        var rk = rank(n, detail);
+        var len = [46, 40, 32, 26, 20, 15, 11][Math.min(rk, 6)];
+        var wdt = rk <= 1 ? 2.5 : rk <= 3 ? 1.8 : 1.2;
+        var isSel = n === sel;
+        s += '<line x1="' + x + '" y1="36" x2="' + x + '" y2="' + (36 + len) + '" stroke="' +
+          (isSel ? '#E4572E' : '#232A2E') + '" stroke-width="' + (isSel ? 3.5 : wdt) + '"/>';
+        if (rk <= 2) { /* label inch ends + halves + quarters */
+          var lab = n === 0 ? '0' : n === detail ? '1"' : M.fracStr(n, detail);
+          s += '<text x="' + x + '" y="' + (36 + len + 16) + '" text-anchor="middle" ' +
+            'font-family="ui-monospace,monospace" font-size="12" fill="#5A6268">' + lab + '</text>';
+        }
+        if (isSel) {
+          s += '<path d="M ' + x + ' 26 l -7 -12 l 14 0 z" fill="#E4572E"/>' +
+            '<text x="' + x + '" y="128" text-anchor="middle" font-family="ui-monospace,monospace" ' +
+            'font-size="15" font-weight="700" fill="#E4572E">' +
+            (n === 0 ? '0' : n === detail ? '1"' : M.fracStr(n, detail)) + '</text>' +
+            '<text x="' + x + '" y="144" text-anchor="middle" font-family="ui-monospace,monospace" ' +
+            'font-size="12" fill="#1F5FA8">' + M.fmtExact(n / detail) + '"</text>';
+        }
+      }
+      svg.innerHTML = s;
+    }
+
+    function update() {
+      var n = sel, d = detail;
+      var dec = n / d;
+      var r = M.reduceFrac(n, d);
+      var thou = dec * 1000;
+      var eq;
+      if (n === 0) {
+        eq = '<span class="num">0/' + d + '</span> = <span class="res">0.0000"</span> <span class="dim">— the left end. Zero. Every measurement starts somewhere.</span>';
+      } else {
+        eq = '<span class="num">' + n + '/' + d + '</span>';
+        if (r[1] !== d) eq += ' <span class="dim">= ' + r[0] + '/' + r[1] + ' (divide top and bottom by ' + (d / r[1]) + ')</span>';
+        eq += '<br>= <span class="num">' + r[0] + '</span> ÷ <span class="num">' + r[1] + '</span>' +
+          '<br>= <span class="res">' + M.fmtExact(dec) + '"</span>';
+      }
+      eqBody.innerHTML = eq;
+      droCtl.set(M.fmtExact(dec) + '"',
+        n === 0 ? 'Part zero of this inch. Move right and watch every layer of the math move with you.'
+        : '<b>' + M.fmtExact(thou, 1).replace(/\.0$/, '') + ' thou</b> from the left end — ' +
+          n + ' mark' + (n > 1 ? 's' : '') + ' of 1/' + d + ' each. ' +
+          (r[1] <= 8 ? 'A coarse mark — you could eyeball this one.' : 'Marks this fine are ~' + Math.round(1000 / d) + ' thou apart.'));
+      draw();
+    }
+
+    function pickFromEvent(ev) {
+      var rect = svg.getBoundingClientRect();
+      var W = widthFor(detail), inner = W - PAD * 2;
+      var x = (ev.clientX - rect.left) * (W / rect.width) - PAD;
+      var n = Math.round(x / inner * detail);
+      n = Math.max(0, Math.min(detail, n));
+      if (n !== sel) { sel = n; update(); }
+    }
+    var dragging = false;
+    svg.addEventListener('pointerdown', function (ev) { dragging = true; svg.setPointerCapture(ev.pointerId); pickFromEvent(ev); });
+    svg.addEventListener('pointermove', function (ev) { if (dragging) pickFromEvent(ev); });
+    svg.addEventListener('pointerup', function () { dragging = false; });
+    svg.addEventListener('pointercancel', function () { dragging = false; });
+
+    draw(); update();
+    window.__m1 = { select: function (n, d) { detail = d || detail; sel = n; draw(); update(); },
+      info: function () { return { sel: sel, detail: detail }; } };
+  }
+
+  /* ============ question generators (practice + quiz) ============ */
+  var POOL = [[1,2],[1,4],[3,4],[1,8],[3,8],[5,8],[7,8],[1,16],[3,16],[5,16],[7,16],[9,16],[11,16],[13,16],[15,16],[3,32],[5,32],[7,32],[9,32],[11,32],[15,32],[19,32],[21,32],[25,32],[27,32],[31,32],[3,64],[5,64],[9,64],[11,64],[17,64],[23,64],[33,64],[43,64],[63,64]];
+
+  function genF2D() {
+    var f = M.pick(POOL), n = f[0], d = f[1], dec = n / d;
+    return { type: 'num', a: dec, tol: 0.0005,
+      q: 'Convert <span class="num">' + n + '/' + d + '</span> to a decimal (four places).',
+      explain: 'A fraction is a division: ' + n + ' ÷ ' + d + ' = <span class="num">' + M.fmtExact(dec) + '</span>.',
+      diagnose: function (v) {
+        if (n !== d && Math.abs(v - d / n) <= 0.002) return '<b>inverted fraction</b> — you divided ' + d + ' ÷ ' + n + '. Top goes inside: ' + n + ' ÷ ' + d + '.';
+        if (Math.abs(v - dec * 10) <= 0.005 || Math.abs(v - dec / 10) <= 0.005) return '<b>decimal-place slip</b> — right digits, point moved one spot.';
+        if (Math.abs(v - dec) <= 0.006) return '<b>rounded too early</b> — carry the division out to four places.';
+        return '<b>wrong operation</b> — a fraction is always top ÷ bottom.';
+      } };
+  }
+  function genThou() {
+    var v = M.pick([0.031, 0.062, 0.125, 0.187, 0.250, 0.312, 0.375, 0.437, 0.500, 0.625, 0.750, 0.812, 0.875]);
+    var a = Math.round(v * 1000);
+    return { type: 'num', a: a, tol: 0.6, unit: 'thou',
+      q: '<span class="num">' + M.fmtExact(v, 3) + '"</span> is how many <b>thou</b>?',
+      explain: 'Thou = thousandths, so multiply by 1000: ' + M.fmtExact(v, 3) + ' × 1000 = <span class="num">' + a + '</span> thou.',
+      diagnose: function (u) {
+        if (Math.abs(u - v) < 0.002) return '<b>units mix-up</b> — that\'s the decimal again. Thou is the decimal × 1000.';
+        if (Math.abs(u - a / 10) < 0.6 || Math.abs(u - a * 10) < 6) return '<b>decimal-place slip</b> — the point moved one spot. Slide it exactly three places.';
+        return '<b>conversion error</b> — slide the decimal three places right: 0.001" = 1 thou.';
+      } };
+  }
+  function genTenth() {
+    var t = M.pick([2, 5, 8, 12, 25]);
+    var v = t / 10000;
+    return { type: 'num', a: t, tol: 0.4, unit: 'tenths',
+      q: 'A machinist says "hold <span class="num">' + M.fmtExact(v, 4) + '"</span>". How many <b>tenths</b> is that?',
+      explain: 'A shop "tenth" = 0.0001" (a tenth of a thou). ' + M.fmtExact(v, 4) + ' ÷ 0.0001 = <span class="num">' + t + '</span> tenths.',
+      diagnose: function (u) {
+        if (Math.abs(u - v * 1000) < 0.4) return '<b>units mix-up</b> — you counted thou. A tenth is ten times smaller: 0.0001".';
+        if (Math.abs(u - v * 10) < 0.4) return '<b>tenth-of-an-inch trap</b> — in the shop a "tenth" is a tenth of a THOU, not of an inch.';
+        return '<b>conversion error</b> — divide by 0.0001 (slide the decimal four places).';
+      } };
+  }
+  function genD2F() {
+    var f = M.pick(POOL), n = f[0], d = f[1];
+    var r = M.reduceFrac(n, d), dec = n / d;
+    var correct = M.fracStr(r[0], r[1]);
+    /* distractors: neighboring ruler marks only — always proper, always plausible */
+    var cands = [[n - 1, d], [n + 1, d], [2 * n - 1, 2 * d], [2 * n + 1, 2 * d], [2 * n - 3, 2 * d], [2 * n + 3, 2 * d]];
+    var seen = { }; seen[correct] = true;
+    var choices = [correct];
+    for (var k = 0; k < cands.length && choices.length < 4; k++) {
+      var cn = cands[k][0], cd = cands[k][1];
+      if (cn <= 0 || cn >= cd) continue;
+      var s = M.fracStr(cn, cd);
+      if (!seen[s]) { seen[s] = true; choices.push(s); }
+    }
+    return { type: 'mc', a: 0, choices: choices,
+      q: '<span class="num">' + M.fmtExact(dec) + '"</span> — which mark is that on the ruler?',
+      explain: correct + ' = ' + r[0] + ' ÷ ' + r[1] + ' = ' + M.fmtExact(dec) + '.',
+      diagnose: function () {
+        return '<b>neighbor mark</b> — one small mark off. Divide the fraction out and match decimals exactly.';
+      } };
+  }
+  function genCompare() {
+    var f = M.pick(POOL), dec = f[0] / f[1];
+    var off = M.pick([0.004, -0.004, 0.006, -0.006, 0.009, -0.009]);
+    var other = Math.round((dec + off) * 10000) / 10000;
+    var a = dec > other ? 0 : 1;
+    return { type: 'mc', a: a,
+      choices: [M.fracStr(f[0], f[1]), M.fmtExact(other) + '"'],
+      q: 'Which is <b>larger</b>?',
+      explain: M.fracStr(f[0], f[1]) + ' = ' + M.fmtExact(dec) + '. Put both in decimals, then compare: ' +
+        M.fmtExact(dec) + ' vs ' + M.fmtExact(other) + ' — a difference of ' + Math.round(Math.abs(off) * 1000) + ' thou.',
+      diagnose: function () { return '<b>compared without converting</b> — turn the fraction into a decimal first, every time.'; } };
+  }
+  function genAdd() {
+    var pairs = [[[1,4],[1,8]], [[1,2],[1,16]], [[3,8],[1,16]], [[1,4],[1,16]], [[1,8],[1,32]], [[1,2],[1,8]]];
+    var p = M.pick(pairs);
+    var a = p[0][0] / p[0][1] + p[1][0] / p[1][1];
+    var f1 = M.fracStr(p[0][0], p[0][1]), f2 = M.fracStr(p[1][0], p[1][1]);
+    var wrongAdd = (p[0][0] + p[1][0]) / (p[0][1] + p[1][1]);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'A step of <span class="num">' + f1 + '</span> plus a step of <span class="num">' + f2 + '</span> — total, in decimal?',
+      explain: f1 + ' = ' + M.fmtExact(p[0][0] / p[0][1]) + ' and ' + f2 + ' = ' + M.fmtExact(p[1][0] / p[1][1]) +
+        '. Add the decimals: <span class="num">' + M.fmtExact(a) + '</span>.',
+      diagnose: function (v) {
+        if (Math.abs(v - wrongAdd) <= 0.003) return '<b>added tops and bottoms</b> — fractions never add that way. Convert each to a decimal first, then add.';
+        if (Math.abs(v - Math.abs(p[0][0] / p[0][1] - p[1][0] / p[1][1])) <= 0.001) return '<b>subtracted instead of adding</b>.';
+        return '<b>conversion slip</b> — do each fraction alone, write both decimals down, then add.';
+      } };
+  }
+
+  function practiceQs() {
+    return M.shuffle([genF2D(), genF2D(), genF2D(), genThou(), genThou(), genTenth(), genD2F(), genD2F(), genCompare(), genAdd()]);
+  }
+  function quizQs() {
+    return M.shuffle([genF2D(), genF2D(), genF2D(), genF2D(), genThou(), genThou(), genTenth(), genD2F(), genCompare(), genAdd()]);
+  }
+
+  M.modulePage('m1', {
+    explainer: EXPLAINER,
+    playground: playground,
+    practiceQs: practiceQs,
+    quizQs: quizQs,
+  });
+})();
+</script>
+</body>
+</html>
