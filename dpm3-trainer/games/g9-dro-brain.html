@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G9 · DRO Brain — Live Math Trainer</title>
+<style>
+  :root{
+    --paper:#EDEFEA; --panel:#E4E7E0; --grid:#DBDFD6;
+    --ink:#232A2E; --soft:#5A6268; --blue:#1F5FA8; --orange:#E4572E;
+    --green:#37C871; --amber:#FFD24A;
+    --mono:ui-monospace,"SF Mono","Cascadia Mono",Consolas,Menlo,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--sans);color:var(--ink);background:var(--paper);
+    background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+    background-size:26px 26px;padding:12px;max-width:640px;margin:0 auto}
+  header{border:2px solid var(--ink);background:var(--paper);box-shadow:0 0 0 4px var(--paper),0 0 0 5px var(--ink);padding:12px 14px;margin-bottom:14px}
+  header .hub{float:right;font-family:var(--mono);font-size:11px;color:var(--blue);text-decoration:none;border-bottom:1px solid var(--blue)}
+  .eyebrow{font-family:var(--mono);font-size:10px;letter-spacing:.16em;color:var(--soft);text-transform:uppercase}
+  h1{font-size:20px;font-weight:800;letter-spacing:-.01em;margin-top:4px}
+  h1 .b{color:var(--blue)}
+  .sub{font-size:12.5px;color:var(--soft);margin-top:6px;line-height:1.5}
+  .card{border:1.5px solid var(--ink);background:#fff;margin-bottom:12px}
+  .card h2{font-family:var(--mono);font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--soft);
+    padding:8px 12px;border-bottom:1.5px solid var(--ink);background:var(--panel)}
+  .card .body{padding:12px}
+  /* prompt */
+  #prompt{font-size:14px;line-height:1.55}
+  #prompt b{color:var(--blue)}
+  #prompt .hi{color:var(--orange);font-weight:700}
+  /* DRO */
+  .dro{background:#0E1B13;border-radius:6px;padding:14px 16px;font-family:var(--mono)}
+  .dro .row{display:flex;align-items:baseline;justify-content:space-between;margin:2px 0}
+  .dro .ax{color:#3E6B4E;font-size:15px;font-weight:700}
+  .dro .val{font-size:34px;font-weight:700;letter-spacing:.02em}
+  .dro .val.x{color:#58F08A}.dro .val.y{color:#58F08A}
+  .dro .val.live{color:var(--amber)}
+  .dro .foot{color:#3E6B4E;font-size:10px;letter-spacing:.1em;margin-top:6px;text-transform:uppercase}
+  /* math strip */
+  .math{font-family:var(--mono);font-size:13px;line-height:1.7;padding:2px 0}
+  .math .lbl{color:var(--soft);font-size:11px;text-transform:uppercase;letter-spacing:.08em}
+  .math .eq{font-size:15px;margin-top:2px}
+  .math .num{color:var(--blue);font-weight:700}
+  .math .res{color:var(--orange);font-weight:700}
+  .math .dim{color:var(--soft)}
+  /* jog */
+  .jogwrap{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .jogwrap .full{grid-column:1/-1}
+  button.jog{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.05em;color:var(--ink);
+    background:#F6F7F3;border:1.5px solid var(--ink);border-radius:5px;padding:12px 8px;cursor:pointer;
+    box-shadow:0 2px 0 var(--ink);user-select:none;-webkit-user-select:none;touch-action:manipulation}
+  button.jog:active{transform:translateY(2px);box-shadow:0 0 0 var(--ink)}
+  .steprow{display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap}
+  button.step{font-family:var(--mono);font-size:11px;font-weight:700;padding:7px 10px;border:1.5px solid var(--ink);
+    border-radius:5px;background:#F6F7F3;cursor:pointer;box-shadow:0 2px 0 var(--ink)}
+  button.step.on{background:var(--blue);color:#fff;border-color:var(--blue);box-shadow:0 2px 0 #12365f}
+  button.step:active{transform:translateY(2px);box-shadow:0 0 0 var(--ink)}
+  /* set box */
+  .setrow{display:flex;gap:8px;align-items:center;margin-top:10px}
+  .setrow label{font-family:var(--mono);font-size:13px;font-weight:700}
+  .setrow input{flex:1;font-family:var(--mono);font-size:18px;padding:9px 11px;border:1.5px solid var(--ink);
+    border-radius:5px;background:#0E1B13;color:var(--amber);font-weight:700}
+  button.primary{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;
+    color:#fff;background:var(--blue);border:1.5px solid var(--blue);border-radius:5px;padding:10px 16px;cursor:pointer;
+    box-shadow:0 2px 0 #12365f}
+  button.primary:active{transform:translateY(2px);box-shadow:0 0 0 #12365f}
+  button.ghost{font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;
+    color:var(--ink);background:#F6F7F3;border:1.5px solid var(--ink);border-radius:5px;padding:9px 14px;cursor:pointer;box-shadow:0 2px 0 var(--ink)}
+  button.ghost:active{transform:translateY(2px);box-shadow:0 0 0 var(--ink)}
+  /* feedback */
+  #fb{font-size:13.5px;line-height:1.55;padding:11px 12px;border-radius:6px;margin-top:10px;display:none}
+  #fb.good{display:block;background:#E4F7EC;border:1.5px solid var(--green)}
+  #fb.bad{display:block;background:#FBE6DF;border:1.5px solid var(--orange)}
+  #fb b{display:block;margin-bottom:3px}
+  .scorebar{display:flex;gap:14px;font-family:var(--mono);font-size:12px;padding:8px 12px;border-top:1.5px solid var(--ink);background:var(--panel)}
+  .scorebar b{color:var(--blue)}
+  .mode{display:flex;gap:6px;margin-bottom:10px}
+  button.mode-btn{flex:1;font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase;
+    padding:8px 4px;border:1.5px solid var(--ink);border-radius:5px;background:#F6F7F3;cursor:pointer;box-shadow:0 2px 0 var(--ink)}
+  button.mode-btn.on{background:var(--orange);color:#fff;border-color:var(--orange);box-shadow:0 2px 0 #93331a}
+  .hint{font-size:11.5px;color:var(--soft);line-height:1.5;margin-top:8px;font-style:italic}
+  svg .face{stroke:var(--orange);stroke-width:2}
+  svg .part{fill:#DFE3DC;stroke:var(--ink);stroke-width:1}
+  svg .tip{fill:#1D9E75;stroke:#0F6E56}
+  svg text{font-family:var(--mono);font-size:10px;fill:var(--ink)}
+  svg .dimtxt{fill:var(--blue);font-weight:700}
+</style>
+</head>
+<body>
+<header>
+  <a class="hub" href="../index.html">← HUB</a>
+  <div class="eyebrow">Game 9 · DPM3 Zero Trainer</div>
+  <h1>DRO <span class="b">Brain</span> — read the number as it moves</h1>
+  <p class="sub">Jog the spindle toward a face. Watch the green readout climb. The math panel shows what the number <i>means</i> in real time — so your brain moves with the DRO instead of guessing. Touch the face, then set your zero.</p>
+</header>
+
+<div class="card">
+  <h2>Choose your drill</h2>
+  <div class="body">
+    <div class="mode">
+      <button class="mode-btn on" data-mode="face">Zero on face</button>
+      <button class="mode-btn" data-mode="center">Zero at center</button>
+      <button class="mode-btn" data-mode="mixed">Mixed / random</button>
+    </div>
+    <div id="prompt"></div>
+    <div class="hint" id="hint"></div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Live readout</h2>
+  <div class="body">
+    <div class="dro">
+      <div class="row"><span class="ax">X</span><span class="val x" id="droX">+0.0000</span></div>
+      <div class="foot" id="droFoot">jog toward the face — readout is live</div>
+    </div>
+
+    <div style="margin-top:12px">
+      <svg width="100%" viewBox="0 0 380 150" id="scene" role="img" aria-label="edge finder approaching a face"></svg>
+    </div>
+
+    <div class="math" style="margin-top:6px">
+      <div class="lbl">What the number means right now</div>
+      <div class="eq" id="mathLive">move toward the face to begin</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Jog the spindle</h2>
+  <div class="body">
+    <div class="steprow" id="steprow"></div>
+    <div class="jogwrap">
+      <button class="jog" id="jogMinus">◀  X−  (toward −)</button>
+      <button class="jog" id="jogPlus">X+  (toward +)  ▶</button>
+    </div>
+    <div class="hint">Tap = one step. The tip KICKS automatically when the spindle center reaches 0.100" from the face — watch for it.</div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Set your zero</h2>
+  <div class="body">
+    <div class="math">
+      <div class="lbl">The recipe for this scenario</div>
+      <div class="eq" id="recipe">—</div>
+    </div>
+    <div class="setrow">
+      <label>SET X =</label>
+      <input id="setInput" inputmode="decimal" placeholder="type the signed value" autocomplete="off">
+      <button class="primary" id="setBtn">SET</button>
+    </div>
+    <div id="fb"></div>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button class="ghost" id="nextBtn">Next scenario ▸</button>
+      <button class="ghost" id="revealBtn">Show me the answer</button>
+    </div>
+  </div>
+  <div class="scorebar">
+    <span>Score <b id="score">0</b></span>
+    <span>Streak <b id="streak">0</b></span>
+    <span>Best <b id="best">0</b></span>
+    <span>Done <b id="done">0</b>/10</span>
+  </div>
+</div>
+
+<script type="module">
+import { FACTS, reportScore } from '../model/machine.js';
+(function(){
+"use strict";
+var $=function(s){return document.querySelector(s);};
+var TIP = FACTS.edgeFinderOffset;   // 0.100" — centerline offset at the kiss
+// ---- state ----
+var mode='face';
+var step=0.0100;
+var dro=0;          // live X reading (machine coords until you SET)
+var faceAbs=0;      // where the touched face sits on that scale
+var approach=1;     // jog direction that closes on the face (= −answer sign:
+                    // LEFT face is approached from −X, jogging X+)
+var kicked=false;
+var scen=null;
+var solved=false, revealed=false;
+var score=0,streak=0,best=0,done=0,bestScore=0;
+
+var STEPS=[0.0010,0.0100,0.1000];
+var steprow=$('#steprow');
+STEPS.forEach(function(s,i){
+  var b=document.createElement('button');
+  b.className='step'+(s===step?' on':'');
+  b.textContent=s.toFixed(4);
+  b.onclick=function(){step=s;[].forEach.call(steprow.children,function(c){c.classList.remove('on');});b.classList.add('on');};
+  steprow.appendChild(b);
+});
+
+// ---- scenario generator ----
+function rnd(a){return a[Math.floor(Math.random()*a.length)];}
+function makeScenario(){
+  var m=mode==='mixed'?rnd(['face','center']):mode;
+  var width=rnd([2.000,2.500,3.000,4.000,1.500,3.500]);
+  var side=rnd(['left','right']); // which face you touch
+  // sign of the SET value: LEFT face touched from outside → centerline is on the
+  // −X side of the metal → negative; RIGHT face → positive.
+  var sign=(side==='left')?-1:1;
+  var answer;
+  if(m==='face'){
+    answer=sign*TIP;
+  } else {
+    answer=sign*(width/2 + TIP);
+  }
+  return {kind:m,width:width,side:side,sign:sign,answer:+answer.toFixed(4)};
+}
+
+function fmt(v){return (v>=0?'+':'')+v.toFixed(4);}
+
+function loadScenario(){
+  scen=makeScenario();
+  kicked=false; solved=false; revealed=false;
+  // Touching the LEFT face means the spindle starts on the −X side of the part
+  // and jogs X+ into it (and mirrored for the RIGHT face) — so the approach
+  // direction is the opposite of the answer's sign.
+  approach = -scen.sign;
+  faceAbs = approach*(Math.random()*0.5+0.5);  // face 0.5–1.0" ahead of the start
+  dro = 0;
+  $('#setInput').value='';
+  $('#fb').className='';
+  $('#fb').style.display='none';
+  renderPrompt();
+  renderRecipe();
+  drawScene();
+  updateDro();
+}
+
+function renderPrompt(){
+  var faceWord=scen.side.toUpperCase();
+  var sideWord=scen.sign<0?'LEFT (−X side)':'RIGHT (+X side)';
+  var zeroWord=scen.kind==='center'?'<span class="hi">CENTER of the part</span>':'<span class="hi">on that '+faceWord+' face</span>';
+  $('#prompt').innerHTML='Part <b>'+scen.width.toFixed(3)+'</b> wide. Touch the <span class="hi">'+faceWord+'</span> face from the '+sideWord+'. '+
+    'Put part zero '+zeroWord+'.';
+  $('#hint').textContent = scen.kind==='center'
+    ? 'Center means the readout stops on the FACE — but you finish the thinking: half the width plus the 0.100 tip.'
+    : 'Face means zero lands right on the metal you touched. One hop: just the 0.100 tip.';
+}
+
+function renderRecipe(){
+  var r;
+  if(scen.kind==='face'){
+    r='SET X = <span class="dim">tip radius, sign of approach</span> = <span class="res">'+fmt(scen.answer)+'</span>';
+  } else {
+    var half=(scen.width/2).toFixed(3);
+    r='SET X = '+(scen.sign<0?'−':'+')+'( <span class="num">'+half+'</span> half-width + <span class="num">'+TIP.toFixed(3)+'</span> tip ) = <span class="res">'+fmt(scen.answer)+'</span>';
+  }
+  $('#recipe').innerHTML=r;
+}
+
+// ---- jogging ----
+function jog(dir){
+  dro += dir*step;
+  // the kiss: spindle center sits TIP short of the face, on the approach side
+  var kickPoint = faceAbs - approach*TIP;
+  if(!kicked){
+    if(approach>0 && dro>=kickPoint){ dro=kickPoint; kicked=true; }
+    if(approach<0 && dro<=kickPoint){ dro=kickPoint; kicked=true; }
+  } else {
+    // once kicked, don't let them push far past into the part
+    if(approach>0) dro=Math.min(dro,kickPoint+0.02);
+    else dro=Math.max(dro,kickPoint-0.02);
+  }
+  updateDro();
+  drawScene();
+}
+$('#jogPlus').onclick=function(){jog(1);};
+$('#jogMinus').onclick=function(){jog(-1);};
+
+function updateDro(){
+  var el=$('#droX');
+  el.textContent=fmt(dro);
+  el.className='val x'+(kicked?' live':'');
+  // live math meaning
+  var gap = (faceAbs - dro); // signed distance from center to face
+  var m;
+  if(!kicked){
+    var absgap=Math.abs(gap).toFixed(4);
+    m='Spindle center is <b>'+absgap+'"</b> away from the face. '+
+      'When the gap reaches <b>'+TIP.toFixed(3)+'"</b>, the tip kicks.';
+    $('#droFoot').textContent='approaching — watch the gap shrink to 0.100';
+  } else {
+    m='<b>KICK.</b> Tip is touching the face. Spindle center is <b>'+TIP.toFixed(3)+'"</b> '+
+      (scen.sign>0?'to the + side':'to the − side')+' of the metal. '+
+      (scen.kind==='center'
+        ? 'Now add half the '+scen.width.toFixed(3)+' width → the answer is '+fmt(scen.answer)+'.'
+        : 'So zero on the face = '+fmt(scen.answer)+'.');
+    $('#droFoot').textContent='KISS @ 0.100" — now SET your value';
+  }
+  $('#mathLive').innerHTML=m;
+}
+
+// ---- scene drawing ----
+function drawScene(){
+  var svg=$('#scene');
+  var faceX=250;     // pixel x of the touched face
+  var S=200;         // px per inch — tip radius 20px = 0.100"
+  var kickPoint=faceAbs - approach*TIP;
+  var d=(kickPoint - dro)*approach;              // inches still to go (≥0 pre-kick)
+  var centerPx=(faceX - approach*20) - approach*d*S;
+  // the part sits on the far side of the face from the approach
+  var partX = approach>0 ? faceX : faceX-140;
+  var partW = 140;
+  var s='';
+  // part
+  s+='<rect class="part" x="'+partX+'" y="40" width="'+partW+'" height="70" rx="3"/>';
+  s+='<text x="'+(partX+partW/2)+'" y="80" text-anchor="middle">part</text>';
+  s+='<text x="'+(partX+partW/2)+'" y="94" text-anchor="middle" style="fill:#5A6268">'+scen.width.toFixed(3)+'"</text>';
+  // face
+  s+='<line class="face" x1="'+faceX+'" y1="30" x2="'+faceX+'" y2="120"/>';
+  s+='<text x="'+faceX+'" y="24" text-anchor="middle" style="fill:#993C1D">'+scen.side+' face</text>';
+  // center line if center mode
+  if(scen.kind==='center'){
+    var cx=partX+partW/2;
+    s+='<line x1="'+cx+'" y1="34" x2="'+cx+'" y2="116" stroke="#D4537E" stroke-width="1.4" stroke-dasharray="4 3"/>';
+    s+='<text x="'+cx+'" y="132" text-anchor="middle" style="fill:#993556">zero here</text>';
+  }
+  // edge finder tip (clamped so it stays on screen)
+  var showTip=Math.max(20,Math.min(360,centerPx));
+  s+='<circle class="tip" cx="'+showTip+'" cy="75" r="20"/>';
+  s+='<circle cx="'+showTip+'" cy="75" r="2.5" style="fill:#0E1B13"/>';
+  s+='<text x="'+showTip+'" y="130" text-anchor="middle" style="fill:#0F6E56">spindle</text>';
+  // gap dimension when close
+  if(kicked){
+    var gx1=Math.min(showTip,faceX), gx2=Math.max(showTip,faceX);
+    s+='<line x1="'+gx1+'" y1="118" x2="'+gx2+'" y2="118" stroke="#1F5FA8" stroke-width="1.4"/>';
+    s+='<text x="'+((gx1+gx2)/2)+'" y="146" text-anchor="middle" class="dimtxt">0.100"</text>';
+  }
+  svg.innerHTML=s;
+}
+
+// ---- set / grade ----
+$('#setBtn').onclick=function(){
+  if(solved){return;}   // one scored SET per scenario
+  var raw=$('#setInput').value.trim().replace(/["\s]/g,'').replace(/−/g,'-');
+  if(raw===''){return;}
+  var v=parseFloat(raw);
+  var fb=$('#fb');
+  if(isNaN(v)){ fb.className='bad'; fb.innerHTML='<b>Type a number</b>Use a leading − for the minus side, like −0.1000 or −2.1000.'; return; }
+  if(Math.abs(v-scen.answer)<0.0005){
+    solved=true; done++;
+    if(revealed){
+      fb.className='good';
+      fb.innerHTML='<b>Correct — SET X = '+fmt(scen.answer)+' (revealed, no points)</b>'+explain();
+    } else {
+      score+=10; streak++; if(streak>best)best=streak;
+      fb.className='good';
+      fb.innerHTML='<b>Correct — SET X = '+fmt(scen.answer)+'</b>'+explain();
+    }
+  } else {
+    streak=0;
+    fb.className='bad';
+    fb.innerHTML='<b>Not quite. You entered '+fmt(v)+', the answer is '+fmt(scen.answer)+'.</b>'+explain()+diagnose(v);
+  }
+  updateScore();
+};
+function explain(){
+  if(scen.kind==='face'){
+    return 'You touched the '+scen.side+' face, so the spindle center is 0.100" to the '+(scen.sign<0?'−':'+')+' side. Zero on that face = '+fmt(scen.answer)+'.';
+  }
+  var half=(scen.width/2).toFixed(3);
+  return 'Half of '+scen.width.toFixed(3)+' = '+half+', plus the 0.100 tip = '+(scen.width/2+TIP).toFixed(4)+', on the '+(scen.sign<0?'−':'+')+' side = '+fmt(scen.answer)+'.';
+}
+function diagnose(v){
+  if(Math.abs(v+scen.answer)<0.0005) return ' <br><b>Watch the sign!</b> Your number is right but flipped. You approached from the '+(scen.sign<0?'− (left)':'+ (right)')+' side, so it should be '+(scen.sign<0?'negative':'positive')+'.';
+  if(scen.kind==='center' && Math.abs(Math.abs(v)-TIP)<0.0005) return ' <br>You gave the FACE answer. This one is CENTER — add half the width too.';
+  if(scen.kind==='center' && Math.abs(Math.abs(v)-scen.width/2)<0.0005) return ' <br>Close — you used half the width but forgot to add the 0.100 tip.';
+  return '';
+}
+function updateScore(){
+  if(score>bestScore)bestScore=score;
+  $('#score').textContent=score;$('#streak').textContent=streak;$('#best').textContent=best;$('#done').textContent=done;
+  reportScore('g9',{label:'DRO Brain',score:score,best:bestScore});
+}
+$('#revealBtn').onclick=function(){
+  revealed=true;
+  var fb=$('#fb');fb.className='good';
+  fb.innerHTML='<b>Answer: SET X = '+fmt(scen.answer)+'</b>'+explain();
+  $('#setInput').value=fmt(scen.answer);
+};
+$('#nextBtn').onclick=function(){ if(done>=10){score=0;streak=0;done=0;updateScore();} loadScenario(); };
+
+// mode buttons
+[].forEach.call(document.querySelectorAll('.mode-btn'),function(b){
+  b.onclick=function(){
+    mode=b.getAttribute('data-mode');
+    [].forEach.call(document.querySelectorAll('.mode-btn'),function(c){c.classList.remove('on');});
+    b.classList.add('on');
+    loadScenario();
+  };
+});
+
+// keyboard jog (don't steal arrows while typing in the SET box)
+window.addEventListener('keydown',function(e){
+  if(e.target===$('#setInput')){
+    if(e.key==='Enter'){$('#setBtn').click();}
+    return;
+  }
+  if(e.key==='ArrowLeft'){jog(-1);e.preventDefault();}
+  if(e.key==='ArrowRight'){jog(1);e.preventDefault();}
+  if(e.key==='Enter'){$('#setBtn').click();}
+});
+
+loadScenario();
+updateScore();
+
+// test hook
+window.__g9={jog:jog,info:function(){return {side:scen.side,kind:scen.kind,answer:scen.answer,
+  approach:approach,kicked:kicked,dro:dro,score:score,done:done,revealed:revealed};}};
+})();
+</script>
+</body>
+</html>

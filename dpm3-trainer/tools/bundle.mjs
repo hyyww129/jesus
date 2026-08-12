@@ -59,6 +59,7 @@ const PAGES = [
   { id: 'g6', file: 'games/g6-power-up.html', three: false },
   { id: 'g7', file: 'games/g7-ghost-run.html', three: true },
   { id: 'g8', file: 'games/g8-crash-investigator.html', three: false },
+  { id: 'g9', file: 'games/g9-dro-brain.html', three: false },
 ];
 
 // JSON-escape with every '<' escaped so no '</script>' can appear in the output
@@ -124,6 +125,8 @@ var ITEMS = [
     desc: 'Watch a cycle run silent, then call the event list in order. Three variants, timed.' },
   { id: 'g8', num: 'GAME 8', day: 'DAY 5–6', title: 'Crash Investigator',
     desc: 'Fifteen incident cards: root cause and prevention. Every explanation is shop-floor real.' },
+  { id: 'g9', num: 'GAME 9', day: 'DAY 2', title: 'DRO Brain',
+    desc: 'Live edge-finder math: jog toward the face, watch the readout — gap, kick, then the SET value, narrated live.' },
 ];
 var HUB_SCRIPT_CLOSE = '\\u003c/script>';
 function HUB_libsFor(id) {
