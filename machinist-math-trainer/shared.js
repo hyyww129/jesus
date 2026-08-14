@@ -471,6 +471,7 @@
       '<button data-c="say">SAY THE ANSWER</button></div>' +
       '<div class="coach-ask"><input type="text" autocomplete="off" placeholder="ask the instructor…" aria-label="ask the instructor">' +
       '<button class="primary" data-c="send">ASK</button></div>' +
+      '<div class="coach-live"></div>' +
       '<p class="coach-note">Built-in coach — instant, offline, and it knows this exact question. ' +
       'For a live back-and-forth, ask Claude in the chat this trainer came from.</p>' +
       '</div>';
@@ -544,10 +545,169 @@
       if (!t) return;
       input.value = '';
       you(t);
-      route(t);
+      if (live.key) liveAsk(t);
+      else route(t);
     }
     el.querySelector('[data-c="send"]').addEventListener('click', send);
     input.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
+
+    /* ---- live AI instructor: the user's own Anthropic API key, direct from the
+       browser. Only possible from a local context (file:// or localhost) — a
+       hosted page blocks outside connections, so there we offer the copy bridge.
+       The key lives in memory only and dies with the tab. ---- */
+    var live = { key: null, model: 'claude-opus-5', chat: [], busy: false };
+    var liveEl = el.querySelector('.coach-live');
+    var isLocal = location.protocol === 'file:' ||
+      location.hostname === 'localhost' || location.hostname === '127.0.0.1';
+    var TUTOR = 'You are a patient machinist instructor helping a complete beginner learn shop math for a ' +
+      'TRAK DPM3 mill with a ProtoTRAK SMX control. Speak plainly, keep replies to 2-5 short sentences, ' +
+      'use shop language (a thou is 0.001", a shop "tenth" is 0.0001"), give numbers in inches. ' +
+      'Coach toward understanding; be encouraging without gushing.';
+
+    function plainQ(q) { return q ? plain(q.q).replace(/🔊.*/g, '').trim() : null; }
+
+    function apiCall(key, model, messages, system, maxTok) {
+      var headers = {
+        'content-type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+      };
+      var body = { model: model, max_tokens: maxTok || 1024, system: system, messages: messages };
+      if (model === 'claude-opus-5') {
+        body.output_config = { effort: 'low' };   // snappy tutoring replies
+        body.fallbacks = 'default';               // recommended refusal fallback
+        headers['anthropic-beta'] = 'server-side-fallback-2026-07-01';
+      }
+      return fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST', headers: headers, body: JSON.stringify(body),
+      }).then(function (r) {
+        if (r.status === 401) throw new Error('the API key was rejected (401)');
+        if (r.status === 429) throw new Error('rate limited (429) — wait a moment and try again');
+        if (!r.ok) {
+          return r.json().then(
+            function (j) { throw new Error((j && j.error && j.error.message) || ('HTTP ' + r.status)); },
+            function () { throw new Error('HTTP ' + r.status); }
+          );
+        }
+        return r.json();
+      });
+    }
+
+    function liveAsk(text) {
+      if (live.busy) return;
+      live.busy = true;
+      var sys = TUTOR;
+      if (current) {
+        sys += '\n\nThe student is currently on this practice question: "' + plainQ(current) + '".';
+        sys += current._attempted
+          ? ' They have already attempted it, so full explanations including the answer are fine.'
+          : ' They have NOT attempted it yet: coach the method, but do NOT state this question\'s final answer.';
+      }
+      if (lastMiss && lastMiss.diag && lastMiss.diag.label) {
+        sys += '\nTheir most recent mistake: ' + lastMiss.diag.label + ' — their path was ' + plain(lastMiss.diag.your) + '.';
+      }
+      live.chat.push({ role: 'user', content: text });
+      if (live.chat.length > 12) live.chat = live.chat.slice(-12);
+      var wait = document.createElement('div');
+      wait.className = 'msg bot';
+      wait.textContent = '…';
+      log.appendChild(wait);
+      log.scrollTop = log.scrollHeight;
+      apiCall(live.key, live.model, live.chat.slice(), sys)
+        .then(function (resp) {
+          wait.remove();
+          if (resp.stop_reason === 'refusal') {
+            live.chat.pop();
+            return bot('The AI declined that one. Rephrase it, or lean on the built-in coach.');
+          }
+          var t = (resp.content || []).filter(function (b) { return b.type === 'text'; })
+            .map(function (b) { return b.text; }).join('\n').trim();
+          if (!t) { live.chat.pop(); return bot('The AI sent nothing back — try again.'); }
+          live.chat.push({ role: 'assistant', content: t });
+          bot(esc(t).replace(/\n/g, '<br>'), t);
+        })
+        .catch(function (err) {
+          wait.remove();
+          live.chat.pop();
+          bot('Live AI error: ' + esc(err.message) + '. The built-in coach still works.');
+        })
+        .then(function () { live.busy = false; });
+    }
+
+    function copyPrompt() {
+      var lines = ['I\'m a beginner learning machinist shop math (TRAK DPM3 trainer). Coach me like a patient shop instructor.'];
+      if (current) {
+        lines.push('Current practice question: ' + plainQ(current));
+        lines.push(current._attempted
+          ? 'I have already attempted it.'
+          : 'I have NOT attempted it yet — coach the method, don\'t just hand me the answer.');
+      }
+      if (lastMiss && lastMiss.diag && lastMiss.diag.label) {
+        lines.push('My last mistake was: ' + lastMiss.diag.label + ' (my path: ' + plain(lastMiss.diag.your) + ').');
+      }
+      var text = lines.join('\n');
+      var p = (navigator.clipboard && navigator.clipboard.writeText)
+        ? navigator.clipboard.writeText(text) : Promise.reject(new Error('no clipboard'));
+      p.then(function () { bot('Copied. Paste it to Claude in the chat — full AI, and it already knows your question and your last mistake.'); })
+        .catch(function () {
+          bot('Couldn\'t reach the clipboard — copy this by hand:<br><span class="steps">' + esc(text).replace(/\n/g, '<br>') + '</span>');
+        });
+    }
+
+    function drawLive() {
+      if (!isLocal) {
+        liveEl.innerHTML =
+          '<div class="live-note">🤖 Live AI can\'t run inside this hosted page (it blocks outside connections). ' +
+          'Download the one-file offline copy and open it to GO LIVE with your own API key — or copy the question straight to Claude:</div>' +
+          '<button data-copy>📋 COPY QUESTION FOR CLAUDE</button>';
+      } else if (live.key) {
+        liveEl.innerHTML =
+          '<div class="live-badge">● LIVE — AI instructor connected (' +
+          (live.model === 'claude-opus-5' ? 'Opus 5' : 'Haiku 4.5') + '). The ask box now talks to it.</div>' +
+          '<div class="btnrow"><button data-copy>📋 COPY FOR CLAUDE</button><button data-disc>DISCONNECT</button></div>';
+      } else {
+        liveEl.innerHTML =
+          '<div class="live-note">🤖 GO LIVE (optional): paste an Anthropic API key and the ask box becomes a real AI instructor that sees your question. ' +
+          'The key stays in memory only — gone when the tab closes. Keys come from console.anthropic.com (paid, your account).</div>' +
+          '<input type="password" data-key placeholder="sk-ant-…" autocomplete="off" aria-label="Anthropic API key">' +
+          '<div class="btnrow">' +
+          '<select data-model aria-label="AI model">' +
+          '<option value="claude-opus-5">OPUS 5 — smartest</option>' +
+          '<option value="claude-haiku-4-5">HAIKU 4.5 — fastest, cheapest</option>' +
+          '</select>' +
+          '<button class="primary" data-conn>CONNECT</button></div>' +
+          '<div class="btnrow"><button data-copy>📋 COPY QUESTION FOR CLAUDE</button></div>';
+      }
+      var c = liveEl.querySelector('[data-copy]');
+      if (c) c.addEventListener('click', copyPrompt);
+      var d = liveEl.querySelector('[data-disc]');
+      if (d) d.addEventListener('click', function () {
+        live.key = null; live.chat = [];
+        drawLive();
+        bot('Disconnected — back to the built-in coach. The key is gone from memory.');
+      });
+      var conn = liveEl.querySelector('[data-conn]');
+      if (conn) conn.addEventListener('click', function () {
+        var k = liveEl.querySelector('[data-key]').value.trim();
+        var m = liveEl.querySelector('[data-model]').value;
+        if (!k) return;
+        conn.disabled = true;
+        conn.textContent = 'CONNECTING…';
+        apiCall(k, m, [{ role: 'user', content: 'Say OK.' }], 'Reply with the word OK only.', 64)
+          .then(function () {
+            live.key = k; live.model = m; live.chat = [];
+            drawLive();
+            bot('Live AI instructor connected. Ask anything in the box below — it can see the current question and your recent mistakes.');
+          })
+          .catch(function (err) {
+            conn.disabled = false;
+            conn.textContent = 'CONNECT';
+            bot('Could not connect: ' + esc(err.message) + '. Check the key and try again.');
+          });
+      });
+    }
+    drawLive();
     bot('I\'m watching this practice set. Stuck before you start? <b>EXPLAIN IT ANOTHER WAY</b>. Want a demo? <b>WORK ONE LIKE IT</b>. Just missed one? <b>WHY WAS I WRONG?</b>');
     return {
       notifyQuestion: function (q) { current = q; },

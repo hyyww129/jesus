@@ -185,6 +185,17 @@ button.say { min-height: 38px; padding: 5px 10px; font-size: 11px; vertical-alig
 .coach-ask { display: flex; gap: 6px; }
 .coach-ask input { font-size: 14px; min-height: 44px; }
 .coach-note { font-size: 10.5px; color: var(--soft); line-height: 1.5; font-style: italic; }
+.coach-live { display: flex; flex-direction: column; gap: 6px; border-top: 1px dashed var(--line); padding-top: 8px; }
+.coach-live .live-note { font-size: 11px; color: var(--soft); line-height: 1.5; }
+.coach-live input[type="password"] { font-size: 13px; min-height: 42px; }
+.coach-live select {
+  font-family: var(--mono); font-size: 12px; min-height: 42px; flex: 1;
+  border: 1.5px solid var(--ink); border-radius: 5px; background: #F6F7F3; padding: 0 8px;
+}
+.coach-live button { min-height: 42px; font-size: 10.5px; }
+.coach-live .live-badge { font-family: var(--mono); font-size: 11.5px; color: var(--good-bd); font-weight: 700; }
+.coach-live .btnrow { display: flex; }
+.coach-live .btnrow button { flex: 1; }
 @media (max-width: 860px) { .practice-split { grid-template-columns: 1fr; } .coach-log { max-height: 300px; } }
 .scorebar {
   display: flex; gap: 16px; flex-wrap: wrap; font-family: var(--mono); font-size: 12.5px;
