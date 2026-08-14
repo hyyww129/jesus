@@ -359,11 +359,31 @@
       } };
   }
 
+  var GENS = { f2d: genF2D, thou: genThou, tenth: genTenth, d2f: genD2F, compare: genCompare, add: genAdd };
+  function gen(kind) { var q = GENS[kind](); q.kind = kind; return q; }
+
   function practiceQs() {
-    return M.shuffle([genF2D(), genF2D(), genF2D(), genThou(), genThou(), genTenth(), genD2F(), genD2F(), genCompare(), genAdd()]);
+    return M.shuffle(['f2d', 'f2d', 'f2d', 'thou', 'thou', 'tenth', 'd2f', 'd2f', 'compare', 'add'].map(gen));
   }
   function quizQs() {
-    return M.shuffle([genF2D(), genF2D(), genF2D(), genF2D(), genThou(), genThou(), genTenth(), genD2F(), genCompare(), genAdd()]);
+    return M.shuffle(['f2d', 'f2d', 'f2d', 'f2d', 'thou', 'thou', 'tenth', 'd2f', 'compare', 'add'].map(gen));
+  }
+
+  /* worked twin for the coach's WORK ONE LIKE IT — always different numbers */
+  function coachRegen(kind, current) {
+    var plain = function (h) { return String(h).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(); };
+    var q = null;
+    for (var t = 0; t < 6; t++) {
+      q = gen(kind);
+      if (!current || plain(q.q) !== plain(current.q)) break;
+    }
+    var ans = q.type === 'mc' ? plain(String(q.choices[q.a]))
+      : (q.unit ? q.a + ' ' + q.unit : M.fmtExact(q.a));
+    return {
+      title: plain(q.q),
+      steps: (q.steps || q.explain || '') + '<br>Answer: <span class="res">' + M.esc(ans) + '</span>',
+      spoken: M.sayAnswerQ(q),
+    };
   }
 
   M.modulePage('m1', {
@@ -371,6 +391,7 @@
     playground: playground,
     practiceQs: practiceQs,
     quizQs: quizQs,
+    coach: { regen: coachRegen },
   });
 })();
 </script>

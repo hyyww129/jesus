@@ -160,6 +160,32 @@ button.say { min-height: 38px; padding: 5px 10px; font-size: 11px; vertical-alig
   border: 1.5px dashed var(--blue); border-radius: 6px; background: #EFF4FA;
 }
 .hintbox .t { color: var(--blue); }
+
+/* instructor coach panel — docked beside practice */
+.practice-split { display: grid; grid-template-columns: 1fr 330px; gap: 14px; align-items: start; }
+.coach .body { display: flex; flex-direction: column; gap: 10px; }
+.coach-log {
+  display: flex; flex-direction: column; gap: 8px;
+  max-height: 420px; overflow-y: auto; padding-right: 2px;
+}
+.coach-log .msg {
+  font-size: 13px; line-height: 1.55; padding: 9px 12px; border-radius: 6px; max-width: 95%;
+}
+.coach-log .msg.bot { background: #fff; border: 1px solid var(--line); border-left: 4px solid var(--blue); align-self: flex-start; }
+.coach-log .msg.you { background: var(--ink); color: var(--paper); align-self: flex-end; font-family: var(--mono); font-size: 12.5px; }
+.coach-log .msg .num { font-family: var(--mono); color: var(--blue); font-weight: 700; }
+.coach-log .msg .res { font-family: var(--mono); color: var(--orange); font-weight: 700; }
+.coach-log .msg .steps {
+  font-family: var(--mono); font-size: 12.5px; line-height: 1.8; background: #F6F7F3;
+  border: 1px dashed var(--line); border-radius: 5px; padding: 7px 10px; margin-top: 6px; overflow-x: auto;
+}
+.coach-log .msg button.say { min-height: 30px; padding: 2px 8px; font-size: 10px; margin-top: 6px; }
+.coach-quick { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.coach-quick button { min-height: 44px; font-size: 10.5px; padding: 8px 6px; }
+.coach-ask { display: flex; gap: 6px; }
+.coach-ask input { font-size: 14px; min-height: 44px; }
+.coach-note { font-size: 10.5px; color: var(--soft); line-height: 1.5; font-style: italic; }
+@media (max-width: 860px) { .practice-split { grid-template-columns: 1fr; } .coach-log { max-height: 300px; } }
 .scorebar {
   display: flex; gap: 16px; flex-wrap: wrap; font-family: var(--mono); font-size: 12.5px;
   padding: 9px 14px; border-top: 1.5px solid var(--ink); background: var(--panel);

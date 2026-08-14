@@ -316,6 +316,7 @@
            seven" teaches how to READ the numeral without handing over the answer */
         speakText(spokenFromHtml(q.q));
       });
+      if (opts.onQuestion) opts.onQuestion(q);
     }
 
     function sayLineHtml(q) {
@@ -360,6 +361,7 @@
         q._attempted = true;
         results.push({ q: q, ok: false, walked: true });
         if (opts.onAnswer) opts.onAnswer(q, false);
+        if (opts.onMiss) opts.onMiss(q, null, null);
       }
       freeze();
       var slot = container.querySelector('.fb-slot');
@@ -398,6 +400,7 @@
         if (ok) correct++;
         results.push({ q: q, ok: ok });
         if (opts.onAnswer) opts.onAnswer(q, ok);
+        if (!ok && opts.onMiss) opts.onMiss(q, userShown, diagText);
       }
       showFeedback(q, ok, userShown, diagText, !first);
     }
@@ -449,6 +452,116 @@
     }
 
     render();
+  }
+
+  /* ---------------- instructor coach panel ----------------
+     A built-in coach docked beside practice. Not a live AI — it is instant,
+     offline, and knows the current question: it explains, works fresh examples,
+     replays your last miss, tracks mistake patterns, and speaks. */
+  function coachPanel(el, cfg) {
+    cfg = cfg || {};
+    var current = null, lastMiss = null, missCounts = {};
+    el.classList.add('card', 'coach');
+    el.innerHTML = '<h2>Instructor — right beside you</h2><div class="body">' +
+      '<div class="coach-log" role="log" aria-live="polite"></div>' +
+      '<div class="coach-quick">' +
+      '<button data-c="explain">EXPLAIN IT ANOTHER WAY</button>' +
+      '<button data-c="example">WORK ONE LIKE IT</button>' +
+      '<button data-c="why">WHY WAS I WRONG?</button>' +
+      '<button data-c="say">SAY THE ANSWER</button></div>' +
+      '<div class="coach-ask"><input type="text" autocomplete="off" placeholder="ask the instructor…" aria-label="ask the instructor">' +
+      '<button class="primary" data-c="send">ASK</button></div>' +
+      '<p class="coach-note">Built-in coach — instant, offline, and it knows this exact question. ' +
+      'For a live back-and-forth, ask Claude in the chat this trainer came from.</p>' +
+      '</div>';
+    var log = el.querySelector('.coach-log');
+    function plain(html) { return String(html).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(); }
+    function bot(html, spoken) {
+      var d = document.createElement('div');
+      d.className = 'msg bot';
+      d.innerHTML = html + (spoken ? '<br><button class="say">🔊 HEAR IT</button>' : '');
+      if (spoken) d.querySelector('button.say').addEventListener('click', function () { speakText(spoken); });
+      log.appendChild(d);
+      log.scrollTop = log.scrollHeight;
+    }
+    function you(text) {
+      var d = document.createElement('div');
+      d.className = 'msg you';
+      d.textContent = text;
+      log.appendChild(d);
+      log.scrollTop = log.scrollHeight;
+    }
+    function doExplain() {
+      if (!current) return bot('Load a question first — then I can talk you through it.');
+      if (!current.hint) return bot('This one is best learned by swinging — answer it and I will break down whatever happens.');
+      bot('The way I would start it: ' + current.hint, plain(current.hint));
+      if (current._attempted && current.explain) bot('And since you have already answered: ' + current.explain);
+    }
+    function doExample() {
+      var s = (cfg.regen && current && current.kind) ? cfg.regen(current.kind, current) : null;
+      if (!s) return bot('Put a question on the table first — then I will work a twin of it with different numbers.');
+      bot('Same idea, different numbers — watch the whole thing:<br><b>' + s.title + '</b>' +
+        '<span class="steps">' + s.steps + '</span>', s.spoken || null);
+    }
+    function doWhy() {
+      if (!lastMiss) return bot('No misses yet this set. When one happens I will show you exactly where your number came from.');
+      var d = lastMiss.diag;
+      var h = 'Your last miss: <b>' + plain(lastMiss.q.q) + '</b><br>';
+      if (d && typeof d === 'object') {
+        h += '<b>' + d.label + '.</b><br>Your path: <span class="res">' + d.your + '</span>' +
+          '<br>Right path: <span class="num">' + d.right + '</span>';
+      } else if (typeof d === 'string') {
+        h += plain(d);
+      } else {
+        h += 'You asked to be walked through that one — smart move, not a wrong turn.';
+      }
+      bot(h);
+    }
+    function doSay() {
+      if (!current) return bot('Nothing on the table yet.');
+      if (!current._attempted) return bot('Answer it first — or tap WALK ME THROUGH IT. I don\'t hand over live answers; that\'s the deal that keeps the quiz honest.');
+      var a = sayAnswer(current);
+      if (a) bot('Out loud, that answer is: <b>&ldquo;' + a + '&rdquo;</b>', a);
+      else bot('That one doesn\'t have a spoken form I trust.');
+    }
+    function route(text) {
+      var t = text.toLowerCase();
+      if (/why|wrong|mistake|miss/.test(t)) return doWhy();
+      if (/example|another one|like it|work one|show me one|demo/.test(t)) return doExample();
+      if (/\bsay\b|speak|pronounce|hear|out loud/.test(t)) return doSay();
+      if (/hint|start|how|explain|understand|confus|help|stuck|another way|lost/.test(t)) return doExplain();
+      bot('I know these moves: <b>explain it another way</b>, <b>work one like it</b>, <b>why was I wrong</b>, and <b>say the answer</b>. Tap a button, or ask in those words. For free-form questions, ask Claude in the chat.');
+    }
+    el.querySelectorAll('.coach-quick button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        you(b.textContent.toLowerCase());
+        ({ explain: doExplain, example: doExample, why: doWhy, say: doSay })[b.dataset.c]();
+      });
+    });
+    var input = el.querySelector('.coach-ask input');
+    function send() {
+      var t = input.value.trim();
+      if (!t) return;
+      input.value = '';
+      you(t);
+      route(t);
+    }
+    el.querySelector('[data-c="send"]').addEventListener('click', send);
+    input.addEventListener('keydown', function (e) { if (e.key === 'Enter') send(); });
+    bot('I\'m watching this practice set. Stuck before you start? <b>EXPLAIN IT ANOTHER WAY</b>. Want a demo? <b>WORK ONE LIKE IT</b>. Just missed one? <b>WHY WAS I WRONG?</b>');
+    return {
+      notifyQuestion: function (q) { current = q; },
+      notifyMiss: function (q, shown, diag) {
+        lastMiss = { q: q, shown: shown, diag: diag };
+        if (diag && diag.label) {
+          missCounts[diag.label] = (missCounts[diag.label] || 0) + 1;
+          if (missCounts[diag.label] === 2) {
+            bot('Pattern spotted: that\'s the second <b>' + diag.label.toLowerCase() +
+              '</b> this session. Right before you hit CHECK, ask: did I dodge it this time?');
+          }
+        }
+      },
+    };
   }
 
   /* ---------------- Daily 10 question banks ----------------
@@ -582,8 +695,23 @@
       if (k === 2) {
         var c = document.createElement('div');
         c.className = 'card'; c.innerHTML = '<h2>Practice — stuck? tap WHERE DO I START · mistakes get named</h2><div class="body"></div>';
-        panes.appendChild(c);
-        runSet(c.querySelector('.body'), { mode: 'practice', title: 'PRACTICE', questions: parts.practiceQs() });
+        var setOpts = { mode: 'practice', title: 'PRACTICE', questions: parts.practiceQs() };
+        if (parts.coach) {
+          var split = document.createElement('div');
+          split.className = 'practice-split';
+          var qa = document.createElement('div');
+          qa.appendChild(c);
+          var coachEl = document.createElement('div');
+          var coach = coachPanel(coachEl, parts.coach);
+          split.appendChild(qa);
+          split.appendChild(coachEl);
+          panes.appendChild(split);
+          setOpts.onQuestion = coach.notifyQuestion;
+          setOpts.onMiss = coach.notifyMiss;
+        } else {
+          panes.appendChild(c);
+        }
+        runSet(c.querySelector('.body'), setOpts);
       }
       if (k === 3) {
         var c2 = document.createElement('div');
@@ -628,6 +756,6 @@
     gcd: gcd, reduceFrac: reduceFrac, fracStr: fracStr,
     parseNum: parseNum, shuffle: shuffle, pick: pick, esc: esc,
     dro: dro, runSet: runSet, daily10Questions: daily10Questions,
-    modulePage: modulePage,
+    modulePage: modulePage, coachPanel: coachPanel, sayAnswerQ: sayAnswer,
   };
 })();
