@@ -14,8 +14,18 @@ const esc = s => JSON.stringify(s).replace(/</g, '\\u003c');
 const STYLE = read('style.css');
 const SHARED = read('shared.js');
 
-// modules that exist so far — extend as modules get built
-const MODULE_FILES = ['modules/m01-ruler.html'];
+const MODULE_FILES = [
+  'modules/m01-ruler.html',
+  'modules/m02-number-line.html',
+  'modules/m03-coordinates.html',
+  'modules/m04-edge-finder.html',
+  'modules/m05-rpm.html',
+  'modules/m06-feed.html',
+  'modules/m07-depth.html',
+  'modules/m08-bolt-circle.html',
+  'modules/m09-triangles.html',
+  'modules/m10-tolerance.html',
+];
 
 function inline(html, depth) {
   const prefix = depth ? '../' : '';

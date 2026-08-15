@@ -63,7 +63,18 @@ const GAME_PAGES = [
 /* ================= Math Trainer side ================= */
 const MSTYLE = readM('style.css');
 const MSHARED = readM('shared.js');
-const MMT_MODULES = ['modules/m01-ruler.html'];   // extend as modules get built
+const MMT_MODULES = [
+  'modules/m01-ruler.html',
+  'modules/m02-number-line.html',
+  'modules/m03-coordinates.html',
+  'modules/m04-edge-finder.html',
+  'modules/m05-rpm.html',
+  'modules/m06-feed.html',
+  'modules/m07-depth.html',
+  'modules/m08-bolt-circle.html',
+  'modules/m09-triangles.html',
+  'modules/m10-tolerance.html',
+];
 
 function inlineMMT(html, depth) {
   const prefix = depth ? '../' : '';

@@ -197,6 +197,15 @@
     }
     if (q.unit === 'thou') return intWords(Math.round(q.a)) + ' thou';
     if (q.unit === 'tenths') return intWords(Math.round(q.a)) + (Math.round(q.a) === 1 ? ' tenth' : ' tenths');
+    if (q.unit && q.unit !== 'in') {
+      /* non-inch units from the later modules: RPM, feed, angles, counts */
+      var UNIT_WORDS = { rpm: 'R P M', ipm: 'inches a minute', deg: 'degrees' };
+      var uw = UNIT_WORDS[q.unit] || q.unit;
+      var n = Math.round(q.a * 1000) / 1000;
+      var whole = Math.trunc(Math.abs(n)), fracPart = String(Math.abs(n)).split('.')[1];
+      var spoken = intWords(whole) + (fracPart ? ' point ' + digitWords(fracPart) : '');
+      return (n < 0 ? 'minus ' : '') + spoken + ' ' + uw;
+    }
     var s = sayMeasure(q.a);
     return s.shop + ' — read off the DRO as ' + s.literal;
   }
