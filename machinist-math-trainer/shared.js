@@ -849,6 +849,7 @@
       root.querySelectorAll('.tabs button').forEach(function (b, j) {
         b.classList.toggle('on', j === k);
       });
+      calcAllow(k !== 3);
       panes.innerHTML = '';
       if (k === 0) { panes.innerHTML = parts.explainer; }
       if (k === 1) { parts.playground(panes); }
@@ -905,6 +906,182 @@
     return { open: open };
   }
 
+  /* ---------------- built-in shop calculator ----------------
+     A floating CALC button on every page. Immediate-execution four-function
+     (works left to right, like the cheap calculator in a shop apron pocket).
+     Teaching rules still apply: the tape line shows the running expression,
+     and the "means" line translates the value into thou / nearest fraction.
+     Hidden while a quiz is on screen — the quiz gate stays honest. */
+  var CALC_SYM = { '+': '+', '-': '−', '*': '×', '/': '÷' };
+  function calcFmt(v) {
+    if (typeof v !== 'number' || !isFinite(v)) return 'ERR';
+    var s = String(parseFloat(v.toPrecision(11)));
+    if (s.replace(/[-.]/g, '').length > 11) s = String(parseFloat(v.toPrecision(8)));
+    return s;
+  }
+  function calcMeans(v) {
+    if (typeof v !== 'number' || !isFinite(v)) return '';
+    var av = Math.abs(v);
+    if (v === 0 || av >= 100 || v === Math.round(v)) return '';
+    var bits = [];
+    if (av < 10) {
+      var thou = Math.round(v * 1e6) / 1000;
+      bits.push('= <b>' + calcFmt(thou) + ' thou</b>');
+      if (av < 0.010 && thou !== Math.round(thou)) {
+        bits.push('= <b>' + calcFmt(Math.round(v * 1e8) / 1e4) + ' tenths</b>');
+      }
+    }
+    var n64 = v * 64;
+    if (Math.abs(n64 - Math.round(n64)) < 1e-9 && Math.round(Math.abs(n64)) % 64 !== 0) {
+      var whole = Math.floor(av), rest = Math.round((av - whole) * 64);
+      bits.push('= <b>' + (v < 0 ? '−' : '') + (whole ? whole + ' ' : '') +
+        fracStr(rest, 64) + '"</b> exactly');
+    }
+    return bits.join(' &nbsp;·&nbsp; ');
+  }
+  function calcSpeak(v) {
+    if (typeof v !== 'number' || !isFinite(v)) return;
+    var av = Math.abs(v);
+    if (av > 0 && av < 10 && v !== Math.round(v)) speakText(sayMeasure(v).shop);
+    else if (v === Math.round(v) && av < 1e6) speakText((v < 0 ? 'minus ' : '') + intWords(av));
+    else speakText(digitWords(calcFmt(v)));
+  }
+  function calcMount() {
+    if (!document.body || document.getElementById('mmt-calc-fab')) return;
+    var C = { acc: null, op: null, entry: '0', fresh: true, expr: '', done: false };
+
+    var fab = document.createElement('button');
+    fab.id = 'mmt-calc-fab';
+    fab.className = 'calc-fab';
+    fab.setAttribute('aria-label', 'Open the calculator');
+    fab.innerHTML = 'CALC';
+    var panel = document.createElement('div');
+    panel.className = 'calc';
+    panel.style.display = 'none';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-label', 'Shop calculator');
+    var KEYS = [
+      ['ac', 'AC', 'fn'], ['bs', '⌫', 'fn'], ['pm', '±', 'fn'], ['/', '÷', 'op'],
+      ['7', '7', ''], ['8', '8', ''], ['9', '9', ''], ['*', '×', 'op'],
+      ['4', '4', ''], ['5', '5', ''], ['6', '6', ''], ['-', '−', 'op'],
+      ['1', '1', ''], ['2', '2', ''], ['3', '3', ''], ['+', '+', 'op'],
+      ['say', '🔊', 'fn'], ['0', '0', ''], ['.', '.', ''], ['=', '=', 'eq'],
+    ];
+    panel.innerHTML =
+      '<div class="calc-head"><span>SHOP CALCULATOR</span>' +
+      '<button data-k="close" aria-label="Close calculator">✕</button></div>' +
+      '<div class="calc-screen"><div class="calc-expr" data-expr>&nbsp;</div>' +
+      '<div class="calc-val" data-val>0</div></div>' +
+      '<div class="calc-means" data-means>&nbsp;</div>' +
+      '<div class="calc-keys">' + KEYS.map(function (k) {
+        return '<button data-k="' + k[0] + '"' + (k[2] ? ' class="' + k[2] + '"' : '') +
+          ' aria-label="' + (k[0] === 'say' ? 'Say this number out loud' : k[1]) + '">' + k[1] + '</button>';
+      }).join('') + '</div>' +
+      '<div class="calc-foot">Scratch math only — answers still go in the answer box. ' +
+      'Type on your keyboard too. Closed during quizzes.</div>';
+
+    function apply(a, o, b) {
+      if (o === '+') return a + b;
+      if (o === '-') return a - b;
+      if (o === '*') return a * b;
+      return b === 0 ? NaN : a / b;
+    }
+    function draw() {
+      panel.querySelector('[data-expr]').textContent = C.expr || ' ';
+      panel.querySelector('[data-val]').textContent = C.entry;
+      var means = C.entry === 'ERR'
+        ? 'you divided by zero — no answer exists. AC to clear.'
+        : calcMeans(parseFloat(C.entry));
+      panel.querySelector('[data-means]').innerHTML = means || '&nbsp;';
+    }
+    function press(k) {
+      if (/^[0-9.]$/.test(k)) {
+        if (C.done || C.entry === 'ERR') { C.expr = ''; C.done = false; C.acc = null; C.op = null; C.fresh = true; }
+        if (C.fresh) { C.entry = (k === '.') ? '0.' : k; C.fresh = false; }
+        else if (k === '.' && C.entry.indexOf('.') >= 0) return;
+        else if (C.entry.replace(/[-.]/g, '').length >= 10) return;
+        else C.entry = (C.entry === '0' && k !== '.') ? k : C.entry + k;
+      } else if (k === '+' || k === '-' || k === '*' || k === '/') {
+        if (C.entry === 'ERR') return;
+        if (C.done) { C.expr = ''; C.done = false; }
+        if (C.fresh && C.op !== null) {
+          C.op = k;
+          C.expr = C.expr.replace(/[+−×÷]$/, CALC_SYM[k]);
+        } else {
+          var v = parseFloat(C.entry);
+          C.acc = (C.op !== null && C.acc !== null) ? apply(C.acc, C.op, v) : v;
+          C.expr = (C.expr ? C.expr + ' ' : '') + calcFmt(v) + ' ' + CALC_SYM[k];
+          C.op = k; C.entry = calcFmt(C.acc); C.fresh = true;
+          if (C.entry === 'ERR') { C.acc = null; C.op = null; C.expr += ' → ERR'; C.done = true; }
+        }
+      } else if (k === '=') {
+        if (C.op === null || C.acc === null || C.entry === 'ERR') return;
+        var b = parseFloat(C.entry);
+        var r = apply(C.acc, C.op, b);
+        C.expr = C.expr + ' ' + calcFmt(b) + ' =';
+        C.entry = calcFmt(r);
+        C.acc = isFinite(r) ? r : null;
+        C.op = null; C.fresh = true; C.done = true;
+      } else if (k === 'ac') {
+        C.acc = null; C.op = null; C.entry = '0'; C.fresh = true; C.expr = ''; C.done = false;
+      } else if (k === 'bs') {
+        if (!C.fresh && C.entry !== 'ERR') {
+          C.entry = C.entry.slice(0, -1);
+          if (C.entry === '' || C.entry === '-') C.entry = '0';
+        }
+      } else if (k === 'pm') {
+        if (C.entry !== '0' && C.entry !== 'ERR') {
+          C.entry = C.entry.charAt(0) === '-' ? C.entry.slice(1) : '-' + C.entry;
+          if (C.fresh && C.op === null) C.acc = parseFloat(C.entry);
+        }
+      } else if (k === 'say') {
+        calcSpeak(parseFloat(C.entry));
+        return;
+      }
+      draw();
+    }
+    function setOpen(open) {
+      panel.style.display = open ? 'block' : 'none';
+      fab.classList.toggle('open', open);
+      if (open) draw();
+    }
+    fab.addEventListener('click', function () { setOpen(panel.style.display === 'none'); });
+    panel.addEventListener('click', function (e) {
+      var b = e.target.closest('[data-k]');
+      if (!b) return;
+      if (b.dataset.k === 'close') { setOpen(false); return; }
+      press(b.dataset.k);
+    });
+    document.addEventListener('keydown', function (e) {
+      if (panel.style.display === 'none') return;
+      if (e.key === 'Escape') { setOpen(false); e.stopPropagation(); return; }
+      var tag = (e.target.tagName || '').toUpperCase();
+      if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || tag === 'BUTTON') return;
+      var k = e.key;
+      if (k === 'Enter' || k === '=') k = '=';
+      else if (k === 'x' || k === 'X') k = '*';
+      else if (k === 'Backspace') k = 'bs';
+      else if (k === 'Delete' || k === 'c' || k === 'C') k = 'ac';
+      else if (!/^[0-9.+\-*/]$/.test(k)) return;
+      e.preventDefault();
+      press(k);
+    }, true);
+    document.body.appendChild(fab);
+    document.body.appendChild(panel);
+  }
+  /* modulePage hides the calculator while the quiz tab is up */
+  function calcAllow(yes) {
+    var fab = document.getElementById('mmt-calc-fab');
+    if (!fab) return;
+    fab.style.display = yes ? '' : 'none';
+    if (!yes) {
+      var panel = document.querySelector('.calc');
+      if (panel) { panel.style.display = 'none'; fab.classList.remove('open'); }
+    }
+  }
+  if (document.body) calcMount();
+  else document.addEventListener('DOMContentLoaded', calcMount);
+
   /* ---------------- export ---------------- */
   window.MMT = {
     MODULES: MODULES, FACTS: FACTS, BANKS: BANKS,
@@ -917,5 +1094,6 @@
     parseNum: parseNum, shuffle: shuffle, pick: pick, esc: esc,
     dro: dro, runSet: runSet, daily10Questions: daily10Questions,
     modulePage: modulePage, coachPanel: coachPanel, sayAnswerQ: sayAnswer,
+    calcMount: calcMount, calcAllow: calcAllow,
   };
 })();
