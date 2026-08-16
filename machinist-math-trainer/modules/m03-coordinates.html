@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 3 · X, Y, Z Coordinates</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← HUB</a>
+    <div class="eyebrow">Module 03 · Machinist Math Trainer</div>
+    <h1>X, Y, Z <span class="b">Coordinates</span></h1>
+    <p class="sub">The mill is graph paper. Learn which way each axis points, where zero
+      lives, and how one subtraction — target minus current — turns positions into moves.</p>
+  </header>
+  <div id="mmt-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var M = window.MMT;
+
+  /* small local helpers */
+  function fx(v) { return M.fmtExact(v); }
+  function fx3(v) { return M.fmtExact(v, 3); }
+  function par(v) { return v < 0 ? '(' + M.fmtExact(v) + ')' : M.fmtExact(v); }
+  function r4(v) { return Math.round(v * 10000) / 10000; }
+  function dirPhrase(ax, v) {
+    if (v > 0) return { X: 'to the right', Y: 'away from you, toward the column', Z: 'up, away from the work' }[ax];
+    return { X: 'to the left', Y: 'toward you, away from the column', Z: 'down, into the work' }[ax];
+  }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  /* static figure: tool at (1.0000, 0.5000), hole at (2.2500, 1.7500) */
+  var EX_SVG =
+  '<div class="scrollbox" style="margin:10px 0"><svg width="328" height="280" viewBox="0 0 328 280" role="img" aria-label="grid showing the tool at one, point five and the target hole at two and a quarter, one and three quarters">' +
+  (function () {
+    var s = '', i, v;
+    for (i = 0; i <= 6; i++) { v = 40 + i * 46;  /* verticals every 0.5" */
+      s += '<line x1="' + v + '" y1="16" x2="' + v + '" y2="246" stroke="var(--line)" stroke-width="' + (i % 2 ? 1 : 1.6) + '"/>'; }
+    for (i = 0; i <= 5; i++) { v = 246 - i * 46; /* horizontals every 0.5" */
+      s += '<line x1="40" y1="' + v + '" x2="316" y2="' + v + '" stroke="var(--line)" stroke-width="' + (i % 2 ? 1 : 1.6) + '"/>'; }
+    s += '<line x1="40" y1="246" x2="316" y2="246" stroke="var(--ink)" stroke-width="2.5"/>' +
+      '<line x1="40" y1="16" x2="40" y2="246" stroke="var(--ink)" stroke-width="2.5"/>';
+    for (i = 0; i <= 3; i++) {
+      s += '<text x="' + (40 + i * 92) + '" y="262" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10" fill="var(--soft)">' + i + '</text>';
+      if (i < 3) s += '<text x="34" y="' + (250 - i * 92) + '" text-anchor="end" font-family="ui-monospace,monospace" font-size="10" fill="var(--soft)">' + i + '</text>';
+    }
+    /* L-shaped move: two axis legs */
+    s += '<path d="M 132 200 L 247 200 L 247 85" fill="none" stroke="var(--blue)" stroke-width="2" stroke-dasharray="6 4"/>' +
+      '<text x="189" y="216" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10" font-weight="700" fill="var(--blue)">ΔX +1.2500</text>' +
+      '<text x="253" y="145" text-anchor="start" font-family="ui-monospace,monospace" font-size="10" font-weight="700" fill="var(--blue)">ΔY +1.2500</text>' +
+      /* tool now */
+      '<circle cx="132" cy="200" r="7" fill="none" stroke="var(--ink)" stroke-width="2" stroke-dasharray="3 3"/>' +
+      '<circle cx="132" cy="200" r="1.8" fill="var(--ink)"/>' +
+      '<text x="112" y="236" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10" fill="var(--soft)">tool (1.0000, 0.5000)</text>' +
+      /* target hole */
+      '<circle cx="247" cy="85" r="8" fill="none" stroke="var(--orange)" stroke-width="2.5"/>' +
+      '<line x1="247" y1="73" x2="247" y2="97" stroke="var(--orange)" stroke-width="2"/>' +
+      '<line x1="235" y1="85" x2="259" y2="85" stroke="var(--orange)" stroke-width="2"/>' +
+      '<text x="247" y="66" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10" font-weight="700" fill="var(--orange)">hole (2.2500, 1.7500)</text>' +
+      /* part zero */
+      '<circle cx="40" cy="246" r="4.5" fill="var(--ink)"/>' +
+      '<text x="46" y="276" text-anchor="start" font-family="ui-monospace,monospace" font-size="10" fill="var(--soft)">part zero (0,0)</text>';
+    return s;
+  })() +
+  '</svg></div>';
+
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>A mill is <b>graph paper you can cut metal on</b>. Two rulers lie along the table and a third runs up the spindle, so every position on the machine is just three numbers: X, Y and Z.</p>' +
+  '<p>The directions are a convention, and this trainer states it plainly (it matches the DPM3): ' +
+  '<span class="term">+X is to the right</span>, <span class="term">+Y is away from you</span> — toward the column — and <span class="term">+Z is up</span>. ' +
+  'The opposites are the minus directions: left of zero is negative X, toward you is negative Y, below zero is negative Z.</p>' +
+  '<p><b>Part zero</b> is the corner all counting starts from. Common shop practice — a habit, not a law — puts it at the <b>front-left-top corner</b> of the part. ' +
+  'Zero on the TOP face has a consequence beginners meet fast: the whole part sits below Z0, so <span class="term">every cutting depth is a negative Z number</span>. A step milled 0.200" deep bottoms out at Z −0.200.</p>' +
+  '<p>Two ways to state any position:<br>' +
+  '<span class="term">Absolute</span> — measured from part zero. &ldquo;The hole is at X 2.2500, Y 1.7500.&rdquo; True no matter where the tool happens to be.<br>' +
+  '<span class="term">Incremental</span> — measured from where the tool is <i>right now</i>. &ldquo;Go +1.2500 in X.&rdquo; Same spot, different question. The bridge between them is one subtraction, done separately on each axis:</p>' +
+  '<div class="worked">incremental move = <span class="num">target (abs)</span> − <span class="num">current (abs)</span><br>' +
+  'tool at (1.0000, 0.5000) &nbsp;→&nbsp; next hole at (2.2500, 1.7500)<br>' +
+  'inc X = <span class="num">2.2500</span> − <span class="num">1.0000</span> = <span class="res">+1.2500</span><br>' +
+  'inc Y = <span class="num">1.7500</span> − <span class="num">0.5000</span> = <span class="res">+1.2500</span></div>' +
+  EX_SVG +
+  '<p>Target − current, <b>in that order, every time</b>. Do it backwards and the distance comes out right but the sign flips — the tool drives the wrong way by exactly the right amount. The sign is not a style choice; it falls out of the subtraction, so never guess it by feel.</p>' +
+  '<table class="ref"><tr><th>Axis</th><th>Plus (+) means</th><th>Minus (−) means</th></tr>' +
+  '<tr><td>X</td><td>to the right</td><td>to the left</td></tr>' +
+  '<tr><td>Y</td><td>away from you, toward the column</td><td>toward you</td></tr>' +
+  '<tr><td>Z</td><td>up, away from the work</td><td>down — cutting depths read negative</td></tr></table>' +
+  '<p style="margin-top:10px">Now open the <b>Playground</b>: drag the target around the table and watch that subtraction run live on both axes.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — the table as graph paper</h2><div class="body">' +
+      '<p class="hint" style="margin-top:0">Tap or <b>drag</b> on the grid to place the <b>target</b> (orange). The dashed circle is where the tool sits now. Arrow keys nudge the target by 1/4".</p>' +
+      '<div class="scrollbox"><svg id="pgGrid" role="img" aria-label="X Y table grid, zero to four inches each way, part zero at the front left" tabindex="0"></svg></div>' +
+      '<div class="btnrow" style="margin-top:10px"><button id="moveBtn">MAKE TARGET THE NEW CURRENT — tool moves there</button></div>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live — one subtraction per axis</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live">' +
+      '<div class="btnrow"><button id="modeAbs" class="on">ABS — from part zero</button><button id="modeInc">INC — from the tool</button></div>' +
+      '<div id="droX"></div><div id="droY"></div>' +
+      '<p class="hint" id="meanLine" style="margin-top:0"></p>' +
+      '<button id="sayBtn">🔊 SAY THIS MOVE</button>' +
+      '</div></div></div>';
+    panes.appendChild(card);
+
+    var svg = card.querySelector('#pgGrid');
+    var eqBody = card.querySelector('#eqBody');
+    var meanLine = card.querySelector('#meanLine');
+    var droX = M.dro(card.querySelector('#droX'), 'X');
+    var droY = M.dro(card.querySelector('#droY'), 'Y');
+    var cur = { x: 1, y: 0.5 };
+    var tgt = { x: 2.25, y: 1.75 };
+    var mode = 'abs';
+    var dragging = false;
+
+    var PADL = 48, PADT = 26, PADB = 44, INCH = 100, SPAN = 4;
+    var W = PADL + SPAN * INCH + 16, H = PADT + SPAN * INCH + PADB;
+    function px(x) { return PADL + x * INCH; }
+    function py(y) { return PADT + (SPAN - y) * INCH; }
+
+    function draw() {
+      svg.setAttribute('width', W);
+      svg.setAttribute('height', H);
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      var s = '', i, v;
+      for (i = 0; i <= 16; i++) {
+        v = i * 0.25;
+        var maj = i % 4 === 0;
+        s += '<line x1="' + px(v) + '" y1="' + py(SPAN) + '" x2="' + px(v) + '" y2="' + py(0) + '" stroke="var(--line)" stroke-width="' + (maj ? 1.8 : 1) + '"/>' +
+          '<line x1="' + px(0) + '" y1="' + py(v) + '" x2="' + px(SPAN) + '" y2="' + py(v) + '" stroke="var(--line)" stroke-width="' + (maj ? 1.8 : 1) + '"/>';
+        if (maj) {
+          s += '<text x="' + px(v) + '" y="' + (py(0) + 18) + '" text-anchor="middle" font-family="ui-monospace,monospace" font-size="11" fill="var(--soft)">' + (i / 4) + '</text>' +
+            '<text x="' + (PADL - 8) + '" y="' + (py(v) + 4) + '" text-anchor="end" font-family="ui-monospace,monospace" font-size="11" fill="var(--soft)">' + (i / 4) + '</text>';
+        }
+      }
+      s += '<line x1="' + px(0) + '" y1="' + py(0) + '" x2="' + px(SPAN) + '" y2="' + py(0) + '" stroke="var(--ink)" stroke-width="2.5"/>' +
+        '<line x1="' + px(0) + '" y1="' + py(SPAN) + '" x2="' + px(0) + '" y2="' + py(0) + '" stroke="var(--ink)" stroke-width="2.5"/>' +
+        '<text x="' + PADL + '" y="14" text-anchor="start" font-family="ui-monospace,monospace" font-size="11" fill="var(--soft)">+Y ↑ away from you (toward the column)</text>' +
+        '<text x="' + px(SPAN) + '" y="' + (py(0) + 34) + '" text-anchor="end" font-family="ui-monospace,monospace" font-size="11" fill="var(--soft)">+X → to the right</text>';
+      var incX = r4(tgt.x - cur.x), incY = r4(tgt.y - cur.y);
+      /* the move, drawn as its two axis legs */
+      if (incX !== 0 || incY !== 0) {
+        var d = 'M ' + px(cur.x) + ' ' + py(cur.y);
+        if (incX !== 0) d += ' L ' + px(tgt.x) + ' ' + py(cur.y);
+        if (incY !== 0) d += ' L ' + px(tgt.x) + ' ' + py(tgt.y);
+        s += '<path d="' + d + '" fill="none" stroke="var(--blue)" stroke-width="2" stroke-dasharray="6 4"/>';
+        if (incX !== 0) {
+          s += '<text x="' + ((px(cur.x) + px(tgt.x)) / 2) + '" y="' + (py(cur.y) + (cur.y > 3.4 ? 18 : -8)) + '" text-anchor="middle" font-family="ui-monospace,monospace" font-size="11" font-weight="700" fill="var(--blue)">ΔX ' + M.signed(incX, 4) + '</text>';
+        }
+        if (incY !== 0) {
+          var right = tgt.x <= 3.4;
+          s += '<text x="' + (px(tgt.x) + (right ? 8 : -8)) + '" y="' + ((py(cur.y) + py(tgt.y)) / 2 + 4) + '" text-anchor="' + (right ? 'start' : 'end') + '" font-family="ui-monospace,monospace" font-size="11" font-weight="700" fill="var(--blue)">ΔY ' + M.signed(incY, 4) + '</text>';
+        }
+      }
+      /* part zero */
+      s += '<circle cx="' + px(0) + '" cy="' + py(0) + '" r="4.5" fill="var(--ink)"/>' +
+        '<text x="' + (px(0) + 2) + '" y="' + (py(0) + 34) + '" text-anchor="start" font-family="ui-monospace,monospace" font-size="10" fill="var(--soft)">PART ZERO (0,0)</text>';
+      /* current tool: dashed ghost */
+      s += '<circle cx="' + px(cur.x) + '" cy="' + py(cur.y) + '" r="8" fill="none" stroke="var(--ink)" stroke-width="2" stroke-dasharray="3 3"/>' +
+        '<circle cx="' + px(cur.x) + '" cy="' + py(cur.y) + '" r="2" fill="var(--ink)"/>' +
+        '<text x="' + px(cur.x) + '" y="' + (py(cur.y) + 24) + '" text-anchor="middle" font-family="ui-monospace,monospace" font-size="10" fill="var(--soft)">TOOL NOW</text>';
+      /* target: orange crosshair */
+      s += '<circle cx="' + px(tgt.x) + '" cy="' + py(tgt.y) + '" r="9" fill="none" stroke="var(--orange)" stroke-width="2.5"/>' +
+        '<line x1="' + px(tgt.x) + '" y1="' + (py(tgt.y) - 14) + '" x2="' + px(tgt.x) + '" y2="' + (py(tgt.y) + 14) + '" stroke="var(--orange)" stroke-width="2"/>' +
+        '<line x1="' + (px(tgt.x) - 14) + '" y1="' + py(tgt.y) + '" x2="' + (px(tgt.x) + 14) + '" y2="' + py(tgt.y) + '" stroke="var(--orange)" stroke-width="2"/>' +
+        '<text x="' + px(tgt.x) + '" y="' + (py(tgt.y) + (tgt.y > 3.5 ? 30 : -18)) + '" text-anchor="middle" font-family="ui-monospace,monospace" font-size="11" font-weight="700" fill="var(--orange)">(' + fx(tgt.x) + ', ' + fx(tgt.y) + ')</text>';
+      svg.innerHTML = s;
+    }
+
+    function meaningText(incX, incY) {
+      if (incX === 0 && incY === 0) return 'Target and tool are on the same spot — the incremental move is zero on both axes.';
+      var bits = [];
+      if (incX !== 0) bits.push(fx(Math.abs(incX)) + '" ' + (incX > 0 ? 'to the right' : 'to the left'));
+      if (incY !== 0) bits.push(fx(Math.abs(incY)) + '" ' + (incY > 0 ? 'away from you (toward the column)' : 'toward you'));
+      return 'What this means right now: ' + bits.join(' and ') + ', starting from where the tool sits.';
+    }
+
+    function update() {
+      var incX = r4(tgt.x - cur.x), incY = r4(tgt.y - cur.y);
+      eqBody.innerHTML =
+        'inc X = <span class="num">' + fx(tgt.x) + '</span> − <span class="num">' + fx(cur.x) + '</span> = <span class="res">' + M.signed(incX, 4) + '</span><br>' +
+        'inc Y = <span class="num">' + fx(tgt.y) + '</span> − <span class="num">' + fx(cur.y) + '</span> = <span class="res">' + M.signed(incY, 4) + '</span><br>' +
+        '<span class="dim">incremental = target − current, per axis</span>';
+      if (mode === 'abs') {
+        droX.set(fx(tgt.x) + '"', 'ABS — target X, measured from part zero.');
+        droY.set(fx(tgt.y) + '"', 'ABS — target Y, measured from part zero.');
+      } else {
+        droX.set(M.signed(incX, 4) + '"', incX === 0 ? 'INC — no X move needed.' :
+          'INC — X move from the tool: ' + fx(Math.abs(incX)) + '" ' + (incX > 0 ? 'to the right' : 'to the left') + '.');
+        droY.set(M.signed(incY, 4) + '"', incY === 0 ? 'INC — no Y move needed.' :
+          'INC — Y move from the tool: ' + fx(Math.abs(incY)) + '" ' + (incY > 0 ? 'away from you' : 'toward you') + '.');
+      }
+      meanLine.textContent = meaningText(incX, incY);
+      draw();
+    }
+
+    function speech() {
+      var incX = r4(tgt.x - cur.x), incY = r4(tgt.y - cur.y);
+      if (incX === 0 && incY === 0) return 'The tool is already sitting on the target. No move at all.';
+      var bits = [];
+      if (incX !== 0) bits.push('move ' + M.sayMeasure(Math.abs(incX)).shop + (incX > 0 ? ' to the right' : ' to the left'));
+      if (incY !== 0) bits.push('move ' + M.sayMeasure(Math.abs(incY)).shop + (incY > 0 ? ' away from you, toward the column' : ' toward you'));
+      return 'From where the tool sits: ' + bits.join(', then ') +
+        '. In absolute terms the target is X ' + M.sayMeasure(tgt.x).shop + ', Y ' + M.sayMeasure(tgt.y).shop + '.';
+    }
+    card.querySelector('#sayBtn').addEventListener('click', function () { M.speakText(speech()); });
+
+    var modeAbs = card.querySelector('#modeAbs'), modeInc = card.querySelector('#modeInc');
+    modeAbs.addEventListener('click', function () {
+      mode = 'abs'; modeAbs.classList.add('on'); modeInc.classList.remove('on'); update();
+    });
+    modeInc.addEventListener('click', function () {
+      mode = 'inc'; modeInc.classList.add('on'); modeAbs.classList.remove('on'); update();
+    });
+    card.querySelector('#moveBtn').addEventListener('click', function () {
+      cur = { x: tgt.x, y: tgt.y };
+      update();
+      meanLine.textContent = 'Tool moved. Target and tool now share the spot — the next incremental move starts from here. Pick a new target.';
+    });
+
+    function pickFromEvent(ev) {
+      var rect = svg.getBoundingClientRect();
+      var gx = ((ev.clientX - rect.left) * (W / rect.width) - PADL) / INCH;
+      var gy = SPAN - ((ev.clientY - rect.top) * (H / rect.height) - PADT) / INCH;
+      gx = Math.max(0, Math.min(SPAN, Math.round(gx * 4) / 4));
+      gy = Math.max(0, Math.min(SPAN, Math.round(gy * 4) / 4));
+      if (gx !== tgt.x || gy !== tgt.y) { tgt = { x: gx, y: gy }; update(); }
+    }
+    svg.addEventListener('pointerdown', function (ev) { dragging = true; svg.setPointerCapture(ev.pointerId); pickFromEvent(ev); });
+    svg.addEventListener('pointermove', function (ev) { if (dragging) pickFromEvent(ev); });
+    svg.addEventListener('pointerup', function () { dragging = false; });
+    svg.addEventListener('pointercancel', function () { dragging = false; });
+    svg.addEventListener('keydown', function (ev) {
+      var dx = ev.key === 'ArrowRight' ? 0.25 : ev.key === 'ArrowLeft' ? -0.25 : 0;
+      var dy = ev.key === 'ArrowUp' ? 0.25 : ev.key === 'ArrowDown' ? -0.25 : 0;
+      if (!dx && !dy) return;
+      ev.preventDefault();
+      var gx = Math.max(0, Math.min(SPAN, tgt.x + dx));
+      var gy = Math.max(0, Math.min(SPAN, tgt.y + dy));
+      if (gx !== tgt.x || gy !== tgt.y) { tgt = { x: gx, y: gy }; update(); }
+    });
+
+    update();
+    window.__m3 = {
+      set: function (cx, cy, tx, ty) { cur = { x: cx, y: cy }; tgt = { x: tx, y: ty }; update(); },
+      info: function () { return { cur: cur, tgt: tgt, mode: mode }; },
+    };
+  }
+
+  /* ============ question generators (practice + quiz) ============ */
+  function coordVal() { return Math.round(Math.floor(Math.random() * 161) * 25) / 1000; } /* 0 … 4.000 by 0.025 */
+
+  function genAbsToInc() {
+    var ax = M.pick(['X', 'X', 'Y', 'Y', 'Z']);
+    var cur, tgt;
+    if (ax === 'Z') {
+      cur = -Math.round((2 + Math.floor(Math.random() * 29)) * 25) / 1000;          /* −0.050 … −0.750 */
+      do { tgt = -Math.round(Math.floor(Math.random() * 37) * 25) / 1000; } while (tgt === cur); /* 0 … −0.900 */
+    } else {
+      cur = coordVal();
+      do { tgt = coordVal(); } while (tgt === cur);
+    }
+    var inc = r4(tgt - cur);
+    return { type: 'num', a: inc, tol: 0.0005,
+      q: 'The tool sits at ' + ax + ' <span class="num">' + fx(cur) + '"</span>. The next position is ' + ax +
+        ' <span class="num">' + fx(tgt) + '"</span> absolute. What <b>incremental</b> ' + ax + ' move gets you there?',
+      explain: 'Incremental = target − current: ' + fx(tgt) + ' − ' + par(cur) + ' = <span class="num">' + M.signed(inc, 4) +
+        '"</span> — that is ' + fx(Math.abs(inc)) + '" ' + dirPhrase(ax, inc) + '.',
+      hint: 'Incremental asks: how far, and which way, from where the tool is <b>now</b>? One rule per axis: <b>target − current</b> — in that order. The sign falls out of the subtraction; never pick it by feel.',
+      steps: '1 · The rule: incremental = target − current<br>' +
+        '2 · Plug in: <span class="num">' + fx(tgt) + '</span> − <span class="num">' + par(cur) + '</span> = <span class="res">' + M.signed(inc, 4) + '"</span><br>' +
+        '3 · Read the sign: ' + (inc > 0 ? 'positive' : 'negative') + ' means ' + dirPhrase(ax, inc),
+      diagnose: function (v) {
+        var swapped = r4(cur - tgt);
+        if (Math.abs(v - swapped) <= 0.001) {
+          if (inc < 0) return { label: 'Dropped the minus sign',
+            your: 'right distance, wrong direction: +' + fx(Math.abs(inc)) + ' would drive the tool ' + dirPhrase(ax, -inc),
+            right: fx(tgt) + ' − ' + par(cur) + ' = ' + M.signed(inc, 4) + ' — the minus IS the direction' };
+          return { label: 'Swapped the subtraction',
+            your: 'current − target: ' + par(cur) + ' − ' + par(tgt) + ' = ' + M.signed(swapped, 4) + ' — the tool would drive the wrong way',
+            right: 'target − current: ' + fx(tgt) + ' − ' + par(cur) + ' = ' + M.signed(inc, 4) };
+        }
+        if (Math.abs(v - tgt) <= 0.001) return { label: 'Gave absolute, not incremental',
+          your: fx(tgt) + ' is the target’s absolute position — where it IS, not how to GET there',
+          right: 'the move is target − current: ' + fx(tgt) + ' − ' + par(cur) + ' = ' + M.signed(inc, 4) };
+        if (Math.abs(v - (tgt + cur)) <= 0.001) return { label: 'Added instead of subtracting',
+          your: fx(tgt) + ' + ' + par(cur) + ' = ' + fx(tgt + cur) + ' — adding answers a different question',
+          right: 'incremental = target − current: ' + fx(tgt) + ' − ' + par(cur) + ' = ' + M.signed(inc, 4) };
+        if (Math.abs(v - cur) <= 0.001) return { label: 'Handed back the current position',
+          your: fx(cur) + ' is where the tool already sits',
+          right: 'the MOVE is ' + fx(tgt) + ' − ' + par(cur) + ' = ' + M.signed(inc, 4) };
+        return { label: 'Arithmetic slip',
+          your: 'whatever produced ' + v + ' was not target − current',
+          right: fx(tgt) + ' − ' + par(cur) + ' = ' + M.signed(inc, 4) };
+      } };
+  }
+
+  function genIncToAbs() {
+    var ax = M.pick(['X', 'Y']);
+    var cur = Math.round((20 + Math.floor(Math.random() * 121)) * 25) / 1000;  /* 0.500 … 3.500 */
+    var mag = Math.round((2 + Math.floor(Math.random() * 47)) * 25) / 1000;    /* 0.050 … 1.200 */
+    var sgn = Math.random() < 0.5 ? -1 : 1;
+    if (cur + sgn * mag < 0 || cur + sgn * mag > 4) sgn = -sgn;
+    var inc = r4(sgn * mag);
+    var abs = r4(cur + inc);
+    return { type: 'num', a: abs, tol: 0.0005,
+      q: 'You are at ' + ax + ' <span class="num">' + fx(cur) + '"</span> and the program calls an incremental move of <span class="num">' +
+        M.signed(inc, 4) + '"</span>. Where does the ' + ax + ' DRO read (absolute) after the move?',
+      explain: 'New absolute = current + incremental: ' + fx(cur) + ' + ' + par(inc) + ' = <span class="num">' + fx(abs) +
+        '"</span>. Keep the sign glued to the move when you add.',
+      hint: 'You know where you are and how far you move. New absolute = <b>current + incremental</b>. The move’s sign stays glued to it — adding a negative number pulls the position DOWN.',
+      steps: '1 · The rule: new absolute = current + incremental<br>' +
+        '2 · Plug in: <span class="num">' + fx(cur) + '</span> + <span class="num">' + par(inc) + '</span> = <span class="res">' + fx(abs) + '"</span><br>' +
+        '3 · Sense check: the move was ' + dirPhrase(ax, inc) + ', so the number should have gone ' + (inc > 0 ? 'UP' : 'DOWN') + ' — it did',
+      diagnose: function (v) {
+        if (Math.abs(v - (cur - inc)) <= 0.001) return { label: 'Flipped the move’s sign',
+          your: fx(cur) + ' − ' + par(inc) + ' = ' + fx(cur - inc) + ' — you drove the tool the opposite way',
+          right: 'add the move as written: ' + fx(cur) + ' + ' + par(inc) + ' = ' + fx(abs) };
+        if (Math.abs(v - inc) <= 0.001 || Math.abs(v - Math.abs(inc)) <= 0.001) return { label: 'Gave the move, not the destination',
+          your: M.signed(inc, 4) + ' is the incremental move itself — the question asks where the DRO reads AFTER it',
+          right: fx(cur) + ' + ' + par(inc) + ' = ' + fx(abs) };
+        if (Math.abs(v - cur) <= 0.001) return { label: 'Tool never moved',
+          your: fx(cur) + ' is the starting position — the move has not been applied',
+          right: fx(cur) + ' + ' + par(inc) + ' = ' + fx(abs) };
+        return { label: 'Arithmetic slip',
+          your: 'whatever produced ' + v + ' was not current + incremental',
+          right: fx(cur) + ' + ' + par(inc) + ' = ' + fx(abs) };
+      } };
+  }
+
+  var QUADS = [
+    { sx: -1, sy: -1, txt: '<b>left</b> of part zero and <b>toward you</b> (off the front-left corner)' },
+    { sx: 1,  sy: -1, txt: '<b>right</b> of part zero and <b>toward you</b> (off the front-right corner)' },
+    { sx: -1, sy: 1,  txt: '<b>left</b> of part zero and <b>away from you</b>, toward the column' },
+    { sx: 1,  sy: 1,  txt: '<b>right</b> of part zero and <b>away from you</b>, toward the column' },
+  ];
+  var QUAD_CHOICES = ['X +, Y +', 'X +, Y −', 'X −, Y +', 'X −, Y −'];
+  var QUAD_SIGNS = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+  function signWord(s) { return s > 0 ? '+' : '−'; }
+  function genQuadrantSign() {
+    var qd = M.pick(QUADS);
+    var a = (qd.sx > 0 ? 0 : 2) + (qd.sy > 0 ? 0 : 1);
+    return { type: 'mc', a: a, choices: QUAD_CHOICES.slice(),
+      q: 'A hole sits ' + qd.txt + '. Standing at the machine, what signs do its X and Y coordinates carry?',
+      explain: '+X is to the right, +Y is away from you (toward the column). This point is ' +
+        (qd.sx > 0 ? 'right' : 'left') + ' → X ' + signWord(qd.sx) + ', and ' +
+        (qd.sy > 0 ? 'away' : 'toward you') + ' → Y ' + signWord(qd.sy) + '.',
+      hint: 'Stand at the machine and take the axes one at a time. Left–right is X: right of zero is +, left is −. Toward–away is Y: away from you (toward the column) is +, toward you is −.',
+      steps: '1 · Left–right is X: ' + (qd.sx > 0 ? 'right of zero → X +' : 'left of zero → X −') + '<br>' +
+        '2 · Toward–away is Y: ' + (qd.sy > 0 ? 'away, toward the column → Y +' : 'toward you → Y −') + '<br>' +
+        '3 · Together: <span class="res">X ' + signWord(qd.sx) + ', Y ' + signWord(qd.sy) + '</span>',
+      diagnose: function (chosen) {
+        var cx = QUAD_SIGNS[chosen][0], cy = QUAD_SIGNS[chosen][1];
+        if (qd.sx !== qd.sy && cx === qd.sy && cy === qd.sx) return { label: 'Mixed up X and Y',
+          your: 'you put the left–right sign on Y and the toward–away sign on X',
+          right: 'left–right is ALWAYS X, toward–away is ALWAYS Y → X ' + signWord(qd.sx) + ', Y ' + signWord(qd.sy) };
+        if (cx !== qd.sx && cy !== qd.sy) return { label: 'Both signs backwards',
+          your: 'X ' + signWord(cx) + ', Y ' + signWord(cy) + ' is the diagonally opposite quadrant',
+          right: 'right and away are the + directions → X ' + signWord(qd.sx) + ', Y ' + signWord(qd.sy) };
+        if (cx !== qd.sx) return { label: 'X sign backwards',
+          your: 'X ' + signWord(cx) + ' puts the point on the ' + (cx > 0 ? 'right' : 'left') + ' — the question says ' + (qd.sx > 0 ? 'right' : 'left'),
+          right: (qd.sx > 0 ? 'right' : 'left') + ' of zero → X ' + signWord(qd.sx) };
+        return { label: 'Y sign backwards',
+          your: 'Y ' + signWord(cy) + ' means ' + (cy > 0 ? 'away from you' : 'toward you') + ' — the question says ' + (qd.sy > 0 ? 'away' : 'toward you'),
+          right: (qd.sy > 0 ? 'away from you, toward the column' : 'toward you') + ' → Y ' + signWord(qd.sy) };
+      } };
+  }
+
+  var MOVES = [
+    { ax: 'Z', s: -1, txt: 'takes the cutter <b>deeper into the part</b>, below the top face' },
+    { ax: 'Z', s: 1,  txt: 'lifts the cutter <b>up and clear</b> of the work' },
+    { ax: 'Y', s: 1,  txt: 'runs the work <b>away from you, toward the column</b>' },
+    { ax: 'Y', s: -1, txt: 'brings the work <b>toward you</b>, away from the column' },
+    { ax: 'X', s: 1,  txt: 'moves the cutter <b>to the right</b> as you face the machine' },
+    { ax: 'X', s: -1, txt: 'moves the cutter <b>to the left</b> as you face the machine' },
+  ];
+  function axLabel(ax, s) { return ax + ' ' + (s > 0 ? '+' : '−'); }
+  function genWhichAxis() {
+    var mv = M.pick(MOVES);
+    var choices = [axLabel(mv.ax, mv.s), axLabel(mv.ax, -mv.s)];
+    ['X', 'Y', 'Z'].forEach(function (a2) {
+      if (a2 !== mv.ax) choices.push(axLabel(a2, Math.random() < 0.5 ? 1 : -1));
+    });
+    return { type: 'mc', a: 0, choices: choices,
+      q: 'Which single axis move ' + mv.txt + '?',
+      explain: 'Left–right is X, toward–away is Y, up–down is Z. This one is ' + mv.ax +
+        ', and the direction described is ' + dirPhrase(mv.ax, mv.s) + ' → <span class="num">' + axLabel(mv.ax, mv.s) + '</span>.',
+      hint: 'Two questions, in order. Which axis? Left–right is X, toward–away is Y, up–down is Z. Which sign? Right, away (toward the column) and up are the plus directions.',
+      steps: '1 · Name the axis: the motion is ' + (mv.ax === 'X' ? 'left–right → X' : mv.ax === 'Y' ? 'toward–away → Y' : 'up–down → Z') + '<br>' +
+        '2 · Name the sign: ' + dirPhrase(mv.ax, mv.s) + ' is the ' + (mv.s > 0 ? 'plus' : 'minus') + ' direction<br>' +
+        '3 · Together: <span class="res">' + axLabel(mv.ax, mv.s) + '</span>',
+      diagnose: function (chosen) {
+        var str = choices[chosen];
+        var cax = str.charAt(0), cs = str.indexOf('+') >= 0 ? 1 : -1;
+        if (cax === mv.ax) return { label: 'Right axis, backwards direction',
+          your: str + ' goes ' + dirPhrase(cax, cs) + ' — the opposite of what was asked',
+          right: axLabel(mv.ax, mv.s) + ' goes ' + dirPhrase(mv.ax, mv.s) };
+        return { label: 'Wrong axis',
+          your: cax + ' is the ' + (cax === 'X' ? 'left–right' : cax === 'Y' ? 'toward–away' : 'up–down') + ' axis — not this motion',
+          right: 'this motion lives on ' + mv.ax + ': ' + axLabel(mv.ax, mv.s) + ' goes ' + dirPhrase(mv.ax, mv.s) };
+      } };
+  }
+
+  function genZDepth() {
+    if (Math.random() < 0.55) {
+      var d = M.pick([0.100, 0.125, 0.150, 0.200, 0.250, 0.300, 0.375, 0.500]);
+      var a = r4(-d);
+      return { type: 'num', a: a, tol: 0.0005,
+        q: 'Part zero is on the <b>top</b> of the part, so the top face reads Z <span class="num">0</span>. You mill a step <span class="num">' +
+          fx3(d) + '"</span> deep. What does the Z DRO read at full depth?',
+        explain: 'The whole part sits below Z0 and +Z is up, so depth is negative: <span class="num">Z ' + fx(a) + '"</span>.',
+        hint: 'Where is Z zero? On the top face. Which way is plus? Up. So which sign must anything BELOW the top face carry? Distance stays the same — only the sign is in question.',
+        steps: '1 · Z0 is the top face; +Z is up, −Z is down into the part<br>' +
+          '2 · Full depth is <span class="num">' + fx3(d) + '"</span> below the top face<br>' +
+          '3 · Below zero reads negative: <span class="res">Z ' + fx(a) + '"</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - d) <= 0.001) return { label: 'Positive Z for a depth',
+            your: '+' + fx3(d) + ' would put the tool ' + fx3(d) + '" ABOVE the part — +Z is up',
+            right: 'cutting happens below Z0, so the DRO reads Z ' + fx(a) };
+          if (Math.abs(Math.abs(v) - d * 1000) <= 1) return { label: 'Answered in thou',
+            your: Math.round(Math.abs(v)) + ' is the depth in thou — the Z DRO reads inches',
+            right: fx3(d) + '" below zero → Z ' + fx(a) + '"' };
+          return { label: 'Depth slip',
+            your: v + ' is not ' + fx3(d) + '" below the top face',
+            right: 'top face Z 0 minus the depth: 0 − ' + fx3(d) + ' = ' + fx(a) };
+        } };
+    }
+    var z0 = -M.pick([0.100, 0.150, 0.200, 0.250, 0.300]);
+    var dd = M.pick([0.050, 0.075, 0.100, 0.125, 0.150, 0.200]);
+    var a2 = r4(z0 - dd);
+    return { type: 'num', a: a2, tol: 0.0005,
+      q: 'The tool tip sits at Z <span class="num">' + fx(z0) + '"</span>. The next pass goes <span class="num">' + fx3(dd) +
+        '"</span> deeper. What Z do you feed down to?',
+      explain: 'Deeper means MORE negative: ' + par(z0) + ' − ' + fx3(dd) + ' = <span class="num">Z ' + fx(a2) + '"</span>.',
+      hint: 'Deeper is further below zero — the Z number gets MORE negative. Start from where the tip already is and push it down by the pass amount.',
+      steps: '1 · Deeper = more negative: new Z = current Z − pass depth<br>' +
+        '2 · Plug in: <span class="num">' + par(z0) + '</span> − <span class="num">' + fx3(dd) + '</span> = <span class="res">Z ' + fx(a2) + '"</span><br>' +
+        '3 · Sense check: ' + fx(Math.abs(a2)) + '" below the top face — deeper than ' + fx(Math.abs(z0)) + '", as it must be',
+      diagnose: function (v) {
+        if (Math.abs(v - (z0 + dd)) <= 0.001) return { label: 'Went the wrong way',
+          your: par(z0) + ' + ' + fx3(dd) + ' = ' + fx(z0 + dd) + ' — that RAISES the tool toward the surface',
+          right: 'deeper subtracts: ' + par(z0) + ' − ' + fx3(dd) + ' = ' + fx(a2) };
+        if (Math.abs(v - (-dd)) <= 0.001) return { label: 'Ignored the starting depth',
+          your: 'Z ' + fx(-dd) + ' answers as if the tip started at Z 0 — it is already at ' + fx(z0),
+          right: par(z0) + ' − ' + fx3(dd) + ' = ' + fx(a2) };
+        if (Math.abs(v - Math.abs(a2)) <= 0.001) return { label: 'Dropped the minus sign',
+          your: fx(Math.abs(a2)) + ' is the right distance below the top — but below zero reads negative',
+          right: 'Z ' + fx(a2) + '" — depths carry the minus' };
+        return { label: 'Depth slip',
+          your: v + ' is not one pass deeper than ' + fx(z0),
+          right: par(z0) + ' − ' + fx3(dd) + ' = ' + fx(a2) };
+      } };
+  }
+
+  var GENS = { absToInc: genAbsToInc, incToAbs: genIncToAbs, quadrantSign: genQuadrantSign,
+    whichAxis: genWhichAxis, zDepth: genZDepth };
+  var RECENT = [];
+  function gen(kind) {
+    var q, key, tries = 0;
+    do { q = GENS[kind](); key = String(q.q); tries++; } while (RECENT.indexOf(key) !== -1 && tries < 8);
+    RECENT.push(key);
+    if (RECENT.length > 24) RECENT.shift();
+    q.kind = kind;
+    return q;
+  }
+
+  function practiceQs() {
+    return M.shuffle(['absToInc', 'absToInc', 'absToInc', 'incToAbs', 'incToAbs',
+      'quadrantSign', 'quadrantSign', 'whichAxis', 'zDepth', 'zDepth'].map(gen));
+  }
+  function quizQs() {
+    /* the quiz leans on the signed arithmetic — the part clicking can't fake */
+    return M.shuffle(['absToInc', 'absToInc', 'absToInc', 'absToInc', 'incToAbs', 'incToAbs',
+      'incToAbs', 'zDepth', 'zDepth', 'whichAxis'].map(gen));
+  }
+
+  /* worked twin for the coach's WORK ONE LIKE IT — always different numbers */
+  function coachRegen(kind, current) {
+    var plain = function (h) { return String(h).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(); };
+    var q = null;
+    for (var t = 0; t < 6; t++) {
+      q = gen(kind);
+      if (!current || plain(q.q) !== plain(current.q)) break;
+    }
+    var ans = q.type === 'mc' ? plain(String(q.choices[q.a]))
+      : (q.unit ? q.a + ' ' + q.unit : M.fmtExact(q.a));
+    return {
+      title: plain(q.q),
+      steps: (q.steps || q.explain || '') + '<br>Answer: <span class="res">' + M.esc(ans) + '</span>',
+      spoken: M.sayAnswerQ(q),
+    };
+  }
+
+  M.modulePage('m3', {
+    explainer: EXPLAINER,
+    playground: playground,
+    practiceQs: practiceQs,
+    quizQs: quizQs,
+    coach: { regen: coachRegen },
+  });
+})();
+</script>
+</body>
+</html>

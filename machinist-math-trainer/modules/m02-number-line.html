@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 2 · The Number Line &amp; Signed Moves</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+/* module-local SVG classes — token colors only */
+.nl-axis   { fill: var(--ink); }
+.nl-tick   { stroke: var(--ink); }
+.nl-land   { fill: var(--panel); }
+.nl-lab    { font-family: var(--mono); fill: var(--soft); }
+.nl-num    { font-family: var(--mono); fill: var(--blue); font-weight: 700; }
+.nl-zero   { stroke: var(--blue); }
+.nl-zerolab{ font-family: var(--mono); fill: var(--blue); font-weight: 700; }
+.nl-ptr    { fill: var(--orange); }
+.nl-ptrlab { font-family: var(--mono); fill: var(--orange); font-weight: 700; }
+.nl-move   { stroke: var(--blue); }
+.nl-movecap{ fill: var(--blue); }
+.nl-ghost  { fill: var(--soft); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← HUB</a>
+    <div class="eyebrow">Module 02 · Machinist Math Trainer</div>
+    <h1>The Number Line &amp; <span class="b">Signed Moves</span></h1>
+    <p class="sub">A minus sign is an address, not a warning: it means LEFT of part zero.
+      This module makes signed moves, distances and jog directions automatic before the
+      table ever moves.</p>
+  </header>
+  <div id="mmt-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var M = window.MMT;
+
+  function sg(v) { return M.signed(v, 3); }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  function exSvg() {
+    /* static mini number line: start -0.750, move +1.250, land +0.500 */
+    function xOf(v) { return 30 + (v + 1) / 2 * 500; }
+    var s = '<svg width="560" height="96" viewBox="0 0 560 96" role="img" aria-label="number line: start minus 0.750, move plus 1.250, land at plus 0.500">';
+    s += '<rect class="nl-land" x="30" y="40" width="' + (xOf(0) - 30) + '" height="18"/>';
+    s += '<rect class="nl-axis" x="30" y="46" width="500" height="3"/>';
+    for (var i = -4; i <= 4; i++) {
+      var x = xOf(i / 4);
+      s += '<line class="nl-tick" x1="' + x + '" y1="46" x2="' + x + '" y2="' + (i % 4 === 0 ? 60 : 55) + '" stroke-width="' + (i % 4 === 0 ? 2.5 : 1.2) + '"/>';
+    }
+    s += '<line class="nl-zero" x1="' + xOf(0) + '" y1="30" x2="' + xOf(0) + '" y2="66" stroke-width="2.5"/>';
+    s += '<text class="nl-zerolab" x="' + xOf(0) + '" y="80" text-anchor="middle" font-size="11">0 = part zero</text>';
+    s += '<text class="nl-lab" x="' + xOf(-1) + '" y="76" text-anchor="middle" font-size="11">-1</text>';
+    s += '<text class="nl-lab" x="' + xOf(1) + '" y="76" text-anchor="middle" font-size="11">+1</text>';
+    var a = xOf(-0.75), b = xOf(0.5);
+    s += '<line class="nl-move" x1="' + a + '" y1="24" x2="' + (b - 9) + '" y2="24" stroke-width="2.5"/>';
+    s += '<path class="nl-movecap" d="M ' + b + ' 24 l -11 -5.5 l 0 11 z"/>';
+    s += '<text class="nl-num" x="' + ((a + b) / 2) + '" y="16" text-anchor="middle" font-size="12">move +1.250</text>';
+    s += '<circle class="nl-ghost" cx="' + a + '" cy="47" r="4"/>';
+    s += '<text class="nl-lab" x="' + a + '" y="92" text-anchor="middle" font-size="11">start -0.750</text>';
+    s += '<path class="nl-ptr" d="M ' + b + ' 44 l -7 -13 l 14 0 z"/>';
+    s += '<text class="nl-ptrlab" x="' + b + '" y="92" text-anchor="middle" font-size="11">land +0.500</text>';
+    return s + '</svg>';
+  }
+
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>The X readout on the DRO is a <b>number line lying along the table</b>. Zero is part zero — ' +
+  'the spot YOU picked. Plus numbers are to the <b>RIGHT</b> of it, minus numbers are to the ' +
+  '<b>LEFT</b>. (Y and Z get the same treatment in Module 3.)</p>' +
+  '<p>So <span class="term">a minus sign is an address, not a warning</span>. X -0.750 doesn\'t mean ' +
+  '"less than nothing" — it means the tool sits 0.750" <b>left</b> of zero. Same size step as +0.750, ' +
+  'other side of the house.</p>' +
+  '<p>Worked example — the tool sits at X <b>-0.750</b> and the program calls a move of <b>+1.250</b>. ' +
+  'New position is just <b>position + move</b>, signs and all:</p>' +
+  '<div class="worked">start <span class="num">-0.750</span> &nbsp;+&nbsp; move <span class="num">+1.250</span><br>' +
+  'walk it: the first <span class="num">0.750</span> of the move gets you to zero · ' +
+  '1.250 − 0.750 = <span class="num">0.500</span> of the move is left · keep sliding right<br>' +
+  '-0.750 + 1.250 = <span class="res">+0.500"</span> — you crossed zero and came out on the plus side</div>' +
+  '<div class="scrollbox" style="margin-bottom:10px">' + exSvg() + '</div>' +
+  '<p>Three questions cover almost everything you do on one axis:</p>' +
+  '<table class="ref"><tr><th>You need</th><th>Do this</th><th>The sign</th></tr>' +
+  '<tr><td>Where do I land?</td><td>position + move</td><td>keep whatever sign falls out</td></tr>' +
+  '<tr><td>How far apart?</td><td>|a − b|</td><td>strip it — distance is always positive</td></tr>' +
+  '<tr><td>Which way do I jog?</td><td>target − current</td><td>+ means jog right, − means jog left</td></tr></table>' +
+  '<p style="margin-top:10px">One gotcha that bites everybody once: between <b>-1.250</b> and <b>-0.375</b>, ' +
+  'the <i>larger</i> position is <b>-0.375</b>. Bigger digits after a minus mean further LEFT, which is ' +
+  '<i>smaller</i>. The digits lie; the line doesn\'t.</p>' +
+  '<p>Now open the <b>Playground</b> — drag the tool around and fire some moves at it.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  var NMIN = -2, NMAX = 2, STEP = 0.125;
+
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — one axis of the DRO</h2><div class="body">' +
+      '<div class="scrollbox"><svg id="nline" height="168" role="img" aria-label="DRO number line from minus two to plus two"></svg></div>' +
+      '<p class="hint">Press and <b>drag</b> the pointer anywhere on the line (arrow keys work too), ' +
+      'or fire a signed move with the buttons — then read the math it just did.</p>' +
+      '<div class="btnrow" id="moveRow" style="margin:10px 0"></div>' +
+      '<div class="pg-split">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div>' +
+      '<button id="sayBtn">🔊 SAY THIS POSITION</button>' +
+      '<p class="hint" id="sayText" style="margin-top:0"></p></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var svg = card.querySelector('#nline');
+    var eqBody = card.querySelector('#eqBody');
+    var droCtl = M.dro(card.querySelector('#droBox'), 'X');
+    var pos = -0.750;         /* where the tool IS (state updates instantly) */
+    var dispPos = pos;        /* where the pointer is DRAWN (animates) */
+    var moveStart = null, lastMove = null;
+    var animToken = 0;
+
+    var MOVES = ['+0.250', '-0.375', '+1.000', '-0.500', '+0.125', '-1.250'];
+    var moveRow = card.querySelector('#moveRow');
+    MOVES.forEach(function (mv) {
+      var b = document.createElement('button');
+      b.textContent = 'MOVE ' + mv;
+      b.setAttribute('data-move', mv);
+      b.addEventListener('click', function () { fireMove(parseFloat(mv)); });
+      moveRow.appendChild(b);
+    });
+
+    var PAD = 40, W = 760, H = 168, inner = W - PAD * 2;
+    function xOf(v) { return PAD + (v - NMIN) / (NMAX - NMIN) * inner; }
+
+    function draw() {
+      svg.setAttribute('width', W);
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      var s = '<rect class="nl-land" x="' + PAD + '" y="52" width="' + (xOf(0) - PAD) + '" height="52"/>';
+      s += '<rect class="nl-axis" x="' + PAD + '" y="84" width="' + inner + '" height="4"/>';
+      for (var i = -16; i <= 16; i++) {
+        var v = i / 8, x = xOf(v);
+        var whole = i % 8 === 0, half = i % 4 === 0, quarter = i % 2 === 0;
+        var len = whole ? 26 : half ? 20 : quarter ? 14 : 9;
+        s += '<line class="nl-tick" x1="' + x + '" y1="88" x2="' + x + '" y2="' + (88 + len) + '" stroke-width="' + (whole ? 2.5 : half ? 1.8 : 1.2) + '"/>';
+        if (whole && i !== 0) {
+          s += '<text class="nl-num" x="' + x + '" y="130" text-anchor="middle" font-size="13">' + (v > 0 ? '+' : '') + v + '</text>';
+        } else if (half && !whole) {
+          s += '<text class="nl-lab" x="' + x + '" y="126" text-anchor="middle" font-size="10">' + (v > 0 ? '+' : '') + v.toFixed(1) + '</text>';
+        }
+      }
+      s += '<line class="nl-zero" x1="' + xOf(0) + '" y1="44" x2="' + xOf(0) + '" y2="132" stroke-width="2.5"/>';
+      s += '<text class="nl-zerolab" x="' + xOf(0) + '" y="148" text-anchor="middle" font-size="11">0 · PART ZERO</text>';
+      s += '<text class="nl-lab" x="' + xOf(-1.5) + '" y="148" text-anchor="middle" font-size="10" letter-spacing="1">− LEFT OF ZERO</text>';
+      s += '<text class="nl-lab" x="' + xOf(1.5) + '" y="148" text-anchor="middle" font-size="10" letter-spacing="1">+ RIGHT OF ZERO</text>';
+      if (lastMove !== null && moveStart !== null) {
+        var xa = xOf(moveStart), xb = xOf(pos), dir = xb > xa ? 1 : -1;
+        s += '<circle class="nl-ghost" cx="' + xa + '" cy="86" r="4"/>';
+        s += '<line class="nl-move" x1="' + xa + '" y1="40" x2="' + (xb - 10 * dir) + '" y2="40" stroke-width="2.5"/>';
+        s += '<path class="nl-movecap" d="M ' + xb + ' 40 l ' + (-12 * dir) + ' -6 l 0 12 z"/>';
+        s += '<text class="nl-num" x="' + ((xa + xb) / 2) + '" y="32" text-anchor="middle" font-size="12">' + sg(lastMove) + '</text>';
+      }
+      var xp = xOf(dispPos);
+      s += '<path class="nl-ptr" d="M ' + xp + ' 82 l -8 -15 l 16 0 z"/>';
+      s += '<text class="nl-ptrlab" x="' + xp + '" y="20" text-anchor="middle" font-size="14">' + sg(pos) + '"</text>';
+      svg.innerHTML = s;
+    }
+
+    function meaningFor(p) {
+      var thou = Math.round(Math.abs(p) * 1000);
+      if (p === 0) return 'Dead on part zero. No sign needed — zero is the one spot that belongs to neither side.';
+      return '<b>' + thou + ' thou ' + (p < 0 ? 'LEFT' : 'RIGHT') + ' of zero</b> — that\'s the ' +
+        (p < 0 ? 'minus' : 'plus') + ' talking. ' +
+        (p < 0 ? 'Same distance as +' + M.fmtExact(Math.abs(p), 3) + ', opposite side.'
+               : 'Cross zero and the same digits would read −' + M.fmtExact(p, 3) + '.');
+    }
+
+    function update() {
+      var eq;
+      if (lastMove !== null && moveStart !== null) {
+        var crossed = (moveStart < 0 && pos > 0) || (moveStart > 0 && pos < 0);
+        eq = 'new position = position + move' +
+          '<br>= <span class="num">' + sg(moveStart) + '</span> + <span class="num">(' + sg(lastMove) + ')</span>' +
+          '<br>= <span class="res">' + sg(pos) + '</span>' +
+          '<br><span class="dim">' + (lastMove > 0 ? 'plus move → slide RIGHT ' : 'minus move → slide LEFT ') +
+          M.fmtExact(Math.abs(lastMove), 3) + '"' +
+          (crossed ? ' — you crossed zero on the way' : '') + '</span>';
+      } else {
+        eq = 'position = <span class="num">' + sg(pos) + '</span>' +
+          '<br><span class="dim">distance to zero = |' + sg(pos) + '| = ' + M.fmtExact(Math.abs(pos), 3) + '"</span>' +
+          '<br><span class="dim">to reach zero, jog ' +
+          (pos === 0 ? 'nothing — you\'re on it' : pos < 0 ? '+ (plus, to the right)' : '− (minus, to the left)') +
+          '</span>';
+      }
+      eqBody.innerHTML = eq;
+      droCtl.set(M.signed(pos, 4) + '"', meaningFor(pos));
+      var sayEl = card.querySelector('#sayText');
+      if (sayEl) {
+        sayEl.textContent = pos === 0 ? 'Said out loud: “X zero — on part zero.”'
+          : 'Said out loud: “' + M.sayMeasure(Math.abs(pos)).shop + ' ' + (pos < 0 ? 'left' : 'right') + ' of zero”';
+      }
+      draw();
+    }
+
+    function reducedMotion() {
+      try {
+        return typeof window.matchMedia === 'function' &&
+          window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      } catch (e) { return true; }
+    }
+
+    function fireMove(mv) {
+      var t = Math.round((pos + mv) * 1000) / 1000;
+      if (t < NMIN || t > NMAX) {
+        eqBody.innerHTML = '<span class="num">' + sg(pos) + '</span> + <span class="num">(' + sg(mv) + ')</span> = ' +
+          '<span class="res">' + sg(pos + mv) + '</span>' +
+          '<br><span class="dim">…which is off this table (it only shows ±2.000"). The math still works — pick a move that fits.</span>';
+        return;
+      }
+      moveStart = pos;
+      lastMove = mv;
+      pos = t;
+      update();               /* state + math update instantly */
+      /* only the drawn pointer glides */
+      animToken++;
+      var tok = animToken, from = dispPos, to = pos;
+      if (reducedMotion() || typeof window.requestAnimationFrame !== 'function') {
+        dispPos = to; draw(); return;
+      }
+      var t0 = null;
+      function frame(ts) {
+        if (tok !== animToken) return;
+        if (t0 === null) t0 = ts;
+        var k = Math.min(1, (ts - t0) / 320);
+        var e = k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2;  /* ease in-out */
+        dispPos = from + (to - from) * e;
+        draw();
+        if (k < 1) window.requestAnimationFrame(frame);
+        else { dispPos = to; draw(); }
+      }
+      window.requestAnimationFrame(frame);
+    }
+
+    function setPos(p) {
+      animToken++;             /* cancel any glide */
+      pos = p; dispPos = p; moveStart = null; lastMove = null;
+      update();
+    }
+
+    function pickFromEvent(ev) {
+      var rect = svg.getBoundingClientRect();
+      var x = (ev.clientX - rect.left) * (W / rect.width) - PAD;
+      var k = Math.round(x / inner * ((NMAX - NMIN) / STEP));
+      k = Math.max(0, Math.min((NMAX - NMIN) / STEP, k));
+      var v = NMIN + k * STEP;
+      if (v !== pos) setPos(v);
+    }
+    var dragging = false;
+    svg.addEventListener('pointerdown', function (ev) { dragging = true; svg.setPointerCapture(ev.pointerId); pickFromEvent(ev); });
+    svg.addEventListener('pointermove', function (ev) { if (dragging) pickFromEvent(ev); });
+    svg.addEventListener('pointerup', function () { dragging = false; });
+    svg.addEventListener('pointercancel', function () { dragging = false; });
+    svg.setAttribute('tabindex', '0');
+    svg.addEventListener('keydown', function (ev) {
+      var step = ev.key === 'ArrowRight' ? STEP : ev.key === 'ArrowLeft' ? -STEP : 0;
+      if (!step) return;
+      ev.preventDefault();
+      var v = Math.max(NMIN, Math.min(NMAX, Math.round((pos + step) * 1000) / 1000));
+      if (v !== pos) setPos(v);
+    });
+
+    card.querySelector('#sayBtn').addEventListener('click', function () {
+      var words;
+      if (pos === 0) words = 'X zero. The tool is dead on part zero.';
+      else words = 'X ' + M.sayMeasure(pos, M.signed(pos, 3)).literal + '. That is ' +
+        M.sayMeasure(Math.abs(pos)).shop + ' ' + (pos < 0 ? 'left' : 'right') + ' of zero.';
+      M.speakText(words);
+    });
+
+    update();
+    window.__m2 = { set: setPos, move: fireMove,
+      info: function () { return { pos: pos, lastMove: lastMove }; } };
+  }
+
+  /* ============ question generators (practice + quiz) ============ */
+  var HARD = false;
+
+  /* a position on the line: coarse 1/8s normally, 0.025 steps when HARD */
+  function rndPos(lo, hi) {
+    var step = HARD ? 0.025 : 0.125;
+    var n = Math.round((hi - lo) / step);
+    var v = 0;
+    for (var t = 0; t < 30; t++) {
+      v = Math.round((lo + Math.floor(Math.random() * (n + 1)) * step) * 1000) / 1000;
+      if (v !== 0) return v;
+    }
+    return step;
+  }
+  function r3(v) { return Math.round(v * 1000) / 1000; }
+  function near(a, b, eps) { return Math.abs(a - b) <= (eps || 0.002); }
+
+  function genAddMove() {
+    var s, mv, a;
+    for (var t = 0; t < 60; t++) {
+      s = rndPos(-1.75, 1.75);
+      mv = rndPos(-1.5, 1.5);
+      a = r3(s + mv);
+      var crosses = (s < 0 && a > 0) || (s > 0 && a < 0);
+      if (a >= NMIN && a <= NMAX && Math.abs(a) >= 0.1 && Math.abs(mv) >= 0.125 &&
+          (!HARD || crosses || t > 30)) break;   /* quiz leans on zero-crossings */
+    }
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'The DRO reads X <span class="num">' + sg(s) + '</span>. The program calls a move of ' +
+        '<span class="num">' + sg(mv) + '</span>. Where does the tool end up?',
+      explain: 'position + move: ' + sg(s) + ' + (' + sg(mv) + ') = <span class="num">' + sg(a) + '</span>. ' +
+        'A plus move slides RIGHT, a minus move slides LEFT — the signs do the steering.',
+      hint: 'New position = where you ARE plus the signed move. Keep both signs exactly as written — ' +
+        'a minus start plus a plus move can land on either side of zero.',
+      steps: '1 · Write it as an addition: new = start + move<br>' +
+        '2 · Plug in, signs and all: <span class="num">' + sg(s) + '</span> + <span class="num">(' + sg(mv) + ')</span><br>' +
+        '3 · Walk the line: start ' + M.fmtExact(Math.abs(s), 3) + '" ' + (s < 0 ? 'left' : 'right') + ' of zero, ' +
+        'slide ' + M.fmtExact(Math.abs(mv), 3) + '" ' + (mv > 0 ? 'right' : 'left') +
+        ' → land at <span class="res">' + sg(a) + '"</span>',
+      diagnose: function (v) {
+        if (near(v, -a)) return { label: 'Sign dropped at the end',
+          your: sg(v) + ' is the mirror of the right spot — same distance from zero, wrong side of it',
+          right: sg(s) + ' + (' + sg(mv) + ') = ' + sg(a) + ' — keep the sign the addition hands you' };
+        if (near(v, r3(s - mv))) return { label: 'Flipped the move\'s sign',
+          your: sg(s) + ' − (' + sg(mv) + ') = ' + sg(r3(s - mv)) + ' — you moved the tool the wrong way',
+          right: 'the program said ' + sg(mv) + ': ADD it as written → ' + sg(s) + ' + (' + sg(mv) + ') = ' + sg(a) };
+        if (near(v, r3(Math.abs(s) + Math.abs(mv))) && (s < 0 || mv < 0)) return { label: 'Ignored the signs',
+          your: M.fmtExact(Math.abs(s), 3) + ' + ' + M.fmtExact(Math.abs(mv), 3) + ' = ' + M.fmtExact(Math.abs(s) + Math.abs(mv), 3) + ' — you added the sizes and threw the directions away',
+          right: 'the signs ARE the directions: ' + sg(s) + ' + (' + sg(mv) + ') = ' + sg(a) };
+        if (near(v, mv)) return { label: 'Forgot the start',
+          your: sg(v) + ' is the move itself — but the tool wasn\'t sitting at zero',
+          right: 'start counts: ' + sg(s) + ' + (' + sg(mv) + ') = ' + sg(a) };
+        return { label: 'Lost on the line',
+          your: sg(v) + ' — that isn\'t start + move',
+          right: sg(s) + ' + (' + sg(mv) + ') = ' + sg(a) + '. Sketch the line if the signs blur.' };
+      } };
+  }
+
+  function genDistance() {
+    var p1, p2, d;
+    for (var t = 0; t < 60; t++) {
+      p1 = rndPos(-1.875, 1.875);
+      p2 = rndPos(-1.875, 1.875);
+      d = r3(Math.abs(p1 - p2));
+      if (d >= 0.125 && p1 !== p2) break;
+    }
+    var opp = (p1 < 0 && p2 > 0) || (p1 > 0 && p2 < 0);
+    var diff = r3(p1 - p2);
+    return { type: 'num', a: d, tol: 0.0005,
+      q: 'Two hole centers: one at X <span class="num">' + sg(p1) + '</span>, the other at X ' +
+        '<span class="num">' + sg(p2) + '</span>. How far apart are they?',
+      explain: 'Distance = |a − b|: ' + sg(p1) + ' − (' + sg(p2) + ') = ' + sg(diff) +
+        ', and the distance is its size: <span class="num">' + M.fmtExact(d, 3) + '"</span>. ' +
+        'A distance never carries a sign — it\'s a length, not an address.',
+      hint: 'Subtract one position from the other (either order), then drop any minus sign. ' +
+        '|a − b| — the bars mean "size only". Distance has no direction.',
+      steps: '1 · Subtract, signs and all: <span class="num">' + sg(p1) + '</span> − <span class="num">(' + sg(p2) + ')</span> = ' + sg(diff) + '<br>' +
+        '2 · Distance is the SIZE of that: |' + sg(diff) + '|<br>' +
+        '3 · <span class="res">' + M.fmtExact(d, 3) + '"</span> apart' +
+        (opp ? ' — they straddle zero, so the two sizes ADD: ' + M.fmtExact(Math.abs(p1), 3) + ' + ' + M.fmtExact(Math.abs(p2), 3) : ''),
+      diagnose: function (v) {
+        if (near(v, -d)) return { label: 'Signed a distance',
+          your: sg(v) + ' — you kept the minus. A distance is never negative; it\'s how much tape you\'d stretch between them',
+          right: '|' + sg(p1) + ' − (' + sg(p2) + ')| = ' + M.fmtExact(d, 3) };
+        if (opp && near(v, r3(Math.abs(Math.abs(p1) - Math.abs(p2)))) && !near(r3(Math.abs(Math.abs(p1) - Math.abs(p2))), d)) return { label: 'Forgot the zero crossing',
+          your: 'you subtracted the two sizes: |' + M.fmtExact(Math.abs(p1), 3) + ' − ' + M.fmtExact(Math.abs(p2), 3) + '| = ' + M.fmtExact(Math.abs(Math.abs(p1) - Math.abs(p2)), 3) + ' — but these sit on OPPOSITE sides of zero',
+          right: 'the gap spans zero, so the sizes add: ' + M.fmtExact(Math.abs(p1), 3) + ' + ' + M.fmtExact(Math.abs(p2), 3) + ' = ' + M.fmtExact(d, 3) };
+        if (!opp && near(v, r3(Math.abs(p1) + Math.abs(p2))) && !near(r3(Math.abs(p1) + Math.abs(p2)), d)) return { label: 'Added the sizes',
+          your: M.fmtExact(Math.abs(p1), 3) + ' + ' + M.fmtExact(Math.abs(p2), 3) + ' = ' + M.fmtExact(Math.abs(p1) + Math.abs(p2), 3) + ' — that only works when the points straddle zero. These are both on the ' + (p1 < 0 ? 'minus' : 'plus') + ' side',
+          right: 'same side → subtract: |' + sg(p1) + ' − (' + sg(p2) + ')| = ' + M.fmtExact(d, 3) };
+        if (near(v, r3(p1 + p2)) && !near(r3(p1 + p2), d)) return { label: 'Added instead of subtracting',
+          your: sg(p1) + ' + (' + sg(p2) + ') = ' + sg(r3(p1 + p2)) + ' — adding positions doesn\'t measure anything',
+          right: 'distance subtracts: |' + sg(p1) + ' − (' + sg(p2) + ')| = ' + M.fmtExact(d, 3) };
+        return { label: 'Not |a − b|',
+          your: sg(v) + ' doesn\'t come from subtracting the two positions',
+          right: '|' + sg(p1) + ' − (' + sg(p2) + ')| = ' + M.fmtExact(d, 3) };
+      } };
+  }
+
+  function genDirection() {
+    var cur, tgt;
+    for (var t = 0; t < 60; t++) {
+      cur = rndPos(-1.75, 1.75);
+      tgt = rndPos(-1.75, 1.75);
+      if (Math.abs(tgt - cur) >= 0.125 &&
+          (t > 20 || (cur < 0 && tgt < 0) || (cur < 0) !== (tgt < 0))) break;  /* bias to the trap zones */
+    }
+    var diff = r3(tgt - cur);
+    var a = diff > 0 ? 0 : 1;
+    var word = diff > 0 ? 'PLUS' : 'MINUS';
+    return { type: 'mc', a: a,
+      choices: ['PLUS — jog toward the right', 'MINUS — jog toward the left'],
+      q: 'The tool sits at X <span class="num">' + sg(cur) + '</span>. The next hole is at X ' +
+        '<span class="num">' + sg(tgt) + '</span>. Which way do you jog?',
+      explain: 'Direction = sign of (target − current): ' + sg(tgt) + ' − (' + sg(cur) + ') = ' + sg(diff) +
+        ' → jog <span class="num">' + word + '</span>. The target is ' + (diff > 0 ? 'to the right of' : 'to the left of') + ' where you are.',
+      hint: 'Compute target − current — where you\'re GOING minus where you ARE, in that order. ' +
+        'The sign of that result IS the jog direction: plus is right, minus is left.',
+      steps: '1 · direction = sign of (target − current)<br>' +
+        '2 · <span class="num">' + sg(tgt) + '</span> − <span class="num">(' + sg(cur) + ')</span> = ' + sg(diff) + '<br>' +
+        '3 · sign is ' + (diff > 0 ? 'plus' : 'minus') + ' → jog <span class="res">' + word + '</span>',
+      diagnose: function () {
+        return { label: 'Direction flipped',
+          your: 'that\'s the sign of current − target: ' + sg(cur) + ' − (' + sg(tgt) + ') = ' + sg(r3(cur - tgt)) + ' — the subtraction ran backwards',
+          right: 'target − current: ' + sg(tgt) + ' − (' + sg(cur) + ') = ' + sg(diff) + ' → ' + word +
+            '. Going-to minus being-at, always.' };
+      } };
+  }
+
+  function genWhichBigger() {
+    var v1, v2;
+    var both = Math.random() < 0.7;   /* mostly the two-negatives trap */
+    for (var t = 0; t < 60; t++) {
+      if (both) { v1 = rndPos(-1.875, -0.125); v2 = rndPos(-1.875, -0.125); }
+      else { v1 = rndPos(-1.875, -0.125); v2 = rndPos(0.125, 1.0); }
+      if (v1 !== v2 && Math.abs(Math.abs(v1) - Math.abs(v2)) >= 0.125) break;
+    }
+    /* put the big-magnitude negative in as the bait */
+    var a = v1 > v2 ? 0 : 1;
+    var win = a === 0 ? v1 : v2, lose = a === 0 ? v2 : v1;
+    var ch = [M.fmtExact(v1, 3) + '"', M.fmtExact(v2, 3) + '"'];
+    return { type: 'mc', a: a, choices: ch,
+      q: 'Which of these is the <b>larger</b> X position — the one further to the <b>right</b>?',
+      explain: 'Bigger = further right on the line. ' + sg(win) + ' sits to the right of ' + sg(lose) +
+        ', so <span class="num">' + sg(win) + '</span> is larger' +
+        (win < 0 ? ' — with two negatives, the SMALLER digits win, because more minus means further left.' : '.'),
+      hint: 'Put both on the number line and ask which sits further RIGHT. With negatives, ' +
+        'ignore the pull of big digits — a bigger number after a minus is further LEFT.',
+      steps: '1 · Place them: ' + sg(lose) + ' is ' + M.fmtExact(Math.abs(lose), 3) + '" ' + (lose < 0 ? 'left' : 'right') + ' of zero, ' +
+        sg(win) + ' is ' + M.fmtExact(Math.abs(win), 3) + '" ' + (win < 0 ? 'left' : 'right') + ' of zero<br>' +
+        '2 · Further right wins<br>' +
+        '3 · <span class="res">' + sg(win) + '</span> is the larger position',
+      diagnose: function () {
+        return { label: 'Magnitude trap',
+          your: 'you picked ' + sg(lose) + ' because ' + M.fmtExact(Math.abs(lose), 3) + ' has the bigger digits — but after a minus, bigger digits mean further LEFT',
+          right: 'on the line ' + sg(win) + ' sits to the right of ' + sg(lose) + ' — further right = larger' };
+      } };
+  }
+
+  function genGapZero() {
+    var x = rndPos(-1.875, 1.875);
+    if (Math.random() < 0.7) x = -Math.abs(x);   /* the sign trap needs a minus */
+    var d = Math.abs(x);
+    return { type: 'num', a: d, tol: 0.0005,
+      q: 'The DRO reads X <span class="num">' + sg(x) + '</span>. How far is the tool from part zero?',
+      explain: 'Distance to zero is the absolute value: |' + sg(x) + '| = <span class="num">' + M.fmtExact(d, 3) + '"</span>. ' +
+        'The sign told you which SIDE; the digits already told you how far.',
+      hint: 'The sign says which side of zero; the digits alone say how far. ' +
+        'Strip the sign — |x| — and you have the distance.',
+      steps: '1 · distance to zero = |position|<br>' +
+        '2 · |<span class="num">' + sg(x) + '</span>| — drop the sign, keep the size<br>' +
+        '3 · <span class="res">' + M.fmtExact(d, 3) + '"</span> from zero',
+      diagnose: function (v) {
+        if (x < 0 && near(v, x)) return { label: 'Signed a distance',
+          your: sg(x) + ' is the tool\'s ADDRESS. The question asked for a distance — and a distance is never negative',
+          right: '|' + sg(x) + '| = ' + M.fmtExact(d, 3) + ' — the minus only said "left side"' };
+        if (near(v, -d) && x > 0) return { label: 'Invented a minus',
+          your: sg(-d) + ' — a distance never carries a sign',
+          right: '|' + sg(x) + '| = ' + M.fmtExact(d, 3) };
+        if (near(v, r3(2 * d))) return { label: 'Doubled it',
+          your: M.fmtExact(2 * d, 3) + ' is the distance from ' + sg(x) + ' to ' + sg(-x) + ' — mirror to mirror, not to zero',
+          right: 'zero is the midpoint: |' + sg(x) + '| = ' + M.fmtExact(d, 3) };
+        return { label: 'Not the gap',
+          your: sg(v) + ' isn\'t |' + sg(x) + '|',
+          right: 'distance to zero = |' + sg(x) + '| = ' + M.fmtExact(d, 3) };
+      } };
+  }
+
+  var GENS = { addMove: genAddMove, distance: genDistance, direction: genDirection,
+    whichBigger: genWhichBigger, gapZero: genGapZero };
+  function gen(kind) { var q = GENS[kind](); q.kind = kind; return q; }
+
+  /* fresh question, avoiding an exact repeat within one set */
+  function freshGen(kind, used) {
+    var plain = function (h) { return String(h).replace(/<[^>]*>/g, ''); };
+    var q = gen(kind);
+    for (var t = 0; t < 8; t++) {
+      var key = kind + '|' + plain(q.q);
+      if (!used[key]) { used[key] = 1; return q; }
+      q = gen(kind);
+    }
+    return q;
+  }
+  function buildSet(kinds) {
+    var used = {};
+    return M.shuffle(kinds.map(function (k) { return freshGen(k, used); }));
+  }
+
+  function practiceQs() {
+    HARD = false;
+    return buildSet(['addMove', 'addMove', 'addMove', 'distance', 'distance',
+      'direction', 'direction', 'whichBigger', 'whichBigger', 'gapZero']);
+  }
+  function quizQs() {
+    HARD = true;
+    var qs = buildSet(['addMove', 'addMove', 'addMove', 'addMove', 'distance',
+      'distance', 'distance', 'direction', 'whichBigger', 'gapZero']);
+    HARD = false;
+    return qs;
+  }
+
+  /* worked twin for the coach's WORK ONE LIKE IT — always different numbers */
+  function coachRegen(kind, current) {
+    var plain = function (h) { return String(h).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(); };
+    var q = null;
+    for (var t = 0; t < 6; t++) {
+      q = gen(kind);
+      if (!current || plain(q.q) !== plain(current.q)) break;
+    }
+    var ans = q.type === 'mc' ? plain(String(q.choices[q.a]))
+      : (q.unit ? q.a + ' ' + q.unit : M.fmtExact(q.a));
+    return {
+      title: plain(q.q),
+      steps: (q.steps || q.explain || '') + '<br>Answer: <span class="res">' + M.esc(ans) + '</span>',
+      spoken: M.sayAnswerQ(q),
+    };
+  }
+
+  M.modulePage('m2', {
+    explainer: EXPLAINER,
+    playground: playground,
+    practiceQs: practiceQs,
+    quizQs: quizQs,
+    coach: { regen: coachRegen },
+  });
+})();
+</script>
+</body>
+</html>

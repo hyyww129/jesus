@@ -11,9 +11,9 @@
   var MODULES = [
     { id: 'm1',  n: 1,  title: 'Reading a Ruler & Thousandths', file: 'modules/m01-ruler.html', built: true,
       desc: 'Fractions to decimals. What a thou (.001) and a tenth (.0001) really are.' },
-    { id: 'm2',  n: 2,  title: 'The Number Line & Signed Moves', file: 'modules/m02-number-line.html', built: false,
+    { id: 'm2',  n: 2,  title: 'The Number Line & Signed Moves', file: 'modules/m02-number-line.html', built: true,
       desc: 'Negative vs positive, and adding signed moves without guessing.' },
-    { id: 'm3',  n: 3,  title: 'X, Y, Z Coordinates', file: 'modules/m03-coordinates.html', built: false,
+    { id: 'm3',  n: 3,  title: 'X, Y, Z Coordinates', file: 'modules/m03-coordinates.html', built: true,
       desc: 'The machine as graph paper. Part zero, absolute vs incremental.' },
     { id: 'm4',  n: 4,  title: 'The Edge Finder & Zero Offsets', file: 'modules/m04-edge-finder.html', built: false,
       desc: 'The 0.200 tip / 0.100 rule, sign by approach side, zero at center.' },
@@ -819,6 +819,271 @@
         right: n + ' ÷ ' + d + ' = ' + fmtExact(dec) };
     };
   }
+
+  BANKS.m2 = function () {
+    var kind = pick(['addMove', 'addMove', 'distance', 'distance', 'direction', 'whichBigger', 'gapZero']);
+    function sg(v) { return signed(v, 3); }
+    function r3(v) { return Math.round(v * 1000) / 1000; }
+    function rpos(lo, hi) {  /* nonzero position on 1/8" steps */
+      var n = Math.round((hi - lo) * 8), v, t;
+      for (t = 0; t < 30; t++) {
+        v = r3(lo + Math.floor(Math.random() * (n + 1)) / 8);
+        if (v !== 0) return v;
+      }
+      return 0.125;
+    }
+    var t;
+    if (kind === 'addMove') {
+      var s, mv, a;
+      for (t = 0; t < 60; t++) {
+        s = rpos(-1.75, 1.75); mv = rpos(-1.5, 1.5); a = r3(s + mv);
+        if (Math.abs(a) >= 0.1 && Math.abs(a) <= 2 && Math.abs(mv) >= 0.125) break;
+      }
+      return { type: 'num', a: a, tol: 0.0005, from: 'Module 2',
+        q: 'The DRO reads X <span class="num">' + sg(s) + '</span>. The program calls a move of <span class="num">' + sg(mv) + '</span>. Where does the tool end up?',
+        explain: 'position + move: ' + sg(s) + ' + (' + sg(mv) + ') = <span class="num">' + sg(a) + '</span>. A plus move slides RIGHT, a minus move slides LEFT.',
+        hint: 'New position = where you ARE plus the signed move. Keep both signs exactly as written.',
+        steps: '1 · new = start + move<br>2 · Plug in, signs and all: <span class="num">' + sg(s) + '</span> + <span class="num">(' + sg(mv) + ')</span><br>3 · Land at <span class="res">' + sg(a) + '"</span>',
+        diagnose: function (v) {
+          if (Math.abs(v + a) <= 0.002) return { label: 'Sign dropped at the end',
+            your: sg(v) + ' is the mirror of the right spot — same distance from zero, wrong side of it',
+            right: sg(s) + ' + (' + sg(mv) + ') = ' + sg(a) + ' — keep the sign the addition hands you' };
+          if (Math.abs(v - r3(s - mv)) <= 0.002) return { label: 'Flipped the move\'s sign',
+            your: sg(s) + ' − (' + sg(mv) + ') = ' + sg(r3(s - mv)) + ' — you moved the tool the wrong way',
+            right: 'the program said ' + sg(mv) + ': ADD it as written → ' + sg(a) };
+          if (Math.abs(v - mv) <= 0.002) return { label: 'Forgot the start',
+            your: sg(v) + ' is the move itself — but the tool was not sitting at zero',
+            right: sg(s) + ' + (' + sg(mv) + ') = ' + sg(a) };
+          return { label: 'Not start + move',
+            your: sg(v) + ' does not come from ' + sg(s) + ' + (' + sg(mv) + ')',
+            right: sg(s) + ' + (' + sg(mv) + ') = ' + sg(a) };
+        } };
+    }
+    if (kind === 'distance') {
+      var p1, p2, d;
+      for (t = 0; t < 60; t++) {
+        p1 = rpos(-1.875, 1.875); p2 = rpos(-1.875, 1.875); d = r3(Math.abs(p1 - p2));
+        if (d >= 0.125) break;
+      }
+      var opp = (p1 < 0 && p2 > 0) || (p1 > 0 && p2 < 0);
+      return { type: 'num', a: d, tol: 0.0005, from: 'Module 2',
+        q: 'Two hole centers: one at X <span class="num">' + sg(p1) + '</span>, the other at X <span class="num">' + sg(p2) + '</span>. How far apart are they?',
+        explain: 'Distance = |a − b|: ' + sg(p1) + ' − (' + sg(p2) + ') = ' + sg(r3(p1 - p2)) + ', size <span class="num">' + fmtExact(d, 3) + '"</span>. A distance never carries a sign.',
+        hint: 'Subtract one position from the other (either order), then drop any minus sign. Distance has no direction.',
+        steps: '1 · Subtract, signs and all: <span class="num">' + sg(p1) + '</span> − <span class="num">(' + sg(p2) + ')</span> = ' + sg(r3(p1 - p2)) + '<br>2 · Keep the size only<br>3 · <span class="res">' + fmtExact(d, 3) + '"</span> apart',
+        diagnose: function (v) {
+          if (Math.abs(v + d) <= 0.002) return { label: 'Signed a distance',
+            your: sg(v) + ' — you kept the minus, but a distance is never negative',
+            right: '|' + sg(p1) + ' − (' + sg(p2) + ')| = ' + fmtExact(d, 3) };
+          if (opp && Math.abs(v - r3(Math.abs(Math.abs(p1) - Math.abs(p2)))) <= 0.002 && Math.abs(r3(Math.abs(Math.abs(p1) - Math.abs(p2))) - d) > 0.004) return { label: 'Forgot the zero crossing',
+            your: 'you subtracted the two sizes — but these points sit on OPPOSITE sides of zero',
+            right: 'the gap spans zero, so the sizes add: ' + fmtExact(Math.abs(p1), 3) + ' + ' + fmtExact(Math.abs(p2), 3) + ' = ' + fmtExact(d, 3) };
+          if (!opp && Math.abs(v - r3(Math.abs(p1) + Math.abs(p2))) <= 0.002 && Math.abs(r3(Math.abs(p1) + Math.abs(p2)) - d) > 0.004) return { label: 'Added the sizes',
+            your: fmtExact(Math.abs(p1), 3) + ' + ' + fmtExact(Math.abs(p2), 3) + ' — that only works when the points straddle zero; these are both on the ' + (p1 < 0 ? 'minus' : 'plus') + ' side',
+            right: 'same side → subtract: |' + sg(p1) + ' − (' + sg(p2) + ')| = ' + fmtExact(d, 3) };
+          return { label: 'Not |a − b|',
+            your: sg(v) + ' does not come from subtracting the two positions',
+            right: '|' + sg(p1) + ' − (' + sg(p2) + ')| = ' + fmtExact(d, 3) };
+        } };
+    }
+    if (kind === 'direction') {
+      var cur, tgt;
+      for (t = 0; t < 60; t++) {
+        cur = rpos(-1.75, 1.75); tgt = rpos(-1.75, 1.75);
+        if (Math.abs(tgt - cur) >= 0.125) break;
+      }
+      var diff = r3(tgt - cur);
+      var word = diff > 0 ? 'PLUS' : 'MINUS';
+      return { type: 'mc', a: diff > 0 ? 0 : 1, from: 'Module 2',
+        choices: ['PLUS — jog toward the right', 'MINUS — jog toward the left'],
+        q: 'The tool sits at X <span class="num">' + sg(cur) + '</span>. The next hole is at X <span class="num">' + sg(tgt) + '</span>. Which way do you jog?',
+        explain: 'Direction = sign of (target − current): ' + sg(tgt) + ' − (' + sg(cur) + ') = ' + sg(diff) + ' → jog <span class="num">' + word + '</span>.',
+        hint: 'Compute target − current — where you\'re GOING minus where you ARE, in that order. The sign of the result IS the jog direction.',
+        steps: '1 · direction = sign of (target − current)<br>2 · <span class="num">' + sg(tgt) + '</span> − <span class="num">(' + sg(cur) + ')</span> = ' + sg(diff) + '<br>3 · jog <span class="res">' + word + '</span>',
+        diagnose: function () {
+          return { label: 'Direction flipped',
+            your: 'that is the sign of current − target: ' + sg(cur) + ' − (' + sg(tgt) + ') = ' + sg(r3(cur - tgt)) + ' — the subtraction ran backwards',
+            right: 'target − current: ' + sg(tgt) + ' − (' + sg(cur) + ') = ' + sg(diff) + ' → ' + word };
+        } };
+    }
+    if (kind === 'whichBigger') {
+      var v1, v2;
+      for (t = 0; t < 60; t++) {
+        v1 = rpos(-1.875, -0.125); v2 = rpos(-1.875, -0.125);
+        if (v1 !== v2) break;
+      }
+      var ai = v1 > v2 ? 0 : 1;
+      var win = ai === 0 ? v1 : v2, lose = ai === 0 ? v2 : v1;
+      return { type: 'mc', a: ai, from: 'Module 2',
+        choices: [fmtExact(v1, 3) + '"', fmtExact(v2, 3) + '"'],
+        q: 'Which of these is the <b>larger</b> X position — the one further to the <b>right</b>?',
+        explain: 'Bigger = further right on the line. ' + sg(win) + ' sits to the right of ' + sg(lose) + ' — with two negatives, the SMALLER digits win, because more minus means further left.',
+        hint: 'Put both on the number line and ask which sits further RIGHT. A bigger number after a minus is further LEFT.',
+        steps: '1 · ' + sg(lose) + ' is ' + fmtExact(Math.abs(lose), 3) + '" left of zero, ' + sg(win) + ' is ' + fmtExact(Math.abs(win), 3) + '" left of zero<br>2 · Further right wins<br>3 · <span class="res">' + sg(win) + '</span> is larger',
+        diagnose: function () {
+          return { label: 'Magnitude trap',
+            your: 'you picked ' + sg(lose) + ' because its digits are bigger — but after a minus, bigger digits mean further LEFT',
+            right: sg(win) + ' sits to the right of ' + sg(lose) + ' — further right = larger' };
+        } };
+    }
+    var x = -Math.abs(rpos(-1.875, 1.875));
+    var g = Math.abs(x);
+    return { type: 'num', a: g, tol: 0.0005, from: 'Module 2',
+      q: 'The DRO reads X <span class="num">' + sg(x) + '</span>. How far is the tool from part zero?',
+      explain: 'Distance to zero is the absolute value: |' + sg(x) + '| = <span class="num">' + fmtExact(g, 3) + '"</span>. The sign said which side; the digits already said how far.',
+      hint: 'The sign says which side of zero; the digits alone say how far. Strip the sign and you have the distance.',
+      steps: '1 · distance to zero = |position|<br>2 · |<span class="num">' + sg(x) + '</span>| — drop the sign, keep the size<br>3 · <span class="res">' + fmtExact(g, 3) + '"</span> from zero',
+      diagnose: function (v) {
+        if (Math.abs(v - x) <= 0.002) return { label: 'Signed a distance',
+          your: sg(x) + ' is the tool\'s ADDRESS — the question asked for a distance, and a distance is never negative',
+          right: '|' + sg(x) + '| = ' + fmtExact(g, 3) + ' — the minus only said "left side"' };
+        if (Math.abs(v - r3(2 * g)) <= 0.002) return { label: 'Doubled it',
+          your: fmtExact(2 * g, 3) + ' is the distance from ' + sg(x) + ' to ' + sg(-x) + ' — mirror to mirror, not to zero',
+          right: 'zero is the midpoint: |' + sg(x) + '| = ' + fmtExact(g, 3) };
+        return { label: 'Not the gap',
+          your: sg(v) + ' is not |' + sg(x) + '|',
+          right: 'distance to zero = |' + sg(x) + '| = ' + fmtExact(g, 3) };
+      } };
+  };
+  BANKS.m3 = function () {
+    var kind = pick(['absToInc', 'absToInc', 'incToAbs', 'incToAbs', 'zDepth', 'zDepth', 'quadrantSign']);
+    function r4(v) { return Math.round(v * 10000) / 10000; }
+    function par(v) { return v < 0 ? '(' + fmtExact(v) + ')' : fmtExact(v); }
+    function coord() { return Math.round(Math.floor(Math.random() * 161) * 25) / 1000; } /* 0 … 4.000 by 0.025 */
+    if (kind === 'absToInc') {
+      var ax = pick(['X', 'Y']);
+      var cur = coord(), tgt = cur;
+      while (tgt === cur) tgt = coord();
+      var inc = r4(tgt - cur);
+      return { type: 'num', a: inc, tol: 0.0005, from: 'Module 3',
+        q: 'The tool sits at ' + ax + ' <span class="num">' + fmtExact(cur) + '"</span>. The next position is ' + ax +
+          ' <span class="num">' + fmtExact(tgt) + '"</span> absolute. What <b>incremental</b> ' + ax + ' move gets you there?',
+        explain: 'Incremental = target − current: ' + fmtExact(tgt) + ' − ' + fmtExact(cur) + ' = <span class="num">' + signed(inc, 4) + '"</span>.',
+        hint: 'Incremental asks: how far, and which way, from where the tool is NOW? One rule: target − current — in that order. The sign falls out of the subtraction; never pick it by feel.',
+        steps: '1 · The rule: incremental = target − current<br>' +
+          '2 · Plug in: <span class="num">' + fmtExact(tgt) + '</span> − <span class="num">' + fmtExact(cur) + '</span> = <span class="res">' + signed(inc, 4) + '"</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - (cur - tgt)) <= 0.001) return { label: inc < 0 ? 'Dropped the minus sign' : 'Swapped the subtraction',
+            your: 'current − target: ' + fmtExact(cur) + ' − ' + fmtExact(tgt) + ' = ' + signed(r4(cur - tgt), 4) + ' — the tool would drive the wrong way',
+            right: 'target − current: ' + fmtExact(tgt) + ' − ' + fmtExact(cur) + ' = ' + signed(inc, 4) };
+          if (Math.abs(v - tgt) <= 0.001) return { label: 'Gave absolute, not incremental',
+            your: fmtExact(tgt) + ' is where the target IS — not how to get there',
+            right: 'the MOVE is ' + fmtExact(tgt) + ' − ' + fmtExact(cur) + ' = ' + signed(inc, 4) };
+          return { label: 'Arithmetic slip',
+            your: v + ' is not target − current',
+            right: fmtExact(tgt) + ' − ' + fmtExact(cur) + ' = ' + signed(inc, 4) };
+        } };
+    }
+    if (kind === 'incToAbs') {
+      var ax2 = pick(['X', 'Y']);
+      var c2 = Math.round((20 + Math.floor(Math.random() * 121)) * 25) / 1000;  /* 0.500 … 3.500 */
+      var mag = Math.round((2 + Math.floor(Math.random() * 47)) * 25) / 1000;   /* 0.050 … 1.200 */
+      var sg = Math.random() < 0.5 ? -1 : 1;
+      if (c2 + sg * mag < 0 || c2 + sg * mag > 4) sg = -sg;
+      var mv = r4(sg * mag), abs = r4(c2 + mv);
+      return { type: 'num', a: abs, tol: 0.0005, from: 'Module 3',
+        q: 'You are at ' + ax2 + ' <span class="num">' + fmtExact(c2) + '"</span> and the program calls an incremental move of <span class="num">' +
+          signed(mv, 4) + '"</span>. Where does the ' + ax2 + ' DRO read (absolute) after the move?',
+        explain: 'New absolute = current + incremental: ' + fmtExact(c2) + ' + ' + par(mv) + ' = <span class="num">' + fmtExact(abs) + '"</span>.',
+        hint: 'You know where you are and how far you move. New absolute = current + incremental — keep the sign glued to the move when you add.',
+        steps: '1 · The rule: new absolute = current + incremental<br>' +
+          '2 · Plug in: <span class="num">' + fmtExact(c2) + '</span> + <span class="num">' + par(mv) + '</span> = <span class="res">' + fmtExact(abs) + '"</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - (c2 - mv)) <= 0.001) return { label: 'Flipped the move’s sign',
+            your: fmtExact(c2) + ' − ' + par(mv) + ' = ' + fmtExact(r4(c2 - mv)) + ' — you drove the tool the opposite way',
+            right: 'add the move as written: ' + fmtExact(c2) + ' + ' + par(mv) + ' = ' + fmtExact(abs) };
+          if (Math.abs(v - mv) <= 0.001 || Math.abs(v - Math.abs(mv)) <= 0.001) return { label: 'Gave the move, not the destination',
+            your: signed(mv, 4) + ' is the incremental move itself — the question asks where the DRO reads AFTER it',
+            right: fmtExact(c2) + ' + ' + par(mv) + ' = ' + fmtExact(abs) };
+          return { label: 'Arithmetic slip',
+            your: v + ' is not current + incremental',
+            right: fmtExact(c2) + ' + ' + par(mv) + ' = ' + fmtExact(abs) };
+        } };
+    }
+    if (kind === 'zDepth') {
+      if (Math.random() < 0.5) {
+        var d = pick([0.100, 0.125, 0.150, 0.200, 0.250, 0.300, 0.375, 0.500]);
+        var za = r4(-d);
+        return { type: 'num', a: za, tol: 0.0005, from: 'Module 3',
+          q: 'Part zero is on the <b>top</b> of the part, so the top face reads Z <span class="num">0</span>. You mill a step <span class="num">' +
+            fmtExact(d, 3) + '"</span> deep. What does the Z DRO read at full depth?',
+          explain: 'The whole part sits below Z0 and +Z is up, so depth is negative: <span class="num">Z ' + fmtExact(za) + '"</span>.',
+          hint: 'Where is Z zero? On the top face. Which way is plus? Up. So which sign must anything BELOW the top face carry?',
+          steps: '1 · Z0 is the top face; +Z is up, −Z is down into the part<br>' +
+            '2 · Full depth is <span class="num">' + fmtExact(d, 3) + '"</span> below the top face<br>' +
+            '3 · Below zero reads negative: <span class="res">Z ' + fmtExact(za) + '"</span>',
+          diagnose: function (v) {
+            if (Math.abs(v - d) <= 0.001) return { label: 'Positive Z for a depth',
+              your: '+' + fmtExact(d, 3) + ' would put the tool ABOVE the part — +Z is up',
+              right: 'cutting happens below Z0: Z ' + fmtExact(za) };
+            if (Math.abs(Math.abs(v) - d * 1000) <= 1) return { label: 'Answered in thou',
+              your: Math.round(Math.abs(v)) + ' is the depth in thou — the Z DRO reads inches',
+              right: fmtExact(d, 3) + '" below zero → Z ' + fmtExact(za) + '"' };
+            return { label: 'Depth slip',
+              your: v + ' is not ' + fmtExact(d, 3) + '" below the top face',
+              right: '0 − ' + fmtExact(d, 3) + ' = ' + fmtExact(za) };
+          } };
+      }
+      var z0 = -pick([0.100, 0.150, 0.200, 0.250, 0.300]);
+      var dd = pick([0.050, 0.075, 0.100, 0.125, 0.150]);
+      var zb = r4(z0 - dd);
+      return { type: 'num', a: zb, tol: 0.0005, from: 'Module 3',
+        q: 'The tool tip sits at Z <span class="num">' + fmtExact(z0) + '"</span>. The next pass goes <span class="num">' + fmtExact(dd, 3) +
+          '"</span> deeper. What Z do you feed down to?',
+        explain: 'Deeper means MORE negative: ' + par(z0) + ' − ' + fmtExact(dd, 3) + ' = <span class="num">Z ' + fmtExact(zb) + '"</span>.',
+        hint: 'Deeper is further below zero — the Z number gets MORE negative. Start from where the tip already is and push it down by the pass amount.',
+        steps: '1 · Deeper = more negative: new Z = current Z − pass depth<br>' +
+          '2 · Plug in: <span class="num">' + par(z0) + '</span> − <span class="num">' + fmtExact(dd, 3) + '</span> = <span class="res">Z ' + fmtExact(zb) + '"</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - (z0 + dd)) <= 0.001) return { label: 'Went the wrong way',
+            your: par(z0) + ' + ' + fmtExact(dd, 3) + ' = ' + fmtExact(r4(z0 + dd)) + ' — that RAISES the tool toward the surface',
+            right: 'deeper subtracts: ' + par(z0) + ' − ' + fmtExact(dd, 3) + ' = ' + fmtExact(zb) };
+          if (Math.abs(v - (-dd)) <= 0.001) return { label: 'Ignored the starting depth',
+            your: 'Z ' + fmtExact(-dd) + ' answers as if the tip started at Z 0 — it is already at ' + fmtExact(z0),
+            right: par(z0) + ' − ' + fmtExact(dd, 3) + ' = ' + fmtExact(zb) };
+          if (Math.abs(v - Math.abs(zb)) <= 0.001) return { label: 'Dropped the minus sign',
+            your: fmtExact(Math.abs(zb)) + ' is the right distance below the top — but below zero reads negative',
+            right: 'Z ' + fmtExact(zb) + '" — depths carry the minus' };
+          return { label: 'Depth slip',
+            your: v + ' is not one pass deeper than ' + fmtExact(z0),
+            right: par(z0) + ' − ' + fmtExact(dd, 3) + ' = ' + fmtExact(zb) };
+        } };
+    }
+    /* quadrantSign — signs of X and Y by quadrant around part zero */
+    var quads = [
+      { sx: 1,  sy: 1,  txt: '<b>right</b> of part zero and <b>away from you</b>, toward the column' },
+      { sx: 1,  sy: -1, txt: '<b>right</b> of part zero and <b>toward you</b> (off the front-right corner)' },
+      { sx: -1, sy: 1,  txt: '<b>left</b> of part zero and <b>away from you</b>, toward the column' },
+      { sx: -1, sy: -1, txt: '<b>left</b> of part zero and <b>toward you</b> (off the front-left corner)' },
+    ];
+    var qd = pick(quads);
+    var qchoices = ['X +, Y +', 'X +, Y −', 'X −, Y +', 'X −, Y −'];
+    var qsigns = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+    var qa = (qd.sx > 0 ? 0 : 2) + (qd.sy > 0 ? 0 : 1);
+    function sw(s) { return s > 0 ? '+' : '−'; }
+    return { type: 'mc', a: qa, choices: qchoices, from: 'Module 3',
+      q: 'A hole sits ' + qd.txt + '. Standing at the machine, what signs do its X and Y coordinates carry?',
+      explain: '+X is to the right, +Y is away from you (toward the column). This point → X ' + sw(qd.sx) + ', Y ' + sw(qd.sy) + '.',
+      hint: 'Take the axes one at a time. Left–right is X: right of zero is +, left is −. Toward–away is Y: away from you (toward the column) is +, toward you is −.',
+      steps: '1 · Left–right is X: ' + (qd.sx > 0 ? 'right of zero → X +' : 'left of zero → X −') + '<br>' +
+        '2 · Toward–away is Y: ' + (qd.sy > 0 ? 'away, toward the column → Y +' : 'toward you → Y −') + '<br>' +
+        '3 · Together: <span class="res">X ' + sw(qd.sx) + ', Y ' + sw(qd.sy) + '</span>',
+      diagnose: function (chosen) {
+        var cx = qsigns[chosen][0], cy = qsigns[chosen][1];
+        if (qd.sx !== qd.sy && cx === qd.sy && cy === qd.sx) return { label: 'Mixed up X and Y',
+          your: 'you put the left–right sign on Y and the toward–away sign on X',
+          right: 'left–right is ALWAYS X, toward–away is ALWAYS Y → X ' + sw(qd.sx) + ', Y ' + sw(qd.sy) };
+        if (cx !== qd.sx && cy !== qd.sy) return { label: 'Both signs backwards',
+          your: 'X ' + sw(cx) + ', Y ' + sw(cy) + ' is the diagonally opposite quadrant',
+          right: 'right and away are the + directions → X ' + sw(qd.sx) + ', Y ' + sw(qd.sy) };
+        if (cx !== qd.sx) return { label: 'X sign backwards',
+          your: 'X ' + sw(cx) + ' puts the point on the ' + (cx > 0 ? 'right' : 'left') + ' — the question says the other side',
+          right: (qd.sx > 0 ? 'right' : 'left') + ' of zero → X ' + sw(qd.sx) };
+        return { label: 'Y sign backwards',
+          your: 'Y ' + sw(cy) + ' means ' + (cy > 0 ? 'away from you' : 'toward you') + ' — the question says the opposite',
+          right: (qd.sy > 0 ? 'away from you, toward the column' : 'toward you') + ' → Y ' + sw(qd.sy) };
+      } };
+  };
 
   /* Daily 10: pull from all unlocked, built modules with a bank */
   function daily10Questions() {

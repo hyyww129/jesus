@@ -2,7 +2,7 @@
 // a two-section hub — sim games + math curriculum — with every page embedded.
 // Pages swap in via document.write; window globals (and window.name state for the
 // math side) survive the swap, so navigation and unlocking work everywhere.
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -63,18 +63,9 @@ const GAME_PAGES = [
 /* ================= Math Trainer side ================= */
 const MSTYLE = readM('style.css');
 const MSHARED = readM('shared.js');
-const MMT_MODULES = [
-  'modules/m01-ruler.html',
-  'modules/m02-number-line.html',
-  'modules/m03-coordinates.html',
-  'modules/m04-edge-finder.html',
-  'modules/m05-rpm.html',
-  'modules/m06-feed.html',
-  'modules/m07-depth.html',
-  'modules/m08-bolt-circle.html',
-  'modules/m09-triangles.html',
-  'modules/m10-tolerance.html',
-];
+// every math module on disk ships in the bundle
+const MMT_MODULES = readdirSync(join(MMT, 'modules'))
+  .filter(f => /^m\d\d-.+\.html$/.test(f)).sort().map(f => 'modules/' + f);
 
 function inlineMMT(html, depth) {
   const prefix = depth ? '../' : '';

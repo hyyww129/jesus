@@ -2,7 +2,7 @@
 // The hub is the page itself; module pages are embedded as strings and swapped in
 // with document.write(). window.name state survives both the swap and reload, so
 // unlocking works exactly as it does in the multi-file version.
-import { readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -14,18 +14,9 @@ const esc = s => JSON.stringify(s).replace(/</g, '\\u003c');
 const STYLE = read('style.css');
 const SHARED = read('shared.js');
 
-const MODULE_FILES = [
-  'modules/m01-ruler.html',
-  'modules/m02-number-line.html',
-  'modules/m03-coordinates.html',
-  'modules/m04-edge-finder.html',
-  'modules/m05-rpm.html',
-  'modules/m06-feed.html',
-  'modules/m07-depth.html',
-  'modules/m08-bolt-circle.html',
-  'modules/m09-triangles.html',
-  'modules/m10-tolerance.html',
-];
+// every module on disk ships in the bundle
+const MODULE_FILES = readdirSync(join(ROOT, 'modules'))
+  .filter(f => /^m\d\d-.+\.html$/.test(f)).sort().map(f => 'modules/' + f);
 
 function inline(html, depth) {
   const prefix = depth ? '../' : '';

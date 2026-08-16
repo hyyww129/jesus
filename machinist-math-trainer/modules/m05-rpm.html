@@ -1,0 +1,488 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 5 · RPM from Cutting Speed</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← HUB</a>
+    <div class="eyebrow">Module 05 · Machinist Math Trainer</div>
+    <h1>RPM from <span class="b">Cutting Speed</span></h1>
+    <p class="sub">The chart speaks in surface feet per minute; the spindle dial speaks in
+      turns. One formula translates — RPM = SFM × 3.82 ÷ diameter — and this module
+      makes the translation automatic.</p>
+  </header>
+  <div id="mmt-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var M = window.MMT;
+
+  /* machine truths come from FACTS — never retyped into formulas */
+  var CAP = M.FACTS.rpmMax;
+  var SFM_T = M.FACTS.sfm;
+  var K382 = 3.82; /* the taught constant: 12 ÷ π = 3.8197… */
+
+  var DIA_LIST = [
+    { f: '1/8"',  v: 0.125,  say: 'eighth inch' },
+    { f: '3/16"', v: 0.1875, say: 'three sixteenths' },
+    { f: '1/4"',  v: 0.25,   say: 'quarter inch' },
+    { f: '3/8"',  v: 0.375,  say: 'three eighths' },
+    { f: '1/2"',  v: 0.5,    say: 'half inch' },
+    { f: '3/4"',  v: 0.75,   say: 'three quarter inch' },
+    { f: '1"',    v: 1,      say: 'one inch' }
+  ];
+  function diaByV(v) {
+    for (var i = 0; i < DIA_LIST.length; i++) if (DIA_LIST[i].v === v) return DIA_LIST[i];
+    return null;
+  }
+  function nfmt(x) { return String(Math.round(x * 1000) / 1000); }
+  function near(v, t) { return Math.abs(v - t) <= Math.max(2, Math.abs(t) * 0.015); }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var exS = SFM_T.aluminumHSS;                       /* 250 */
+  var exMul = exS * K382;                            /* 955 */
+  var exRpm = Math.round(exMul / 0.5);               /* 1910 */
+  var capS = SFM_T.aluminumCarbide;                  /* 600 */
+  var capRaw = Math.round(capS * K382 / 0.125);      /* 18336 */
+
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>Speed charts give <span class="term">SFM</span> — surface feet per minute — how fast the ' +
+  'cutting edge should slide across the metal. Your spindle dial wants <span class="term">RPM</span> — ' +
+  'turns per minute. One line of math translates:</p>' +
+  '<div class="worked">RPM &nbsp;=&nbsp; SFM × <span class="num">3.82</span> ÷ diameter</div>' +
+  '<p><b>Where the 3.82 comes from</b> — no magic. Each revolution rolls the cutting edge one ' +
+  'circumference: π × D inches, which is π × D ÷ 12 <i>feet</i>. To cover SFM feet every minute you need ' +
+  'SFM ÷ (π × D ÷ 12) revs — that rearranges to 12 × SFM ÷ (π × D). And 12 ÷ π = 3.8197… ≈ <b>3.82</b>. ' +
+  'The formula is just "how many rolls of this tool add up to that many feet".</p>' +
+  '<p>Work one all the way through — a 1/2" HSS end mill in aluminum, chart says ' + exS + ' SFM:</p>' +
+  '<div class="worked"><span class="num">' + exS + '</span> × <span class="num">3.82</span> = ' + nfmt(exMul) +
+  '<br>' + nfmt(exMul) + ' ÷ <span class="num">0.5</span> = <span class="res">' + exRpm + ' RPM</span>' +
+  '<br>under the ' + CAP + ' max → dial it in</div>' +
+  '<p><b>The cap outranks the formula.</b> This spindle tops out at <b>' + CAP + ' RPM</b>. ' +
+  'A 1/8" carbide end mill in aluminum asks for ' + capS + ' × 3.82 ÷ 0.125 = <b>' + capRaw + '</b> — ' +
+  'no such gear exists. You run <b>' + CAP + '</b>, and the little tool simply cuts at a lower effective ' +
+  'SFM. Formula first, cap check second, every time.</p>' +
+  '<table class="ref"><tr><th>Material</th><th>HSS</th><th>Carbide</th></tr>' +
+  '<tr><td>Aluminum</td><td>' + SFM_T.aluminumHSS + ' SFM</td><td>' + SFM_T.aluminumCarbide + ' SFM</td></tr>' +
+  '<tr><td>Mild steel</td><td>' + SFM_T.steelHSS + ' SFM</td><td>' + SFM_T.steelCarbide + ' SFM</td></tr></table>' +
+  '<p style="margin-top:10px">Those numbers are <span class="term">starting points</span>, not laws — ' +
+  'shop convention says start there, then let chip color, sound and finish tune you up or down. ' +
+  'The pattern to memorize: carbide runs faster than HSS, aluminum takes more speed than steel, and ' +
+  'because D lives under the divide bar, <b>smaller tool = faster spindle</b>.</p>' +
+  '<p>Now open the <b>Playground</b> and drag the SFM slider — watch the formula grind out RPM live.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  var PRESETS = [
+    { k: 'aluminumHSS',     label: 'ALUMINUM · HSS' },
+    { k: 'aluminumCarbide', label: 'ALUMINUM · CARBIDE' },
+    { k: 'steelHSS',        label: 'STEEL · HSS' },
+    { k: 'steelCarbide',    label: 'STEEL · CARBIDE' }
+  ];
+
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — dial a cut, watch the formula</h2><div class="body">' +
+      '<div class="btnrow" id="presetRow" style="margin-bottom:10px"></div>' +
+      '<div class="slider-row"><span class="name">SFM</span>' +
+      '<input type="range" id="sfmSlide" min="50" max="600" step="10" aria-label="surface feet per minute">' +
+      '<span class="out" id="sfmOut"></span></div>' +
+      '<div class="btnrow" id="diaRow" style="margin:10px 0"></div>' +
+      '<p class="hint">Tap a material + tool preset (or drag the SFM slider — arrow keys work), ' +
+      'then pick a diameter. Small tool = fast spindle. Go small enough with carbide and you will ' +
+      'slam into the ' + CAP + ' RPM ceiling.</p>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div><div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div class="callout warn" id="capNote" style="display:none"></div></div>' +
+      '<div class="pg-live"><div id="droBox"></div>' +
+      '<button id="sayBtn">🔊 SAY THIS SETUP</button>' +
+      '<p class="hint" id="sayText" style="margin-top:0"></p></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var droCtl = M.dro(card.querySelector('#droBox'), 'RPM');
+    var eqBody = card.querySelector('#eqBody');
+    var capNote = card.querySelector('#capNote');
+    var slider = card.querySelector('#sfmSlide');
+    var sfmOut = card.querySelector('#sfmOut');
+    var sfm = SFM_T.aluminumHSS;
+    var dia = 0.5;
+
+    var presetRow = card.querySelector('#presetRow');
+    PRESETS.forEach(function (p) {
+      var b = document.createElement('button');
+      b.textContent = p.label + ' (' + SFM_T[p.k] + ')';
+      b.setAttribute('data-preset', p.k);
+      b.addEventListener('click', function () {
+        sfm = SFM_T[p.k];
+        slider.value = sfm;
+        update();
+      });
+      presetRow.appendChild(b);
+    });
+
+    var diaRow = card.querySelector('#diaRow');
+    DIA_LIST.forEach(function (d) {
+      var b = document.createElement('button');
+      b.textContent = d.f;
+      b.setAttribute('data-dia', String(d.v));
+      b.addEventListener('click', function () { dia = d.v; update(); });
+      diaRow.appendChild(b);
+    });
+
+    slider.value = sfm;
+    slider.addEventListener('input', function () { sfm = Number(slider.value); update(); });
+
+    function calc() {
+      var raw = sfm * K382 / dia;
+      var rawR = Math.round(raw);
+      var capped = rawR > CAP;
+      return { rawR: rawR, capped: capped, run: capped ? CAP : rawR,
+        eff: Math.round(CAP * dia / K382) };
+    }
+
+    function update() {
+      var c = calc();
+      var d = diaByV(dia);
+      sfmOut.textContent = sfm + ' SFM';
+      presetRow.querySelectorAll('button').forEach(function (b) {
+        b.classList.toggle('on', SFM_T[b.getAttribute('data-preset')] === sfm);
+      });
+      diaRow.querySelectorAll('button').forEach(function (b) {
+        b.classList.toggle('on', Number(b.getAttribute('data-dia')) === dia);
+      });
+      var eq = 'RPM = SFM × 3.82 ÷ D<br>' +
+        '= <span class="num">' + sfm + '</span> × <span class="num">3.82</span> ÷ <span class="num">' +
+        M.fmtExact(dia, 3) + '</span><br>';
+      if (c.capped) {
+        eq += '= <span class="num">' + c.rawR + '</span> <span class="dim">→ machine tops out</span><br>' +
+          '→ run <span class="res">' + CAP + '</span> <span class="dim">— the cap wins</span>';
+      } else {
+        eq += '= <span class="res">' + c.rawR + ' RPM</span> <span class="dim">— under the ' + CAP + ' cap → run it</span>';
+      }
+      eqBody.innerHTML = eq;
+      capNote.style.display = c.capped ? '' : 'none';
+      if (c.capped) {
+        capNote.innerHTML = '<b>Capped.</b> The formula says <b>' + c.rawR + ' RPM</b> but this spindle ' +
+          'tops out at <b>' + CAP + '</b>. Run ' + CAP + ' — the tool just cuts at an effective ' +
+          c.eff + ' SFM instead of the ' + sfm + ' the chart wanted. Slower than ideal, and completely fine.';
+      }
+      droCtl.set(String(c.run),
+        'A ' + (d ? d.say : M.fmtExact(dia, 3) + ' inch') + ' tool spinning <b>' + c.run +
+        '</b> turns a minute — the cutting edge slides across the metal at about ' +
+        (c.capped ? c.eff : sfm) + ' surface feet a minute' +
+        (c.capped ? ' (the cap is holding it back).' : '.'));
+      var sayEl = document.getElementById('sayText');
+      if (sayEl) sayEl.textContent = 'Said out loud: “' + currentSpeech() + '”';
+    }
+
+    function currentSpeech() {
+      var c = calc();
+      var d = diaByV(dia);
+      var s = M.intWords(sfm) + ' surface feet a minute with a ' + (d ? d.say : 'odd size') + ' tool. ' +
+        M.intWords(sfm) + ' times three point eight two, divided by the diameter, is ' +
+        M.intWords(c.rawR) + '. ';
+      s += c.capped
+        ? 'That is more than the machine has — run the cap, ' + M.intWords(CAP) + ' R P M.'
+        : 'Run ' + M.intWords(c.run) + ' R P M.';
+      return s;
+    }
+    card.querySelector('#sayBtn').addEventListener('click', function () {
+      M.speakText(currentSpeech());
+    });
+
+    update();
+    window.__m5 = {
+      set: function (s, d) { sfm = s; slider.value = s; if (d) dia = d; update(); },
+      info: function () { var c = calc(); return { sfm: sfm, dia: dia, rawR: c.rawR, run: c.run, capped: c.capped }; }
+    };
+  }
+
+  /* ============ question generators (practice + quiz) ============ */
+  var COMBOS = [
+    { k: 'aluminumHSS',     mat: 'aluminum',   tool: 'HSS' },
+    { k: 'aluminumCarbide', mat: 'aluminum',   tool: 'carbide' },
+    { k: 'steelHSS',        mat: 'mild steel', tool: 'HSS' },
+    { k: 'steelCarbide',    mat: 'mild steel', tool: 'carbide' }
+  ];
+
+  /* shared mistake-namer for the straight RPM computations */
+  function diagRpm(s, d, a, capped, rawR) {
+    var rightP = capped
+      ? s + ' × 3.82 ÷ ' + d + ' = ' + rawR + ' → over the ' + CAP + ' max → run ' + CAP
+      : s + ' × 3.82 ÷ ' + d + ' = ' + a;
+    var base = capped ? rawR : a;
+    return function (v) {
+      if (capped && near(v, rawR)) return { label: 'Forgot the cap',
+        your: 'the raw formula number: ' + s + ' × 3.82 ÷ ' + d + ' = ' + rawR + ' — no gear on this machine turns that fast',
+        right: 'formula first, cap second: the spindle tops out at ' + CAP + ' → run ' + CAP };
+      if (Math.abs(d - 1) > 0.001 && near(v, s * K382 * d)) return { label: 'Multiplied by the diameter',
+        your: s + ' × 3.82 × ' + d + ' = ' + nfmt(s * K382 * d) + ' — the diameter climbed on top',
+        right: 'the diameter DIVIDES: ' + rightP };
+      if (near(v, base * 2)) return { label: 'Divided by the radius',
+        your: s + ' × 3.82 ÷ ' + nfmt(d / 2) + ' = ' + nfmt(base * 2) + ' — that is the radius, half the tool',
+        right: 'the formula wants the full diameter: ' + rightP };
+      if (near(v, s / d)) return { label: 'Skipped the 3.82',
+        your: s + ' ÷ ' + d + ' = ' + nfmt(s / d) + ' — the 12 ÷ π conversion never happened',
+        right: rightP };
+      if (near(v, base * 10) || near(v, base / 10)) return { label: 'Decimal slip on the diameter',
+        your: 'the diameter went in as ' + (v < base ? nfmt(d * 10) : nfmt(d / 10)) + ' instead of ' + d + ' → ' + nfmt(v),
+        right: rightP };
+      if (v > 0 && v < 5) return { label: 'Formula upside down',
+        your: 'an answer that small means the SFM ended up on the bottom of the division',
+        right: rightP };
+      return { label: 'Formula error',
+        your: 'whatever produced ' + nfmt(v) + ' was not SFM × 3.82 ÷ D',
+        right: rightP };
+    };
+  }
+
+  function genRpmCalc() {
+    var sfms = [90, 120, 150, 200, 250, 300, 350, 400, 500, 600];
+    var pool = [];
+    for (var i = 0; i < sfms.length; i++) {
+      for (var j = 0; j < DIA_LIST.length; j++) {
+        var r = sfms[i] * K382 / DIA_LIST[j].v;
+        if (r >= 250 && r <= CAP - 60) pool.push([sfms[i], DIA_LIST[j]]);
+      }
+    }
+    var p = M.pick(pool), s = p[0], de = p[1], d = de.v;
+    var a = Math.round(s * K382 / d);
+    var mul = s * K382;
+    return { type: 'num', a: a, tol: 1, unit: 'rpm',
+      q: 'The chart says <span class="num">' + s + ' SFM</span>. The end mill is <span class="num">' + de.f +
+        '</span> — <span class="num">' + M.fmtExact(d, 3) + '"</span> across. What RPM do you dial in?',
+      explain: s + ' × 3.82 ÷ ' + M.fmtExact(d, 3) + ' = <span class="num">' + a + '</span> RPM — under the ' +
+        CAP + ' cap, so run it straight.',
+      hint: 'Two moves: multiply the SFM by <b>3.82</b> (that is 12 ÷ π — each rev rolls out π × D inches of edge travel), ' +
+        'then divide by the diameter <b>in inches</b>. Finish with a cap check against ' + CAP + '.',
+      steps: '1 · The formula: RPM = SFM × 3.82 ÷ D<br>' +
+        '2 · Multiply first: <span class="num">' + s + '</span> × <span class="num">3.82</span> = <span class="num">' + nfmt(mul) + '</span><br>' +
+        '3 · Divide by the diameter: ' + nfmt(mul) + ' ÷ <span class="num">' + M.fmtExact(d, 3) + '</span> = <span class="num">' + nfmt(mul / d) + '</span><br>' +
+        '4 · Round it and cap-check: under ' + CAP + ' → <span class="res">' + a + ' RPM</span>',
+      diagnose: diagRpm(s, d, a, false, a) };
+  }
+
+  function genRpmCap() {
+    var pool = [];
+    var srcs = [COMBOS[1], COMBOS[3], COMBOS[0]]; /* alu carbide, steel carbide, alu HSS */
+    for (var i = 0; i < srcs.length; i++) {
+      for (var j = 0; j < DIA_LIST.length; j++) {
+        var r = Math.round(SFM_T[srcs[i].k] * K382 / DIA_LIST[j].v);
+        if (r > CAP + 300) pool.push({ c: srcs[i], de: DIA_LIST[j], raw: r });
+      }
+    }
+    var p = M.pick(pool), s = SFM_T[p.c.k], de = p.de, d = de.v, rawR = p.raw;
+    var eff = Math.round(CAP * d / K382);
+    return { type: 'num', a: CAP, tol: 1, unit: 'rpm',
+      q: 'Chart says <span class="num">' + s + ' SFM</span> — ' + p.c.tool + ' in ' + p.c.mat +
+        '. The end mill is <span class="num">' + de.f + '</span> (<span class="num">' + M.fmtExact(d, 3) +
+        '"</span>). The spindle maxes at <span class="num">' + CAP + ' RPM</span>. What do you actually run?',
+      explain: 'The formula asks for ' + rawR + ' RPM; the machine only has ' + CAP +
+        '. Run <span class="num">' + CAP + '</span> — the tool just cuts at an effective ' + eff +
+        ' SFM. Formula first, cap second.',
+      hint: 'Run the formula exactly as always — SFM × 3.82 ÷ D — then hold the result against the machine max of ' +
+        CAP + '. Whichever number is smaller is the one you dial in.',
+      steps: '1 · The formula: RPM = SFM × 3.82 ÷ D<br>' +
+        '2 · Multiply: <span class="num">' + s + '</span> × <span class="num">3.82</span> = <span class="num">' + nfmt(s * K382) + '</span><br>' +
+        '3 · Divide: ' + nfmt(s * K382) + ' ÷ <span class="num">' + M.fmtExact(d, 3) + '</span> = <span class="num">' + rawR + '</span><br>' +
+        '4 · ' + rawR + ' is over the ' + CAP + ' max → <span class="res">run ' + CAP + ' RPM</span> — the machine is the ceiling',
+      diagnose: diagRpm(s, d, CAP, true, rawR) };
+  }
+
+  function genPickSfm() {
+    var idx = Math.floor(Math.random() * COMBOS.length);
+    var c = COMBOS[idx];
+    var val = SFM_T[c.k];
+    var choices = ['SFM ' + val];
+    for (var i = 0; i < COMBOS.length; i++) {
+      if (i !== idx) choices.push('SFM ' + SFM_T[COMBOS[i].k]);
+    }
+    return { type: 'mc', a: 0, choices: choices,
+      q: 'Chart check: a <b>' + c.tool + '</b> end mill going into <b>' + c.mat + '</b>. Which starting point do you pull?',
+      explain: 'Two dials on the chart: carbide runs faster than HSS, aluminum takes more speed than steel. ' +
+        c.tool + ' in ' + c.mat + ' starts at <span class="num">' + val + ' SFM</span> — a starting point to tune from, not a law.',
+      hint: 'The chart is a 2×2 grid: the material picks the row (aluminum vs mild steel), the tool picks the column (HSS vs carbide). ' +
+        'Carbide always beats HSS in the same metal; aluminum always takes more speed than steel with the same tool. Find where your row and column cross.',
+      steps: COMBOS.map(function (co, i2) {
+        var vv = SFM_T[co.k];
+        return (i2 === idx ? '<span class="res">' : '<span class="num">') + co.mat + ' · ' + co.tool +
+          ' → ' + vv + ' SFM</span>' + (i2 === idx ? ' ← your cell' : '');
+      }).join('<br>'),
+      diagnose: function (chosen) {
+        var pickedVal = parseInt(String(choices[chosen]).replace(/\D/g, ''), 10);
+        var pc = null;
+        for (var i3 = 0; i3 < COMBOS.length; i3++) if (SFM_T[COMBOS[i3].k] === pickedVal) pc = COMBOS[i3];
+        if (!pc) return null;
+        var label = pc.mat === c.mat ? 'Right material, wrong tool'
+          : (pc.tool === c.tool ? 'Right tool, wrong material' : 'Wrong row AND wrong column');
+        return { label: label,
+          your: 'SFM ' + pickedVal + ' is the ' + pc.tool + '-in-' + pc.mat + ' cell of the chart',
+          right: c.tool + ' in ' + c.mat + ' → SFM ' + val };
+      } };
+  }
+
+  function genHalfDouble() {
+    var CH = ['It halves', 'It doubles', 'It stays the same', 'It goes up 4×'];
+    var s0 = SFM_T.aluminumHSS;
+    var r1 = Math.round(s0 * K382 / 0.25);
+    var r2 = Math.round(s0 * K382 / 0.5);
+    var s1 = SFM_T.steelHSS;
+    var rA = Math.round(s1 * K382 / 0.375);
+    var rB = Math.round(2 * s1 * K382 / 0.375);
+    var vars = [
+      { a: 0,
+        q: 'Same SFM. You swap the <span class="num">1/4"</span> end mill for a <span class="num">1/2"</span> — twice the diameter. What happens to the RPM?',
+        explain: 'D sits on the bottom of the formula — double the bottom, halve the answer. At ' + s0 +
+          ' SFM: ÷ 0.25 gives ' + r1 + ', ÷ 0.5 gives ' + r2 + '.',
+        steps: '1 · RPM = SFM × 3.82 ÷ D — the diameter sits on the BOTTOM<br>' +
+          '2 · Double the bottom of a division → the result halves<br>' +
+          '3 · Prove it at <span class="num">' + s0 + '</span> SFM: ÷ <span class="num">0.25</span> = <span class="num">' + r1 +
+          '</span> · ÷ <span class="num">0.5</span> = <span class="num">' + r2 + '</span><br>' +
+          '4 · <span class="res">It halves</span>',
+        trapLabel: 'Diameter treated as a multiplier',
+        rightLine: 'D divides: twice the diameter → half the RPM (' + r1 + ' → ' + r2 + ')' },
+      { a: 1,
+        q: 'Same SFM. You swap the <span class="num">1/2"</span> end mill for a <span class="num">1/4"</span> — half the diameter. What happens to the RPM?',
+        explain: 'Halving the bottom of a division doubles the answer. At ' + s0 + ' SFM: ÷ 0.5 gives ' + r2 +
+          ', ÷ 0.25 gives ' + r1 + '. Small tool, fast spindle.',
+        steps: '1 · RPM = SFM × 3.82 ÷ D — the diameter sits on the BOTTOM<br>' +
+          '2 · Halve the bottom of a division → the result doubles<br>' +
+          '3 · Prove it at <span class="num">' + s0 + '</span> SFM: ÷ <span class="num">0.5</span> = <span class="num">' + r2 +
+          '</span> · ÷ <span class="num">0.25</span> = <span class="num">' + r1 + '</span><br>' +
+          '4 · <span class="res">It doubles</span>',
+        trapLabel: 'Diameter treated as a multiplier',
+        rightLine: 'D divides: half the diameter → double the RPM (' + r2 + ' → ' + r1 + ')' },
+      { a: 1,
+        q: 'Same <span class="num">3/8"</span> end mill, but the new material\'s chart cell has twice the SFM. Cap aside, what happens to the RPM?',
+        explain: 'SFM sits on TOP of the formula — double the top, double the answer. At 3/8": ' + s1 +
+          ' SFM gives ' + rA + ' RPM, twice that SFM gives ' + rB + '.',
+        steps: '1 · RPM = SFM × 3.82 ÷ D — the SFM sits on TOP<br>' +
+          '2 · Double the top of a division → the result doubles<br>' +
+          '3 · Prove it at 3/8": <span class="num">' + s1 + '</span> SFM → <span class="num">' + rA +
+          '</span> · <span class="num">' + (2 * s1) + '</span> SFM → <span class="num">' + rB + '</span><br>' +
+          '4 · <span class="res">It doubles</span>',
+        trapLabel: 'Lost track of the top of the fraction',
+        rightLine: 'SFM multiplies: twice the SFM → twice the RPM (' + rA + ' → ' + rB + ')' }
+    ];
+    var v = M.pick(vars);
+    return { type: 'mc', a: v.a, choices: CH,
+      q: v.q, explain: v.explain, steps: v.steps,
+      hint: 'Don\'t compute — read the formula. RPM = SFM × 3.82 ÷ D. Ask: did the change hit the TOP of the fraction ' +
+        'or the BOTTOM, and which way does that push the result?',
+      diagnose: function (chosen) {
+        if (chosen === 2) return { label: 'Thought only SFM set the speed',
+          your: '"nothing changes" — but the formula has two inputs, and this change moved one of them',
+          right: 'RPM = SFM × 3.82 ÷ D — ' + v.rightLine };
+        return { label: v.trapLabel,
+          your: '"' + CH[chosen] + '" is what you get with the fraction scaled the wrong way',
+          right: v.rightLine };
+      } };
+  }
+
+  function genRpmFromMaterial() {
+    var pool = [];
+    for (var i = 0; i < COMBOS.length; i++) {
+      for (var j = 0; j < DIA_LIST.length; j++) {
+        var r = SFM_T[COMBOS[i].k] * K382 / DIA_LIST[j].v;
+        if (r >= 300 && r <= CAP - 60) pool.push({ c: COMBOS[i], de: DIA_LIST[j] });
+      }
+    }
+    var p = M.pick(pool), c = p.c, de = p.de, d = de.v;
+    var s = SFM_T[c.k];
+    var a = Math.round(s * K382 / d);
+    return { type: 'num', a: a, tol: 1, unit: 'rpm',
+      q: 'No SFM handed to you this time: a <b>' + c.tool + '</b> end mill, <span class="num">' + de.f +
+        '</span> (<span class="num">' + M.fmtExact(d, 3) + '"</span>) diameter, cutting <b>' + c.mat +
+        '</b>. Chart first, then formula — what RPM?',
+      explain: 'Chart: ' + c.tool + ' in ' + c.mat + ' = ' + s + ' SFM. Then ' + s + ' × 3.82 ÷ ' +
+        M.fmtExact(d, 3) + ' = <span class="num">' + a + '</span> RPM — under the ' + CAP + ' cap.',
+      hint: 'Step one is a lookup, not math: pull the SFM starting point for this material + tool from the chart ' +
+        '(material picks the row, tool picks the column). Step two: RPM = SFM × 3.82 ÷ D. Step three: cap check against ' + CAP + '.',
+      steps: '1 · Chart: ' + c.tool + ' in ' + c.mat + ' → <span class="num">' + s + ' SFM</span><br>' +
+        '2 · Multiply: ' + s + ' × <span class="num">3.82</span> = <span class="num">' + nfmt(s * K382) + '</span><br>' +
+        '3 · Divide: ' + nfmt(s * K382) + ' ÷ <span class="num">' + M.fmtExact(d, 3) + '</span> = <span class="num">' + nfmt(s * K382 / d) + '</span><br>' +
+        '4 · Round and cap-check: under ' + CAP + ' → <span class="res">' + a + ' RPM</span>',
+      diagnose: function (v) {
+        for (var i2 = 0; i2 < COMBOS.length; i2++) {
+          if (COMBOS[i2].k === c.k) continue;
+          var os = SFM_T[COMBOS[i2].k];
+          var oa = Math.round(os * K382 / d);
+          var hit = near(v, oa) || (oa > CAP && Math.abs(v - CAP) <= 1);
+          if (hit) return { label: 'Wrong chart cell',
+            your: 'SFM ' + os + ' is the ' + COMBOS[i2].tool + '-in-' + COMBOS[i2].mat + ' cell → ' +
+              os + ' × 3.82 ÷ ' + d + ' = ' + oa + (oa > CAP ? ' → capped at ' + CAP : ''),
+            right: c.tool + ' in ' + c.mat + ' is ' + s + ' SFM → ' + a + ' RPM' };
+        }
+        return diagRpm(s, d, a, false, a)(v);
+      } };
+  }
+
+  var GENS = { rpmCalc: genRpmCalc, rpmCap: genRpmCap, pickSfm: genPickSfm,
+    halfDouble: genHalfDouble, rpmFromMaterial: genRpmFromMaterial };
+  function gen(kind) { var q = GENS[kind](); q.kind = kind; q.from = 'Module 5'; return q; }
+
+  /* build a set, dodging exact-repeat numbers where the pools allow */
+  function makeSet(kinds) {
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    return M.shuffle(out);
+  }
+
+  function practiceQs() {
+    return makeSet(['rpmCalc', 'rpmCalc', 'rpmCalc', 'rpmCap', 'pickSfm', 'pickSfm',
+      'halfDouble', 'halfDouble', 'rpmFromMaterial', 'rpmFromMaterial']);
+  }
+  function quizQs() {
+    return makeSet(['rpmCalc', 'rpmCalc', 'rpmCalc', 'rpmCap', 'rpmCap',
+      'rpmFromMaterial', 'rpmFromMaterial', 'rpmFromMaterial', 'pickSfm', 'halfDouble']);
+  }
+
+  /* worked twin for the coach's WORK ONE LIKE IT — always different numbers */
+  function coachRegen(kind, current) {
+    var plain = function (h) { return String(h).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(); };
+    var q = null;
+    for (var t = 0; t < 6; t++) {
+      q = gen(kind);
+      if (!current || plain(q.q) !== plain(current.q)) break;
+    }
+    var ans = q.type === 'mc' ? plain(String(q.choices[q.a]))
+      : (q.unit ? q.a + ' ' + q.unit : M.fmtExact(q.a));
+    return {
+      title: plain(q.q),
+      steps: (q.steps || q.explain || '') + '<br>Answer: <span class="res">' + M.esc(ans) + '</span>',
+      spoken: M.sayAnswerQ(q),
+    };
+  }
+
+  M.modulePage('m5', {
+    explainer: EXPLAINER,
+    playground: playground,
+    practiceQs: practiceQs,
+    quizQs: quizQs,
+    coach: { regen: coachRegen },
+  });
+})();
+</script>
+</body>
+</html>

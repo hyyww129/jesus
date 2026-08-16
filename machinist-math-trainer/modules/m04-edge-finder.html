@@ -1,0 +1,511 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 4 · The Edge Finder &amp; Zero Offsets</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← HUB</a>
+    <div class="eyebrow">Module 04 · Machinist Math Trainer</div>
+    <h1>The Edge Finder &amp; <span class="b">Zero Offsets</span></h1>
+    <p class="sub">The tip is 0.200" across, so when it kicks the spindle center is exactly
+      0.100" from the edge — on the side you came from. Get that sign right and every
+      feature lands where the print says.</p>
+  </header>
+  <div id="mmt-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var M = window.MMT;
+
+  /* machine truths — always from FACTS, never re-typed into formulas */
+  var TIP = M.FACTS.edgeFinderTip;      /* 0.200" tip diameter */
+  var OFF = M.FACTS.edgeFinderOffset;   /* 0.100" center-to-edge at the kiss */
+  var T3 = M.fmtExact(TIP, 3), O3 = M.fmtExact(OFF, 3);
+
+  function sq(v) { return M.signed(v, 4); }               /* ascii-signed 4-place */
+  function r4(v) { return Math.round(v * 10000) / 10000; }
+  function near(v, target, win) { return Math.abs(v - target) <= (win === undefined ? 0.002 : win); }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>An <span class="term">edge finder</span> is a spring-loaded pin with a <b>' + T3 + '"</b>-diameter tip. ' +
+  'Spin it slowly, jog it into the part; the instant the tip runs dead-flush with the edge it <b>kicks sideways</b>. ' +
+  'That kick means: the tip\'s skin is exactly touching the edge.</p>' +
+  '<p>But the DRO tracks the <span class="term">spindle center</span>, not the tip\'s skin. The tip is ' + T3 + ' across, ' +
+  'so its center always rides <b>half that — ' + O3 + '"</b> — back from whatever it touches, ' +
+  '<b>on the side you approached from</b>.</p>' +
+  '<p><span class="term">The sign rule:</span> the SET value\'s sign is <b>OPPOSITE your jog direction</b>. ' +
+  'Jog <b>+X</b> (rightward) into the part\'s left edge → the center sits ' + O3 + ' LEFT of that edge → SET X = <b>−0.1000</b>. ' +
+  'Jog <b>−X</b> into the right edge → SET X = <b>+0.1000</b>. Same story for Y. ' +
+  'Flip the sign and every feature on the part cuts <b>' + T3 + ' off location</b> — the most classic beginner scrap there is.</p>' +
+  '<table class="ref"><tr><th>You jog</th><th>You touch</th><th>Center lands</th><th>SET (edge = zero)</th></tr>' +
+  [['+X', 'part\'s LEFT edge', O3 + ' left of it', 'X = −0.1000'],
+   ['−X', 'part\'s RIGHT edge', O3 + ' right of it', 'X = +0.1000'],
+   ['+Y', 'part\'s NEAR edge', O3 + ' near side', 'Y = −0.1000'],
+   ['−Y', 'part\'s FAR edge', O3 + ' far side', 'Y = +0.1000']]
+    .map(function (r) { return '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td><td>' + r[2] + '</td><td>' + r[3] + '</td></tr>'; }).join('') +
+  '</table>' +
+  '<p style="margin-top:10px">Two kisses, one from each side, hand you a <span class="term">center</span> and a ' +
+  '<span class="term">width</span>. Worked example — part <b>2.000"</b> wide, X zeroed on its left edge:</p>' +
+  '<div class="worked">kiss LEFT (jog +X): DRO reads <span class="num">−0.1000</span> — center ' + O3 + ' outside the left edge<br>' +
+  'kiss RIGHT (jog −X): DRO reads <span class="num">+2.1000</span> — center ' + O3 + ' outside the right edge<br>' +
+  'center = (−0.100 + 2.100) ÷ 2 = <span class="res">+1.0000"</span> — the two ' + O3 + 's point opposite ways and CANCEL<br>' +
+  'spread = 2.100 − (−0.100) = <span class="num">2.200</span> = part + one full tip<br>' +
+  'width = 2.200 − ' + T3 + ' = <span class="res">2.0000"</span> ✓</div>' +
+  '<p><b>Center</b> = average the two raw readings, no correction — each reading is ' + O3 + ' off in an opposite ' +
+  'direction, so the average kills both. <b>Width</b> = the spread minus the whole tip (' + T3 + ', not ' + O3 + ') — ' +
+  'the tip hangs ' + O3 + ' outside the part at EACH end.</p>' +
+  '<p><span class="term">Z is different</span> — no edge finder, no ' + O3 + '. Common shop practice (a convention, ' +
+  'not a law): lay a strip of paper about <b>0.003"</b> thick on the part, lower the quill until the tool just drags it, ' +
+  'and SET Z = <b>+0.003</b> — never 0.000. The tool is a paper\'s thickness ABOVE the part; call that zero and every ' +
+  'depth runs 0.003 shallow. Real papers vary — measure yours.</p>' +
+  '<p style="margin-top:10px">Now open the <b>Playground</b> and walk the finder into a kiss — the ' + O3 + ' shows itself.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — walk the edge finder into a kiss</h2><div class="body">' +
+      '<div class="btnrow" id="sideRow" style="margin-bottom:10px">' +
+      '<button data-side="L" class="on">FROM THE LEFT — JOG +X</button>' +
+      '<button data-side="R">FROM THE RIGHT — JOG −X</button></div>' +
+      '<div class="scrollbox"><svg id="efView" height="200" role="img" aria-label="edge finder approaching the part edge"></svg></div>' +
+      '<div class="slider-row"><span class="name">JOG</span>' +
+      '<input type="range" id="jogSlider" min="0" max="1000" value="0" step="5" aria-label="jog the spindle toward the edge">' +
+      '<span class="out" id="jogOut"></span></div>' +
+      '<div class="btnrow">' +
+      '<button data-jog="-1">◀ JOG −X</button>' +
+      '<button data-jog="1">JOG +X ▶</button>' +
+      '<button class="primary" id="setZeroBtn" disabled>SET ZERO ON THIS EDGE</button>' +
+      '<button id="resetBtn">RESET</button></div>' +
+      '<p class="hint">Drag the slider (arrow keys work when it\'s focused) or tap a JOG button — 0.050" a press. ' +
+      'Travel ends exactly at the <b>kiss</b>; then SET ZERO and jog back to see the DRO measure from the edge.</p>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div>' +
+      '<button id="sayBtn">🔊 SAY WHERE WE ARE</button>' +
+      '<p class="hint" id="sayText" style="margin-top:0"></p></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var svg = card.querySelector('#efView');
+    var eqBody = card.querySelector('#eqBody');
+    var droCtl = M.dro(card.querySelector('#droBox'), 'X');
+    var slider = card.querySelector('#jogSlider');
+    var jogOut = card.querySelector('#jogOut');
+    var setZeroBtn = card.querySelector('#setZeroBtn');
+    var currentSpoken = '';
+
+    var EDGE_L = 1.000, EDGE_R = 3.000;   /* the 2.000-wide part, in table coords */
+    var side = 'L', t = 0, zeroed = false;
+
+    function startPos() { return side === 'L' ? 0.250 : 3.750; }
+    function kissPos() { return side === 'L' ? EDGE_L - OFF : EDGE_R + OFF; }
+    function edge() { return side === 'L' ? EDGE_L : EDGE_R; }
+    function dirn() { return side === 'L' ? 1 : -1; }
+    function pos() { return r4(startPos() + (kissPos() - startPos()) * t); }
+    function atKiss() { return t >= 0.999; }
+
+    function dim(x1, x2, y, tok, label) {
+      var lo = Math.min(x1, x2), hi = Math.max(x1, x2);
+      var st = 'stroke:var(--' + tok + ');stroke-width:1.5';
+      return '<line x1="' + lo + '" y1="' + y + '" x2="' + hi + '" y2="' + y + '" style="' + st + '"/>' +
+        '<line x1="' + lo + '" y1="' + (y - 6) + '" x2="' + lo + '" y2="' + (y + 6) + '" style="' + st + '"/>' +
+        '<line x1="' + hi + '" y1="' + (y - 6) + '" x2="' + hi + '" y2="' + (y + 6) + '" style="' + st + '"/>' +
+        '<text x="' + ((lo + hi) / 2) + '" y="' + (y - 5) + '" text-anchor="middle" ' +
+        'style="fill:var(--' + tok + ');font-family:ui-monospace,monospace;font-size:11px;font-weight:700">' + label + '</text>';
+    }
+
+    function draw() {
+      var W = 620, H = 200, S = 140, X0 = 20;
+      function X(v) { return X0 + v * S; }
+      svg.setAttribute('width', W);
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      var p = pos(), e = edge(), d = dirn();
+      var cx = X(p), cy = 108, r = OFF * S;
+      var s = '';
+      s += '<line x1="0" y1="150" x2="' + W + '" y2="150" style="stroke:var(--line);stroke-width:2"/>';
+      s += '<rect x="' + X(EDGE_L) + '" y="70" width="' + (X(EDGE_R) - X(EDGE_L)) + '" height="80" ' +
+        'style="fill:var(--panel);stroke:var(--ink);stroke-width:2"/>';
+      s += '<text x="' + X(2) + '" y="115" text-anchor="middle" ' +
+        'style="fill:var(--soft);font-family:ui-monospace,monospace;font-size:13px;letter-spacing:.12em">PART</text>';
+      /* the edge being zeroed */
+      s += '<path d="M ' + X(e) + ' 68 l -6 -11 l 12 0 z" style="fill:var(--orange)"/>';
+      s += '<text x="' + X(e) + '" y="48" text-anchor="middle" ' +
+        'style="fill:var(--orange);font-family:ui-monospace,monospace;font-size:11px;font-weight:700">X 0' +
+        (zeroed ? ' SET' : '') + '</text>';
+      /* spindle centerline, shank, tip */
+      s += '<line x1="' + cx + '" y1="16" x2="' + cx + '" y2="168" stroke-dasharray="5 4" ' +
+        'style="stroke:var(--blue);stroke-width:1.5"/>';
+      s += '<text x="' + cx + '" y="12" text-anchor="middle" ' +
+        'style="fill:var(--blue);font-family:ui-monospace,monospace;font-size:10px">CENTER</text>';
+      s += '<rect x="' + (cx - 4) + '" y="20" width="8" height="' + (cy - r - 20) + '" style="fill:var(--soft)"/>';
+      s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + r + '" style="fill:var(--paper);stroke:var(--blue);stroke-width:2.5"/>';
+      s += '<circle cx="' + cx + '" cy="' + cy + '" r="2.5" style="fill:var(--blue)"/>';
+      if (atKiss()) {
+        s += '<circle cx="' + X(e) + '" cy="' + cy + '" r="4" style="fill:var(--orange)"/>';
+        s += '<text x="' + (X(e) + d * 34) + '" y="62" text-anchor="middle" ' +
+          'style="fill:var(--orange);font-family:ui-monospace,monospace;font-size:13px;font-weight:700">KISS</text>';
+        s += dim(cx, X(e), 182, 'orange', O3 + '"');
+      } else {
+        var face = p + d * OFF;
+        var gap = r4(d > 0 ? edge() - face : face - edge());
+        s += dim(X(face), X(e), 182, 'soft', M.fmt(gap, 3) + '" to go');
+      }
+      svg.innerHTML = s;
+    }
+
+    function update() {
+      var p = pos(), e = edge(), d = dirn();
+      var sgnJ = d > 0 ? '+X' : '−X';
+      var setVal = -d * OFF;
+      var gap = r4(d > 0 ? e - (p + OFF) : (p - OFF) - e);
+      var droVal = zeroed ? r4(p - e) : p;
+      var sideWord = d > 0 ? 'LEFT' : 'RIGHT';
+      var fromWord = d > 0 ? 'minus (left)' : 'plus (right)';
+      var eq, mean, spoken;
+      if (zeroed) {
+        eq = 'SET X = <span class="num">' + sq(setVal) + '</span> is in — DRO zero now sits ON the edge<br>' +
+          'DRO = center <span class="num">' + M.fmt(p, 4) + '</span> − edge <span class="num">' + M.fmt(e, 4) + '</span>' +
+          ' = <span class="res">' + sq(droVal) + '"</span>';
+        mean = 'Measuring from the part edge now. ' + (atKiss()
+          ? 'Still at the kiss: the center reads ' + sq(setVal) + ' — half a tip out, on the ' + fromWord + ' side.'
+          : 'The spindle center is ' + M.fmt(Math.abs(droVal), 4) + '" on the ' + (droVal < 0 ? 'minus' : 'plus') +
+            ' side of the edge. When the center crosses the edge the DRO will read 0.0000.');
+        spoken = 'Zero is set on the edge. The D R O reads ' + M.sayMeasure(droVal).shop + '.';
+      } else if (atKiss()) {
+        eq = '<b>KISS</b> — the finder just kicked<br>' +
+          'center = edge <span class="num">' + M.fmt(e, 4) + '</span> ' + (d > 0 ? '−' : '+') +
+          ' <span class="num">' + O3 + '</span> = <span class="num">' + M.fmt(p, 4) + '</span><br>' +
+          'this edge is X zero → SET X = <span class="res">' + sq(setVal) + '</span>' +
+          ' <span class="dim">(sign OPPOSITE the ' + sgnJ + ' jog)</span>';
+        mean = 'The tip touches the ' + sideWord + ' edge, but the spindle CENTER stopped ' + O3 + '" short — on the ' +
+          fromWord + ' side, the side you came from. That is why you SET ' + sq(setVal) + ', not zero. Press SET ZERO.';
+        spoken = 'Kiss. Jogging ' + (d > 0 ? 'plus' : 'minus') + ' X, the tip touched the ' + sideWord.toLowerCase() +
+          ' edge. The spindle center sits ' + M.sayMeasure(OFF).shop + ' to the ' + (d > 0 ? 'left' : 'right') +
+          ' of it. Set X ' + M.sayMeasure(setVal).shop + '.';
+      } else {
+        eq = 'jogging <span class="num">' + sgnJ + '</span> toward the part\'s ' + sideWord + ' edge<br>' +
+          (d > 0
+            ? 'gap = edge <span class="num">' + M.fmt(e, 4) + '</span> − (center <span class="num">' + M.fmt(p, 4) +
+              '</span> + tip face <span class="num">' + O3 + '</span>)'
+            : 'gap = (center <span class="num">' + M.fmt(p, 4) + '</span> − tip face <span class="num">' + O3 +
+              '</span>) − edge <span class="num">' + M.fmt(e, 4) + '</span>') +
+          '<br>= <span class="res">' + M.fmt(gap, 4) + '"</span> still to go';
+        mean = 'Spindle center at ' + M.fmt(p, 4) + '. The tip\'s touching face rides ' + O3 + '" ahead of the center, so ' +
+          M.fmt(gap, 4) + '" of air is left before the kick.';
+        spoken = 'Jogging ' + (d > 0 ? 'plus' : 'minus') + ' X. ' + M.sayMeasure(gap).shop +
+          ' of air left before the tip kisses the edge.';
+      }
+      eqBody.innerHTML = eq;
+      droCtl.set(sq(droVal) + '"', mean);
+      jogOut.textContent = M.fmt(p, 4) + '"';
+      setZeroBtn.disabled = !(atKiss() && !zeroed);
+      card.querySelector('#sayText').textContent = '“' + spoken + '”';
+      currentSpoken = spoken;
+      draw();
+    }
+
+    slider.addEventListener('input', function () { t = Number(slider.value) / 1000; update(); });
+    card.querySelectorAll('[data-jog]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var span = kissPos() - startPos();
+        t = Math.max(0, Math.min(1, t + Number(b.getAttribute('data-jog')) * 0.05 / span));
+        slider.value = Math.round(t * 1000);
+        update();
+      });
+    });
+    setZeroBtn.addEventListener('click', function () { if (atKiss()) { zeroed = true; update(); } });
+    card.querySelector('#resetBtn').addEventListener('click', function () {
+      t = 0; zeroed = false; slider.value = 0; update();
+    });
+    card.querySelectorAll('#sideRow button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        side = b.getAttribute('data-side');
+        t = 0; zeroed = false; slider.value = 0;
+        card.querySelectorAll('#sideRow button').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        update();
+      });
+    });
+    card.querySelector('#sayBtn').addEventListener('click', function () { M.speakText(currentSpoken); });
+
+    update();
+    window.__m4 = { jogTo: function (tt) { t = tt; slider.value = Math.round(t * 1000); update(); },
+      info: function () { return { t: t, side: side, zeroed: zeroed, pos: pos() }; } };
+  }
+
+  /* ============ question generators (practice + quiz) ============ */
+  function genSetValue() {
+    var axis = M.pick(['X', 'Y']);
+    var dir = M.pick([1, -1]);
+    var sgn = dir > 0 ? '+' : '-';
+    var sideWord = axis === 'X' ? (dir > 0 ? 'LEFT' : 'RIGHT') : (dir > 0 ? 'NEAR' : 'FAR');
+    var fromWord = dir > 0 ? 'minus' : 'plus';
+    var hasE = Math.random() < 0.5;
+    var E = hasE ? M.pick([0.500, 0.750, 1.000, 1.250, 1.500, 2.000]) : 0;
+    var a = r4(E - dir * OFF);
+    var op = dir > 0 ? '−' : '+';
+    var q = hasE
+      ? 'The print puts this edge at <span class="num">' + axis + ' = ' + M.fmtExact(E, 3) + '"</span>. You jog ' +
+        '<span class="num">' + sgn + axis + '</span> and the finder kicks on it. What do you SET ' + axis + ' to?'
+      : 'Fresh part on the table. You jog <span class="num">' + sgn + axis + '</span> until the finder kicks on the ' +
+        'part\'s <b>' + sideWord + '</b> edge. That edge is your ' + axis + ' zero. What do you SET ' + axis + ' to? (sign matters)';
+    return { type: 'num', a: a, tol: 0.0005, q: q,
+      explain: 'Jogging ' + sgn + axis + ' leaves the spindle center ' + O3 + ' on the ' + fromWord +
+        ' side of the edge, so SET ' + axis + ' = ' + M.fmtExact(E, 3) + ' ' + op + ' ' + O3 +
+        ' = <span class="num">' + sq(a) + '</span>.',
+      hint: 'The DRO tracks the spindle CENTER, and half the tip separates it from the edge — on the side you came ' +
+        'FROM. The SET sign is always OPPOSITE the jog direction.',
+      steps: '1 · The tip is <span class="num">' + T3 + '"</span> across → the center sits <span class="num">' + O3 +
+        '"</span> from the touched edge<br>' +
+        '2 · You jogged <span class="num">' + sgn + axis + '</span> → the center stopped on the ' + fromWord +
+        ' side (the side you came from)<br>' +
+        '3 · SET = edge <span class="num">' + M.fmtExact(E, 3) + '</span> ' + op + ' <span class="num">' + O3 +
+        '</span> = <span class="res">' + sq(a) + '"</span>',
+      diagnose: function (v) {
+        if (near(v, E + dir * OFF)) return { label: 'Sign flipped on the ' + O3,
+          your: 'you pushed the ' + O3 + ' WITH the jog: ' + M.fmtExact(E, 3) + ' ' + (dir > 0 ? '+' : '−') + ' ' + O3 +
+            ' = ' + sq(E + dir * OFF) + ' — the classic; every feature would cut ' + T3 + ' off location',
+          right: 'SET goes OPPOSITE the jog: ' + M.fmtExact(E, 3) + ' ' + op + ' ' + O3 + ' = ' + sq(a) };
+        if (near(v, E)) return { label: 'Forgot the ' + O3 + ' entirely',
+          your: 'you set the edge\'s own value (' + sq(E) + ') at the kiss — but the spindle center is NOT over the edge, it is ' + O3 + ' away',
+          right: M.fmtExact(E, 3) + ' ' + op + ' ' + O3 + ' = ' + sq(a) };
+        if (near(v, E - dir * TIP) || near(v, E + dir * TIP)) return { label: 'Used the tip diameter (' + T3 + ')',
+          your: T3 + ' is the WHOLE tip; you put the center a full tip from the edge → ' + sq(v),
+          right: 'the center rides HALF the tip from the touch: ' + M.fmtExact(E, 3) + ' ' + op + ' ' + O3 + ' = ' + sq(a) };
+        return { label: 'Lost the picture',
+          your: sq(v) + ' does not come from edge ± half a tip',
+          right: 'center = edge ' + op + ' ' + O3 + ' = ' + sq(a) };
+      } };
+  }
+
+  function genEdgePos() {
+    var dir = M.pick([1, -1]);
+    var sgn = dir > 0 ? '+' : '-';
+    var R = M.pick([-2.3500, -1.8750, -1.2500, -0.7500, 0.6250, 1.2500, 2.4375, 3.1250]);
+    var a = r4(R + dir * OFF);
+    var op = dir > 0 ? '+' : '−';
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'Mid-job, zero already lives somewhere on the fixture. You jog <span class="num">' + sgn + 'X</span>, the ' +
+        'finder kicks, and the DRO reads <span class="num">X ' + sq(R) + '"</span>. What X value is the <b>edge</b> itself at?',
+      explain: 'The DRO gives the spindle center. The edge is ' + O3 + ' farther along, in the jog direction: ' +
+        sq(R) + ' ' + op + ' ' + O3 + ' = <span class="num">' + sq(a) + '</span>.',
+      hint: 'The reading is where the spindle CENTER stopped — the edge is half a tip beyond it, in the direction you were jogging.',
+      steps: '1 · DRO at the kiss = spindle center = <span class="num">' + sq(R) + '</span><br>' +
+        '2 · The edge sits <span class="num">' + O3 + '</span> beyond the center, the way you were jogging (' + sgn + 'X)<br>' +
+        '3 · edge = ' + sq(R) + ' ' + op + ' ' + O3 + ' = <span class="res">' + sq(a) + '"</span>',
+      diagnose: function (v) {
+        if (near(v, R)) return { label: 'Read the DRO as the edge',
+          your: 'you handed back the reading ' + sq(R) + ' — that is the spindle CENTER; the tip\'s skin, not the center, touched the edge',
+          right: 'edge = center ' + op + ' ' + O3 + ' = ' + sq(a) };
+        if (near(v, R - dir * OFF)) return { label: 'Sign flipped on the ' + O3,
+          your: 'you stepped BACKWARD from the center: ' + sq(R) + ' ' + (dir > 0 ? '−' : '+') + ' ' + O3 + ' = ' + sq(R - dir * OFF) +
+            ' — the edge is AHEAD of the center, the way you were jogging',
+          right: sq(R) + ' ' + op + ' ' + O3 + ' = ' + sq(a) };
+        if (near(v, R + dir * TIP) || near(v, R - dir * TIP)) return { label: 'Used the tip diameter (' + T3 + ')',
+          your: 'you stepped a whole tip (' + T3 + ') from the center → ' + sq(v),
+          right: 'the edge is only HALF a tip away: ' + sq(R) + ' ' + op + ' ' + O3 + ' = ' + sq(a) };
+        return { label: 'Half-a-tip slip',
+          your: sq(v) + ' does not come from center ± half a tip',
+          right: sq(R) + ' ' + op + ' ' + O3 + ' = ' + sq(a) };
+      } };
+  }
+
+  function genCenter() {
+    var L = M.pick([-1.500, -1.000, -0.500, 0.500, 1.000, 1.250]);
+    var W = M.pick([0.750, 1.000, 1.250, 1.500, 2.000, 2.500]);
+    if (Math.abs(L + W / 2) < 0.001) W += 0.500;
+    var R1 = r4(L - OFF), R2 = r4(L + W + OFF);
+    var a = r4(L + W / 2);
+    var half = r4((R2 - R1) / 2), sum = r4(R1 + R2);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'Finding the middle: kiss the LEFT side — DRO <span class="num">X ' + sq(R1) + '"</span>. Raise, swing over, ' +
+        'kiss the RIGHT side — <span class="num">X ' + sq(R2) + '"</span>. What X is the part\'s <b>center</b>?',
+      explain: 'Center = average of the two raw readings: (' + sq(R1) + ' + ' + sq(R2) + ') ÷ 2 = <span class="num">' +
+        sq(a) + '</span>. The two ' + O3 + 's point opposite ways and cancel.',
+      hint: 'Both numbers are spindle-center POSITIONS, one per side. The middle of two positions is their average — ' +
+        'and think about what the two half-tip offsets do to each other.',
+      steps: '1 · Each reading is the spindle center, standing ' + O3 + ' OUTSIDE its own side<br>' +
+        '2 · middle of two positions = average: (<span class="num">' + sq(R1) + '</span> + <span class="num">' + sq(R2) + '</span>) ÷ 2<br>' +
+        '3 · = ' + sq(sum) + ' ÷ 2 = <span class="res">' + sq(a) + '"</span><br>' +
+        '4 · One reading is ' + O3 + ' low, the other ' + O3 + ' high — the average kills BOTH. No correction.',
+      diagnose: function (v) {
+        if (near(v, half)) return { label: 'Averaged the spread, not the positions',
+          your: '(' + sq(R2) + ' − (' + sq(R1) + ')) ÷ 2 = ' + sq(half) + ' — that is half the DISTANCE between kisses, a length, not a location',
+          right: 'average the positions themselves: (' + sq(R1) + ' + ' + sq(R2) + ') ÷ 2 = ' + sq(a) };
+        if (near(v, a + OFF) || near(v, a - OFF)) return { label: 'Corrected by ' + O3 + ' where it cancels',
+          your: 'you shoved the answer ' + O3 + ' sideways to ' + sq(v) + ' — but one reading is already ' + O3 +
+            ' low and the other ' + O3 + ' high; the average cancelled both',
+          right: '(' + sq(R1) + ' + ' + sq(R2) + ') ÷ 2 = ' + sq(a) + ', no correction' };
+        if (near(v, sum)) return { label: 'Forgot to divide by 2',
+          your: sq(R1) + ' + ' + sq(R2) + ' = ' + sq(sum) + ' — that is the SUM, not the middle',
+          right: sq(sum) + ' ÷ 2 = ' + sq(a) };
+        return { label: 'Averaging slip',
+          your: sq(v) + ' is not the average of the two readings',
+          right: '(' + sq(R1) + ' + ' + sq(R2) + ') ÷ 2 = ' + sq(a) };
+      } };
+  }
+
+  function genWidth() {
+    var L = M.pick([-1.250, -0.750, -0.250, 0.250, 0.750]);
+    var W = M.pick([0.625, 0.875, 1.000, 1.375, 1.750, 2.250]);
+    var R1 = r4(L - OFF), R2 = r4(L + W + OFF);
+    var spread = r4(R2 - R1);
+    var a = W;
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'Same zero for both kisses: the LEFT side reads <span class="num">X ' + sq(R1) + '"</span>, the RIGHT side ' +
+        'reads <span class="num">X ' + sq(R2) + '"</span>. How <b>wide</b> is the part?',
+      explain: 'The spread ' + sq(R2) + ' − (' + sq(R1) + ') = ' + M.fmtExact(spread, 3) + ' carries one full tip — ' + O3 +
+        ' hanging outside at EACH end. Width = ' + M.fmtExact(spread, 3) + ' − ' + T3 + ' = <span class="num">' + M.fmt(a, 4) + '</span>.',
+      hint: 'Take the distance between the two readings first. Then ask: is that the part alone, or the part plus ' +
+        'something the tip added at each end?',
+      steps: '1 · spread = <span class="num">' + sq(R2) + '</span> − (<span class="num">' + sq(R1) + '</span>) = <span class="num">' +
+        M.fmtExact(spread, 3) + '</span><br>' +
+        '2 · At each kiss the center stands <span class="num">' + O3 + '</span> OUTSIDE the part → the spread holds one ' +
+        'full tip (' + O3 + ' × 2 = ' + T3 + ')<br>' +
+        '3 · width = ' + M.fmtExact(spread, 3) + ' − ' + T3 + ' = <span class="res">' + M.fmt(a, 4) + '"</span>',
+      diagnose: function (v) {
+        if (near(v, spread)) return { label: 'Forgot the tip',
+          your: sq(R2) + ' − (' + sq(R1) + ') = ' + M.fmtExact(spread, 3) + ' — but that includes ' + O3 +
+            ' of tip hanging outside the part at EACH end',
+          right: M.fmtExact(spread, 3) + ' − ' + T3 + ' = ' + M.fmt(a, 4) };
+        if (near(v, spread - OFF)) return { label: 'Subtracted ' + O3 + ', not ' + T3,
+          your: 'you corrected ONE side: ' + M.fmtExact(spread, 3) + ' − ' + O3 + ' = ' + M.fmt(spread - OFF, 4) +
+            ' — the tip pokes out at BOTH kisses',
+          right: 'half a tip each side = one full tip: ' + M.fmtExact(spread, 3) + ' − ' + T3 + ' = ' + M.fmt(a, 4) };
+        if (near(v, spread + TIP)) return { label: 'Added the tip instead of subtracting',
+          your: M.fmtExact(spread, 3) + ' + ' + T3 + ' = ' + M.fmt(spread + TIP, 4) + ' — the spread is already TOO BIG by a tip',
+          right: M.fmtExact(spread, 3) + ' − ' + T3 + ' = ' + M.fmt(a, 4) };
+        if (near(v, a / 2) || near(v, spread / 2)) return { label: 'Halved it',
+          your: sq(v) + ' is a half — halving belongs to CENTER finding, not width',
+          right: M.fmtExact(spread, 3) + ' − ' + T3 + ' = ' + M.fmt(a, 4) };
+        return { label: 'Spread slip',
+          your: sq(v) + ' does not come from spread − tip',
+          right: '(' + sq(R2) + ') − (' + sq(R1) + ') − ' + T3 + ' = ' + M.fmt(a, 4) };
+      } };
+  }
+
+  function genZShim() {
+    var sh = M.pick([0.002, 0.003, 0.004]);
+    var a = sh;
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'Z touch-off: lay a paper shim <span class="num">' + M.fmtExact(sh, 3) + '"</span> thick on the part\'s top ' +
+        'face and lower the quill until the tool just drags on the paper. The top face is Z zero. What do you SET Z to? (sign matters)',
+      explain: 'The tool never touched the part — it is riding a paper ' + M.fmtExact(sh, 3) + ' ABOVE it. SET Z = ' +
+        '<span class="num">+' + M.fmt(sh, 4) + '</span>, not zero.',
+      hint: 'Where is the tool TIP right now, relative to Z zero? It is not ON the part — something is between them. Above zero is positive.',
+      steps: '1 · The tip is resting on the shim, not on the part<br>' +
+        '2 · tip height = part top + shim = 0 + <span class="num">' + M.fmtExact(sh, 3) + '</span><br>' +
+        '3 · SET Z = <span class="res">+' + M.fmt(sh, 4) + '"</span> — positive: the tip sits ABOVE zero',
+      diagnose: function (v) {
+        if (near(v, 0, 0.0009)) return { label: 'Forgot the shim',
+          your: 'SET 0.000 claims the tool is ON the part — it is a paper\'s thickness above it; every depth would run ' +
+            M.fmtExact(sh, 3) + ' shallow',
+          right: 'SET Z = +' + M.fmt(sh, 4) + ' — the tip is at +' + M.fmtExact(sh, 3) + ', not zero' };
+        if (near(v, -sh, 0.0009)) return { label: 'Sign flipped',
+          your: '−' + M.fmtExact(sh, 3) + ' puts the tip BELOW the top face — it is riding a shim ABOVE it',
+          right: 'above zero is positive: SET Z = +' + M.fmt(sh, 4) };
+        if (near(v, OFF) || near(v, sh + OFF)) return { label: 'Edge-finder number on a Z touch',
+          your: 'the ' + O3 + ' belongs to the edge finder\'s tip radius — there is no edge finder in a Z touch-off',
+          right: 'just the shim: 0 + ' + M.fmtExact(sh, 3) + ' = +' + M.fmt(sh, 4) };
+        return { label: 'Setup slip',
+          your: sq(v) + ' does not come from part top + shim',
+          right: '0 + ' + M.fmtExact(sh, 3) + ' = +' + M.fmt(sh, 4) };
+      } };
+  }
+
+  function genSignMC() {
+    var axis = M.pick(['X', 'Y']);
+    var dir = M.pick([1, -1]);
+    var sgn = dir > 0 ? '+' : '-';
+    var a = r4(-dir * OFF);
+    var sideWord = axis === 'X' ? (dir > 0 ? 'LEFT' : 'RIGHT') : (dir > 0 ? 'NEAR' : 'FAR');
+    function ch(v) { return (v > 0 ? '+' : '') + M.fmt(v, 4) + '"'; }
+    var choices = [ch(a), ch(-a), ch(0), ch(2 * a)];
+    return { type: 'mc', a: 0, choices: choices,
+      q: 'The finder kicks on the part\'s ' + sideWord + ' edge. You were jogging <span class="num">' + sgn + axis +
+        '</span>, and this edge is ' + axis + ' zero. Which SET is right?',
+      explain: 'SET sign is OPPOSITE the jog: jogging ' + sgn + axis + ' leaves the center ' + O3 + ' on the ' +
+        (dir > 0 ? 'minus' : 'plus') + ' side → SET ' + axis + ' = <span class="num">' + ch(a) + '</span>.',
+      hint: 'Two checks: how far is the CENTER from the edge (half the tip), and which side did it stop on (the side you came FROM)?',
+      steps: '1 · <span class="res">' + ch(a) + '</span> — half a tip, opposite the jog ← right<br>' +
+        '2 · <span class="num">' + ch(-a) + '</span> — right size, wrong side: that is ' + T3 + ' of scrap on every feature<br>' +
+        '3 · <span class="num">' + ch(0) + '</span> — pretends the CENTER reached the edge; the tip radius says no<br>' +
+        '4 · <span class="num">' + ch(2 * a) + '</span> — the whole tip; the center only sits HALF a tip back',
+      diagnose: function (chosen) {
+        if (chosen === 1) return { label: 'Sign flipped on the ' + O3,
+          your: ch(-a) + ' puts the center on the far side of the edge — every feature would land ' + T3 + ' off location',
+          right: 'the center stopped on the side you came FROM: SET = ' + ch(a) };
+        if (chosen === 2) return { label: 'Forgot the ' + O3,
+          your: '0.0000 says the spindle center touched the edge — only the TIP did; the center is ' + O3 + ' back',
+          right: 'SET = ' + ch(a) };
+        return { label: 'Used the tip diameter',
+          your: ch(2 * a) + ' uses the full ' + T3 + ' tip — the center rides only half that from the touch',
+          right: 'half of ' + T3 + ' is ' + O3 + ' → SET = ' + ch(a) };
+      } };
+  }
+
+  var GENS = { setValue: genSetValue, signMC: genSignMC, edgePos: genEdgePos,
+    center: genCenter, width: genWidth, zShim: genZShim };
+  function gen(kind) { var q = GENS[kind](); q.kind = kind; return q; }
+
+  /* fresh mixed set — re-roll a generator if it repeats the exact same numbers */
+  function freshSet(kinds) {
+    var seen = {}, out = [], i, q, k, tries;
+    for (i = 0; i < kinds.length; i++) {
+      q = gen(kinds[i]);
+      k = q.q.replace(/<[^>]*>/g, '');
+      tries = 0;
+      while (seen[k] && tries < 8) { q = gen(kinds[i]); k = q.q.replace(/<[^>]*>/g, ''); tries++; }
+      seen[k] = true;
+      out.push(q);
+    }
+    return M.shuffle(out);
+  }
+  function practiceQs() {
+    return freshSet(['setValue', 'setValue', 'signMC', 'edgePos', 'edgePos', 'center', 'center', 'width', 'zShim', 'zShim']);
+  }
+  function quizQs() {
+    return freshSet(['setValue', 'signMC', 'edgePos', 'edgePos', 'center', 'center', 'center', 'width', 'width', 'zShim']);
+  }
+
+  /* worked twin for the coach's WORK ONE LIKE IT — always different numbers */
+  function coachRegen(kind, current) {
+    var plain = function (h) { return String(h).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(); };
+    var q = null;
+    for (var t = 0; t < 6; t++) {
+      q = gen(kind);
+      if (!current || plain(q.q) !== plain(current.q)) break;
+    }
+    var ans = q.type === 'mc' ? plain(String(q.choices[q.a]))
+      : (q.unit ? q.a + ' ' + q.unit : M.fmtExact(q.a));
+    return {
+      title: plain(q.q),
+      steps: (q.steps || q.explain || '') + '<br>Answer: <span class="res">' + M.esc(ans) + '</span>',
+      spoken: M.sayAnswerQ(q),
+    };
+  }
+
+  M.modulePage('m4', {
+    explainer: EXPLAINER,
+    playground: playground,
+    practiceQs: practiceQs,
+    quizQs: quizQs,
+    coach: { regen: coachRegen },
+  });
+})();
+</script>
+</body>
+</html>
