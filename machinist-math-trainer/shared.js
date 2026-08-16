@@ -23,11 +23,11 @@
       desc: 'IPM = RPM × flutes × chip load, with starter chip-load tables.' },
     { id: 'm7',  n: 7,  title: 'Depth, Peck & Passes', file: 'modules/m07-depth.html', built: true,
       desc: 'Splitting depth into passes, peck rules, pocket stepover.' },
-    { id: 'm8',  n: 8,  title: 'Bolt-Hole Circle Trig', file: 'modules/m08-bolt-circle.html', built: false,
+    { id: 'm8',  n: 8,  title: 'Bolt-Hole Circle Trig', file: 'modules/m08-bolt-circle.html', built: true,
       desc: 'N holes on a circle with cos and sin doing the placing.' },
-    { id: 'm9',  n: 9,  title: 'Right-Triangle Trig for Angles', file: 'modules/m09-triangles.html', built: false,
+    { id: 'm9',  n: 9,  title: 'Right-Triangle Trig for Angles', file: 'modules/m09-triangles.html', built: true,
       desc: 'SOH-CAH-TOA: angle + distance into X and Y components.' },
-    { id: 'm10', n: 10, title: 'Tolerances & Measurement', file: 'modules/m10-tolerance.html', built: false,
+    { id: 'm10', n: 10, title: 'Tolerances & Measurement', file: 'modules/m10-tolerance.html', built: true,
       desc: 'Calipers, mics, ±0.005, and which way to move the offset.' },
   ];
 
@@ -1496,6 +1496,276 @@
       } };
   };
 
+  BANKS.m8 = function () {
+    function r4(v) { return Math.round(v * 10000) / 10000; }
+    function n3(v) { return fmtExact(v, 3); }
+    function n4(v) { return fmt(v, 4); }
+    function cosd(d) { return Math.cos(d * Math.PI / 180); }
+    function sind(d) { return Math.sin(d * Math.PI / 180); }
+    var kind = pick(['stepAngle', 'coordAt', 'coordAt', 'quadrant']);
+    if (kind === 'stepAngle') {
+      var N = pick([3, 4, 5, 6, 8, 9, 10, 12]);
+      var a = r4(360 / N);
+      var lbl = String(Math.round(a * 1000) / 1000);
+      return { type: 'num', a: a, tol: 0.05, unit: 'deg', from: 'Module 8',
+        q: 'A flange takes <span class="num">' + N + '</span> bolts, evenly spaced on the circle. What is the angle <b>step</b> between neighboring holes?',
+        explain: 'Full circle shared by ' + N + ' holes: 360 ÷ ' + N + ' = <span class="num">' + lbl + '°</span>.',
+        hint: 'One full turn is 360°, and the holes share it equally. One divide.',
+        steps: '1 · step = 360 ÷ N<br>2 · <span class="num">360</span> ÷ <span class="num">' + N + '</span> = <span class="res">' + lbl + '°</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - 360 / (N - 1)) <= 0.6 && Math.abs(360 / (N - 1) - a) > 1) return { label: 'Fence-post slip',
+            your: '360 ÷ ' + (N - 1) + ' — but a CIRCLE has no ends; ' + N + ' holes make exactly ' + N + ' gaps',
+            right: '360 ÷ ' + N + ' = ' + lbl + '°' };
+          return { label: 'Divide slip', your: v + ' is not 360 ÷ ' + N, right: '360 ÷ ' + N + ' = ' + lbl + '°' };
+        } };
+    }
+    if (kind === 'quadrant') {
+      var ang = pick([30, 60, 120, 150, 210, 240, 300, 330]);
+      var c = cosd(ang), s = sind(ang);
+      var CH = ['Right and up', 'Left and up', 'Left and down', 'Right and down'];
+      var ai = c > 0 ? (s > 0 ? 0 : 3) : (s > 0 ? 1 : 2);
+      return { type: 'mc', a: ai, choices: CH, from: 'Module 8',
+        q: 'From the circle\'s center, which way is a hole at <span class="num">' + ang + '°</span>? (0° = 3 o\'clock, counterclockwise)',
+        explain: 'cos ' + ang + '° is ' + (c > 0 ? 'positive → right' : 'negative → left') + ', sin ' + ang + '° is ' +
+          (s > 0 ? 'positive → up' : 'negative → down') + ' → <span class="num">' + CH[ai] + '</span>.',
+        hint: '0° points right, 90° up, 180° left, 270° down. Which quarter does ' + ang + '° fall in?',
+        steps: '1 · 0–90 right &amp; up · 90–180 left &amp; up · 180–270 left &amp; down · 270–360 right &amp; down<br>' +
+          '2 · <span class="num">' + ang + '°</span> → <span class="res">' + CH[ai] + '</span>',
+        diagnose: function () {
+          return { label: 'Quadrant flipped',
+            your: 'left/right comes from cos\'s sign, up/down from sin\'s — one of them got crossed',
+            right: ang + '° from 3 o\'clock, counterclockwise → ' + CH[ai] };
+        } };
+    }
+    var CTR = pick([[1.500, 2.000], [2.000, 2.000], [2.500, 2.000]]);
+    var B = pick([1.500, 2.000, 2.500, 3.000]), R = B / 2;
+    var ang2 = pick([30, 45, 60, 120, 135, 150, 210, 225, 240, 300, 315, 330]);
+    var axis = pick(['X', 'Y']);
+    var tr = axis === 'X' ? cosd(ang2) : sind(ang2);
+    var base = axis === 'X' ? CTR[0] : CTR[1];
+    var a2 = r4(base + R * tr);
+    return { type: 'num', a: a2, tol: 0.001, from: 'Module 8',
+      q: 'Bolt circle: center (<span class="num">' + n3(CTR[0]) + ', ' + n3(CTR[1]) + '</span>), diameter ' +
+        '<span class="num">' + n3(B) + '"</span>. One hole sits at <span class="num">' + ang2 + '°</span>. What is its <b>' + axis + '</b>?',
+      explain: 'R = ' + n3(B) + ' ÷ 2 = ' + n3(R) + '. ' + axis + ' = ' + n3(base) + ' + ' + n3(R) + ' × ' +
+        (axis === 'X' ? 'cos' : 'sin') + ' ' + ang2 + '° = <span class="num">' + n4(a2) + '</span>.',
+      hint: 'Radius is HALF the printed diameter. Then center + R × ' + (axis === 'X' ? 'cos (cos places X)' : 'sin (sin places Y)') + ' — calculator in degrees.',
+      steps: '1 · R = ' + n3(B) + ' ÷ 2 = <span class="num">' + n3(R) + '</span><br>' +
+        '2 · ' + (axis === 'X' ? 'cos' : 'sin') + ' <span class="num">' + ang2 + '°</span> = <span class="num">' + n4(tr) + '</span><br>' +
+        '3 · ' + n3(base) + ' + ' + n3(R) + ' × (' + n4(tr) + ') = <span class="res">' + n4(a2) + '"</span>',
+      diagnose: function (v) {
+        var other = axis === 'X' ? sind(ang2) : cosd(ang2);
+        var swap = r4(base + R * other);
+        if (Math.abs(v - swap) <= 0.003 && Math.abs(swap - a2) > 0.01) return { label: 'Swapped cos and sin',
+          your: n4(swap) + ' is the ' + (axis === 'X' ? 'Y' : 'X') + ' recipe — cos places X, sin places Y',
+          right: axis + ' = ' + n3(base) + ' + ' + n3(R) + ' × (' + n4(tr) + ') = ' + n4(a2) };
+        var dia = r4(base + B * tr);
+        if (Math.abs(v - dia) <= 0.003 && Math.abs(dia - a2) > 0.01) return { label: 'Used the DIAMETER',
+          your: 'the ' + n3(B) + ' went in whole — the hole lands twice as far out as it should',
+          right: 'R = B ÷ 2 = ' + n3(R) + ' → ' + n4(a2) };
+        var noc = r4(R * tr);
+        if (Math.abs(v - noc) <= 0.003 && Math.abs(noc - a2) > 0.01) return { label: 'Forgot the center',
+          your: n4(noc) + ' measures from (0, 0) — the circle is centered at ' + n3(base),
+          right: n3(base) + ' + ' + n4(noc) + ' = ' + n4(a2) };
+        return { label: 'Formula slip',
+          your: n4(v) + ' is not center + R × ' + (axis === 'X' ? 'cos' : 'sin'),
+          right: n3(base) + ' + ' + n3(R) + ' × (' + n4(tr) + ') = ' + n4(a2) };
+      } };
+  };
+  BANKS.m9 = function () {
+    function r4(v) { return Math.round(v * 10000) / 10000; }
+    function r1(v) { return Math.round(v * 10) / 10; }
+    function n3(v) { return fmtExact(v, 3); }
+    function n4(v) { return fmt(v, 4); }
+    function cosd(d) { return Math.cos(d * Math.PI / 180); }
+    function sind(d) { return Math.sin(d * Math.PI / 180); }
+    var kind = pick(['sideFromAngle', 'sideFromAngle', 'angleFromSides', 'hyp']);
+    if (kind === 'sideFromAngle') {
+      var A = pick([10, 15, 20, 25, 30, 35, 40, 50, 55, 60, 65, 70, 75, 80]);
+      var H = pick([0.750, 1.000, 1.250, 1.500, 2.000, 2.500, 3.000]);
+      var wantX = Math.random() < 0.5;
+      var tr = wantX ? cosd(A) : sind(A);
+      var a = r4(H * tr);
+      var fn = wantX ? 'cos' : 'sin';
+      return { type: 'num', a: a, tol: 0.001, from: 'Module 9',
+        q: 'A hole sits <span class="num">' + n3(H) + '"</span> away along a <span class="num">' + A + '°</span> line. ' +
+          'How far is that in <b>' + (wantX ? 'X (the run)' : 'Y (the rise)') + '</b>?',
+        explain: (wantX ? 'X is NEXT TO the angle → cos: ' : 'Y is OPPOSITE the angle → sin: ') +
+          n3(H) + ' × ' + fn + ' ' + A + '° = <span class="num">' + n4(a) + '</span>.',
+        hint: 'Next-to the angle takes cos (CAH); opposite takes sin (SOH). Then one multiply: H × that. Calculator in degrees.',
+        steps: '1 · ' + (wantX ? 'run touches the angle → X = H × cos' : 'rise faces the angle → Y = H × sin') + '<br>' +
+          '2 · ' + fn + ' <span class="num">' + A + '°</span> = <span class="num">' + n4(tr) + '</span><br>' +
+          '3 · <span class="num">' + n3(H) + '</span> × ' + n4(tr) + ' = <span class="res">' + n4(a) + '"</span>',
+        diagnose: function (v) {
+          var swap = r4(H * (wantX ? sind(A) : cosd(A)));
+          if (Math.abs(v - swap) <= 0.003 && Math.abs(swap - a) > 0.01) return { label: 'Swapped sin and cos',
+            your: n4(swap) + ' is the OTHER leg of this triangle',
+            right: (wantX ? 'next-to → cos: ' : 'opposite → sin: ') + n3(H) + ' × ' + n4(tr) + ' = ' + n4(a) };
+          if (Math.abs(v - H) <= 0.003) return { label: 'Handed back the hypotenuse',
+            your: n3(H) + ' is the slanted distance itself — a leg is always shorter',
+            right: n3(H) + ' × ' + n4(tr) + ' = ' + n4(a) };
+          return { label: 'Trig slip',
+            your: n4(v) + ' is not H × ' + fn + '(' + A + '°)',
+            right: n3(H) + ' × ' + n4(tr) + ' = ' + n4(a) };
+        } };
+    }
+    if (kind === 'angleFromSides') {
+      var X, Y, a2;
+      for (var t = 0; t < 40; t++) {
+        X = pick([0.750, 1.000, 1.250, 1.500, 2.000, 2.500]);
+        Y = pick([0.250, 0.375, 0.500, 0.625, 0.750, 1.000]);
+        a2 = r1(Math.atan(Y / X) * 180 / Math.PI);
+        if (a2 >= 8 && a2 <= 55 && Math.abs(a2 - 45) > 2) break;
+      }
+      var comp = r1(90 - a2), ratio = r4(Y / X);
+      return { type: 'num', a: a2, tol: 0.5, unit: 'deg', from: 'Module 9',
+        q: 'You measured legs: rise <span class="num">' + n3(Y) + '"</span>, run <span class="num">' + n3(X) + '"</span>. ' +
+          'What angle does the diagonal make with the bottom?',
+        explain: 'TOA backwards: atan(' + n3(Y) + ' ÷ ' + n3(X) + ') = atan(' + n4(ratio) + ') = <span class="num">' + a2 + '°</span>.',
+        hint: 'Two legs are tan\'s territory. Rise ÷ run — in that order — then INV tan on the calculator (degrees).',
+        steps: '1 · angle = atan(rise ÷ run)<br>' +
+          '2 · <span class="num">' + n3(Y) + '</span> ÷ <span class="num">' + n3(X) + '</span> = <span class="num">' + n4(ratio) + '</span><br>' +
+          '3 · INV tan → <span class="res">' + a2 + '°</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - comp) <= 1 && Math.abs(comp - a2) > 1.5) return { label: 'Inverted the ratio — the OTHER corner',
+            your: 'run ÷ rise gives the top corner: 90 − ' + a2 + ' = ' + comp + '°',
+            right: 'rise ÷ run: atan(' + n3(Y) + ' ÷ ' + n3(X) + ') = ' + a2 + '°' };
+          if (Math.abs(v - ratio) <= 0.03 && Math.abs(ratio - a2) > 1) return { label: 'Stopped at the ratio',
+            your: n4(ratio) + ' is tan of the angle — INV tan turns it into degrees',
+            right: 'atan(' + n4(ratio) + ') = ' + a2 + '°' };
+          return { label: 'Backwards-trig slip',
+            your: v + ' is not atan(rise ÷ run) in degrees',
+            right: 'atan(' + n3(Y) + ' ÷ ' + n3(X) + ') = ' + a2 + '°' };
+        } };
+    }
+    var X2 = pick([0.750, 1.000, 1.250, 1.500, 2.000, 2.500]);
+    var Y2 = pick([0.250, 0.375, 0.500, 0.625, 0.750, 1.000]);
+    var a3 = r4(Math.sqrt(X2 * X2 + Y2 * Y2));
+    var add = r4(X2 + Y2);
+    return { type: 'num', a: a3, tol: 0.001, from: 'Module 9',
+      q: 'Corner to corner: <span class="num">' + n3(X2) + '"</span> in X and <span class="num">' + n3(Y2) +
+        '"</span> in Y. How long is the <b>diagonal</b>?',
+      explain: 'Pythagoras: √(' + n3(X2) + '² + ' + n3(Y2) + '²) = <span class="num">' + n4(a3) + '</span>.',
+      hint: 'Square both legs, add, square-root. Adding them straight walks around the corner — the diagonal is shorter.',
+      steps: '1 · H = √(X² + Y²)<br>' +
+        '2 · ' + n4(X2 * X2) + ' + ' + n4(Y2 * Y2) + ' = <span class="num">' + n4(X2 * X2 + Y2 * Y2) + '</span><br>' +
+        '3 · √ = <span class="res">' + n4(a3) + '"</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - add) <= 0.003 && Math.abs(add - a3) > 0.01) return { label: 'Added the legs',
+          your: n4(add) + ' walks the two edges around the corner',
+          right: '√(' + n3(X2) + '² + ' + n3(Y2) + '²) = ' + n4(a3) };
+        if (Math.abs(v - r4(X2 * X2 + Y2 * Y2)) <= 0.003 && Math.abs(X2 * X2 + Y2 * Y2 - a3) > 0.01) return { label: 'Forgot the square root',
+          your: n4(X2 * X2 + Y2 * Y2) + ' is the sum of squares — un-square it',
+          right: '√' + n4(X2 * X2 + Y2 * Y2) + ' = ' + n4(a3) };
+        return { label: 'Pythagoras slip',
+          your: n4(v) + ' is not √(X² + Y²)',
+          right: '√(' + n3(X2) + '² + ' + n3(Y2) + '²) = ' + n4(a3) };
+      } };
+  };
+  BANKS.m10 = function () {
+    function r4(v) { return Math.round(v * 10000) / 10000; }
+    function n3(v) { return fmtExact(v, 3); }
+    function n4(v) { return fmt(v, 4); }
+    function th(v) { return Math.round(v * 10000) / 10; }
+    var NOMS = [0.750, 1.000, 1.250, 1.500, 1.750, 2.000];
+    var kind = pick(['limit', 'limit', 'band', 'inSpec', 'remove']);
+    var nom = pick(NOMS), tol = pick([0.002, 0.003, 0.005, 0.010]);
+    var up = r4(nom + tol), lo = r4(nom - tol);
+    if (kind === 'limit') {
+      var wantUpper = Math.random() < 0.5;
+      var a = wantUpper ? up : lo;
+      return { type: 'num', a: a, tol: 0.0005, from: 'Module 10',
+        q: 'The print says <span class="num">' + n3(nom) + ' ± ' + n3(tol) + '</span>. What is the <b>' +
+          (wantUpper ? 'upper' : 'lower') + '</b> limit?',
+        explain: (wantUpper ? 'upper = ' + n3(nom) + ' + ' : 'lower = ' + n3(nom) + ' − ') + n3(tol) +
+          ' = <span class="num">' + n3(a) + '</span>.',
+        hint: 'The ± counts from nominal, both directions: plus for the top, minus for the bottom. One add or one subtract.',
+        steps: '1 · ' + (wantUpper ? 'upper = nominal + tol' : 'lower = nominal − tol') + '<br>' +
+          '2 · ' + n3(nom) + (wantUpper ? ' + ' : ' − ') + n3(tol) + ' = <span class="res">' + n3(a) + '"</span>',
+        diagnose: function (v) {
+          var flip = wantUpper ? lo : up;
+          if (Math.abs(v - flip) <= 0.0009 && Math.abs(flip - a) > 0.002) return { label: 'Went the wrong way',
+            your: n3(flip) + ' is the ' + (wantUpper ? 'LOWER' : 'UPPER') + ' limit — the sign ran backwards',
+            right: n3(a) };
+          if (Math.abs(v - nom) <= 0.0009) return { label: 'Handed back the nominal',
+            your: n3(nom) + ' is the middle of the band — the limit lives ' + n3(tol) + ' away',
+            right: n3(a) };
+          return { label: 'Limit slip', your: n4(v) + ' is not nominal ± tol', right: n3(a) };
+        } };
+    }
+    if (kind === 'band') {
+      var aB = th(2 * tol);
+      return { type: 'num', a: aB, tol: 0.4, unit: 'thou', from: 'Module 10',
+        q: '<span class="num">' + n3(nom) + ' ± ' + n3(tol) + '</span> — how much total room does that give you, in <b>thou</b>?',
+        explain: 'The ± counts BOTH ways: 2 × ' + n3(tol) + ' = <span class="num">' + aB + ' thou</span> of total room.',
+        hint: 'Total room = upper limit minus lower limit. Write both limits down, then subtract.',
+        steps: '1 · upper = ' + n3(up) + ' · lower = ' + n3(lo) + '<br>' +
+          '2 · band = ' + n3(up) + ' − ' + n3(lo) + ' = <span class="num">' + n3(2 * tol) + '"</span> = <span class="res">' + aB + ' thou</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - th(tol)) <= 0.5) return { label: 'Forgot the band is DOUBLE the ±',
+            your: th(tol) + ' thou is one side only — the ± swings both ways from nominal',
+            right: '2 × ' + th(tol) + ' = ' + aB + ' thou' };
+          if (Math.abs(v - 2 * tol) <= 0.002) return { label: 'Answered in inches',
+            your: 'that is the band in INCHES — the question asked thou',
+            right: aB + ' thou' };
+          return { label: 'Band slip', your: v + ' thou is not upper − lower', right: aB + ' thou' };
+        } };
+    }
+    if (kind === 'inSpec') {
+      var roll = Math.random();
+      var meas, right;
+      if (roll < 0.25) { meas = pick([up, lo]); right = 0; }
+      else if (roll < 0.5) { meas = r4(nom + (Math.random() < 0.5 ? 1 : -1) * tol * 0.5); right = 0; }
+      else if (roll < 0.75) { meas = r4(up + pick([0.001, 0.002, 0.003])); right = 1; }
+      else { meas = r4(lo - pick([0.001, 0.002, 0.003])); right = 2; }
+      var CH = ['IN SPEC — good part', 'OUT — oversize', 'OUT — undersize'];
+      var onLimit = meas === up || meas === lo;
+      return { type: 'mc', a: right, choices: CH, from: 'Module 10',
+        q: 'Print: <span class="num">' + n3(nom) + ' ± ' + n3(tol) + '</span>. Your mic reads <span class="num">' +
+          n4(meas) + '"</span>. Verdict?',
+        explain: 'Limits ' + n3(lo) + ' to ' + n3(up) + ', inclusive. ' +
+          (right === 0 ? (onLimit ? 'Exactly ON a limit is legal.' : 'Inside.') : 'Outside.') +
+          ' → <span class="num">' + CH[right] + '</span>',
+        hint: 'Write the two limits first: nominal ± tol. Then place the reading against them — exactly ON a limit still counts as in.',
+        steps: '1 · limits: <span class="num">' + n3(lo) + '</span> to <span class="num">' + n3(up) + '</span><br>' +
+          '2 · ' + n4(meas) + ' vs those, inclusive<br>3 · <span class="res">' + CH[right] + '</span>',
+        diagnose: function (chosen) {
+          if (right === 0 && onLimit && chosen !== 0) return { label: 'Called an on-the-limit part out',
+            your: n4(meas) + ' sits exactly ON a limit — limits are inclusive; dead-on is legal',
+            right: CH[0] };
+          if (right !== 0 && chosen === 0) return { label: 'Passed a bad part',
+            your: n4(meas) + ' is outside ' + n3(lo) + '–' + n3(up),
+            right: CH[right] };
+          return { label: 'Verdict slip',
+            your: 'check which side of the band ' + n4(meas) + ' falls on',
+            right: CH[right] };
+        } };
+    }
+    var over = pick([0.006, 0.008, 0.010, 0.012]);
+    var tol2 = pick([0.003, 0.005]);
+    var meas2 = r4(nom + over);
+    var aR = th(over);
+    var toLimit = th(r4(meas2 - (nom + tol2)));
+    return { type: 'num', a: aR, tol: 0.4, unit: 'thou', from: 'Module 10',
+      q: 'Outside cut, print <span class="num">' + n3(nom) + ' ± ' + n3(tol2) + '</span>, part measures <span class="num">' +
+        n4(meas2) + '"</span> — oversize. How many <b>thou</b> do you take off to land on <b>nominal</b>?',
+      explain: n4(meas2) + ' − ' + n3(nom) + ' = <span class="num">' + aR + ' thou</span> — mid-band, not balancing on the limit.',
+      hint: 'Distance from where the part IS to where you WANT it: measured minus nominal.',
+      steps: '1 · target = nominal = <span class="num">' + n3(nom) + '</span><br>' +
+        '2 · remove = ' + n4(meas2) + ' − ' + n3(nom) + ' = <span class="res">' + aR + ' thou</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - toLimit) <= 0.5 && Math.abs(toLimit - aR) > 0.8) return { label: 'Cut only to the limit',
+          your: toLimit + ' thou parks you EXACTLY on ' + n3(nom + tol2) + ' — one tenth of tool wear from scrap',
+          right: 'aim mid-band: ' + aR + ' thou' };
+        if (Math.abs(v - aR / 1000) <= 0.01) return { label: 'Answered in inches',
+          your: n4(v) + ' is the removal in inches — the question asked thou',
+          right: aR + ' thou' };
+        return { label: 'Offset slip',
+          your: v + ' is not measured − nominal in thou',
+          right: n4(meas2) + ' − ' + n3(nom) + ' = ' + aR + ' thou' };
+      } };
+  };
+
   /* Daily 10: pull from all unlocked, built modules with a bank */
   function daily10Questions() {
     var eligible = MODULES.filter(function (m) { return m.built && isUnlocked(m.id) && BANKS[m.id]; });
@@ -1646,6 +1916,7 @@
     panel.setAttribute('role', 'dialog');
     panel.setAttribute('aria-label', 'Shop calculator');
     var KEYS = [
+      ['sin', 'sin', 'fn2'], ['cos', 'cos', 'fn2'], ['tan', 'tan', 'fn2'], ['inv', 'INV', 'fn2'],
       ['ac', 'AC', 'fn'], ['bs', '⌫', 'fn'], ['pm', '±', 'fn'], ['/', '÷', 'op'],
       ['7', '7', ''], ['8', '8', ''], ['9', '9', ''], ['*', '×', 'op'],
       ['4', '4', ''], ['5', '5', ''], ['6', '6', ''], ['-', '−', 'op'],
@@ -1663,7 +1934,8 @@
           ' aria-label="' + (k[0] === 'say' ? 'Say this number out loud' : k[1]) + '">' + k[1] + '</button>';
       }).join('') + '</div>' +
       '<div class="calc-foot">Scratch math only — answers still go in the answer box. ' +
-      'Type on your keyboard too. Closed during quizzes.</div>';
+      'Type on your keyboard too. Trig keys work in <b>degrees</b>; INV flips them to ' +
+      'arc-sin/cos/tan. Closed during quizzes.</div>';
 
     function apply(a, o, b) {
       if (o === '+') return a + b;
@@ -1672,10 +1944,10 @@
       return b === 0 ? NaN : a / b;
     }
     function draw() {
-      panel.querySelector('[data-expr]').textContent = C.expr || ' ';
+      panel.querySelector('[data-expr]').textContent = C.note || C.expr || ' ';
       panel.querySelector('[data-val]').textContent = C.entry;
       var means = C.entry === 'ERR'
-        ? 'you divided by zero — no answer exists. AC to clear.'
+        ? (C.note ? 'no such angle or value — AC to clear.' : 'you divided by zero — no answer exists. AC to clear.')
         : calcMeans(parseFloat(C.entry));
       panel.querySelector('[data-means]').innerHTML = means || '&nbsp;';
     }
@@ -1719,10 +1991,32 @@
           C.entry = C.entry.charAt(0) === '-' ? C.entry.slice(1) : '-' + C.entry;
           if (C.fresh && C.op === null) C.acc = parseFloat(C.entry);
         }
+      } else if (k === 'inv') {
+        C.inv = !C.inv;
+        panel.querySelector('[data-k="inv"]').classList.toggle('on', C.inv);
+      } else if (k === 'sin' || k === 'cos' || k === 'tan') {
+        if (C.entry === 'ERR') return;
+        var tv = parseFloat(C.entry), tr;
+        if (C.inv) {
+          if (k === 'sin') tr = (tv < -1 || tv > 1) ? NaN : Math.asin(tv) * 180 / Math.PI;
+          else if (k === 'cos') tr = (tv < -1 || tv > 1) ? NaN : Math.acos(tv) * 180 / Math.PI;
+          else tr = Math.atan(tv) * 180 / Math.PI;
+          C.note = 'a' + k + '(' + calcFmt(tv) + ') = ' + calcFmt(tr) + '°';
+        } else {
+          var rad = tv * Math.PI / 180;
+          tr = k === 'sin' ? Math.sin(rad) : k === 'cos' ? Math.cos(rad) : Math.tan(rad);
+          if (k === 'tan' && Math.abs(Math.abs(((tv % 180) + 180) % 180) - 90) < 1e-9) tr = NaN;
+          C.note = k + '(' + calcFmt(tv) + '°) = ' + calcFmt(tr);
+        }
+        C.entry = calcFmt(tr);
+        C.fresh = true;
+        draw();
+        return;
       } else if (k === 'say') {
         calcSpeak(parseFloat(C.entry));
         return;
       }
+      C.note = '';
       draw();
     }
     function setOpen(open) {

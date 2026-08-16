@@ -299,6 +299,7 @@ table.ref td:first-child, table.ref th:first-child { text-align: left; }
 .calc-keys button { font-size: 17px; min-height: 46px; padding: 8px 4px; }
 .calc-keys button.op { color: var(--blue); background: var(--panel); }
 .calc-keys button.fn { color: var(--orange); background: var(--panel); font-size: 15px; }
+.calc-keys button.fn2 { color: var(--blue); background: var(--panel); font-size: 14px; font-style: italic; }
 .calc-keys button.eq { color: #fff; background: var(--blue); border-color: var(--blue); box-shadow: 0 2px 0 #12365f; }
 .calc-keys button.eq:active { box-shadow: 0 0 0 #12365f; }
 .calc-foot {

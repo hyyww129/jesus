@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 9 · Right-Triangle Trig for Angles</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← HUB</a>
+    <div class="eyebrow">Module 09 · Machinist Math Trainer</div>
+    <h1>Right-Triangle <span class="b">Trig</span></h1>
+    <p class="sub">Every angled move on the machine is a right triangle: an X leg, a Y leg, and the
+      diagonal you actually care about. SOH-CAH-TOA turns any two of them into the third.</p>
+  </header>
+  <div id="mmt-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var M = window.MMT;
+
+  function r4(v) { return Math.round(v * 10000) / 10000; }
+  function r1(v) { return Math.round(v * 10) / 10; }
+  function n3(v) { return M.fmtExact(v, 3); }
+  function n4(v) { return M.fmt(v, 4); }
+  function rad(d) { return d * Math.PI / 180; }
+  function cosd(d) { return Math.cos(rad(d)); }
+  function sind(d) { return Math.sin(rad(d)); }
+  function tand(d) { return Math.tan(rad(d)); }
+  function atanDeg(y, x) { return Math.atan(y / x) * 180 / Math.PI; }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>The mill only moves in straight X and Y. So every angled feature — a chamfer, a taper, a hole on ' +
+  'a slanted line — is really a <span class="term">right triangle</span>: the <b>X leg</b> (run, next to the ' +
+  'angle), the <b>Y leg</b> (rise, opposite the angle), and the <b>hypotenuse</b> (the slanted distance itself).</p>' +
+  '<p>Three memory hooks, one for each pair — <span class="term">SOH-CAH-TOA</span>:</p>' +
+  '<div class="worked">SOH · sin = Opposite ÷ Hypotenuse &nbsp;→&nbsp; <b>Y = H × sin(angle)</b><br>' +
+  'CAH · cos = Adjacent ÷ Hypotenuse &nbsp;→&nbsp; <b>X = H × cos(angle)</b><br>' +
+  'TOA · tan = Opposite ÷ Adjacent &nbsp;→&nbsp; <b>angle = atan(Y ÷ X)</b></div>' +
+  '<p>Work one: a hole sits <b>2.000"</b> away along a <b>30°</b> line. The DRO wants X and Y:</p>' +
+  '<div class="worked">X = 2.000 × cos 30° = 2.000 × <span class="num">0.8660</span> = <span class="res">1.7321"</span><br>' +
+  'Y = 2.000 × sin 30° = 2.000 × <span class="num">0.5000</span> = <span class="res">1.0000"</span><br>' +
+  'check: √(1.7321² + 1.0000²) = √(3.0002 + 1.0000) ≈ <span class="num">2.000</span> ✓</div>' +
+  '<p>That last line is <span class="term">Pythagoras</span> — the third tool. Know both legs and need the ' +
+  'diagonal? <b>H = √(X² + Y²)</b>. It also works as a free sanity check on any trig answer.</p>' +
+  '<p><b>Backwards</b> — you measured the legs and want the angle. That is TOA driven in reverse: divide ' +
+  '<span class="term">rise by run — in that order</span> — then hit INV tan (the calculator\'s arc-tan, in degrees). ' +
+  'Same triangle as above, run backwards:</p>' +
+  '<div class="worked">rise ÷ run = 1.0000 ÷ 1.7321 = <span class="num">0.5774</span><br>' +
+  'INV tan of 0.5774 = <span class="res">30.0°</span> — the angle we started with ✓</div>' +
+  '<p>Flip the division and you silently compute the OTHER corner: 1.7321 ÷ 1.0000 = 1.7321 → atan = 60° — ' +
+  'that is 90° minus your angle, and a part cut to it comes out tipped the wrong way. ' +
+  'Rise over run, every time.</p>' +
+  '<p>A <b>45° chamfer</b> is the friendly special case: tan 45° = 1, so rise = run, X = Y. ' +
+  'The trainer\'s calculator has sin/cos/tan and INV for the reverse — all in degrees.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — bend a triangle, read the legs</h2><div class="body">' +
+      '<div class="slider-row"><span class="name">ANGLE</span>' +
+      '<input type="range" id="angSlide" min="5" max="85" step="1" value="30" aria-label="angle in degrees">' +
+      '<span class="out" id="angOut"></span></div>' +
+      '<div class="slider-row"><span class="name">ALONG THE LINE</span>' +
+      '<input type="range" id="hypSlide" min="50" max="300" step="5" value="200" aria-label="distance along the angled line, hundredths">' +
+      '<span class="out" id="hypOut"></span></div>' +
+      '<p class="hint">Drag the angle (arrow keys work) and watch the legs trade length: cos feeds X, ' +
+      'sin feeds Y, and the corner refuses to stop being 90°.</p>' +
+      '<div class="scrollbox" style="margin-top:8px"><svg id="triView" height="240" role="img" aria-label="right triangle"></svg></div>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droX"></div><div id="droY"></div>' +
+      '<button id="sayBtn">🔊 SAY THE MOVE</button>' +
+      '<p class="hint" id="sayText" style="margin-top:0"></p></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var ang = 30, hyp = 2.00;
+    var svg = card.querySelector('#triView');
+    var eqBody = card.querySelector('#eqBody');
+    var droXc = M.dro(card.querySelector('#droX'), 'X RUN');
+    var droYc = M.dro(card.querySelector('#droY'), 'Y RISE');
+
+    function legs() { return { x: r4(hyp * cosd(ang)), y: r4(hyp * sind(ang)) }; }
+
+    function draw() {
+      var W = 620, H = 240, ox = 60, oy = 205, S = 150 / 3.0;
+      var L = legs();
+      var px = ox + hyp * cosd(ang) * S * 2.9, py = oy - hyp * sind(ang) * S * 2.9;
+      svg.setAttribute('width', W);
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      var s = '';
+      s += '<polygon points="' + ox + ',' + oy + ' ' + px + ',' + oy + ' ' + px + ',' + py +
+        '" style="fill:var(--panel);stroke:none"/>';
+      s += '<line x1="' + ox + '" y1="' + oy + '" x2="' + px + '" y2="' + oy + '" style="stroke:var(--blue);stroke-width:2.5"/>';
+      s += '<line x1="' + px + '" y1="' + oy + '" x2="' + px + '" y2="' + py + '" style="stroke:var(--orange);stroke-width:2.5"/>';
+      s += '<line x1="' + ox + '" y1="' + oy + '" x2="' + px + '" y2="' + py + '" style="stroke:var(--ink);stroke-width:2.5"/>';
+      /* right-angle box */
+      s += '<path d="M ' + (px - 12) + ' ' + oy + ' l 0 -12 l 12 0" style="fill:none;stroke:var(--soft);stroke-width:1.5"/>';
+      /* angle arc */
+      var aEnd = rad(ang);
+      s += '<path d="M ' + (ox + 34) + ' ' + oy + ' A 34 34 0 0 0 ' + (ox + 34 * Math.cos(aEnd)) + ' ' + (oy - 34 * Math.sin(aEnd)) +
+        '" style="fill:none;stroke:var(--ink);stroke-width:1.5"/>';
+      s += '<text x="' + (ox + 44) + '" y="' + (oy - 8) + '" style="fill:var(--ink);font-family:ui-monospace,monospace;font-size:12px;font-weight:700">' + ang + '°</text>';
+      s += '<text x="' + ((ox + px) / 2) + '" y="' + (oy + 16) + '" text-anchor="middle" style="fill:var(--blue);font-family:ui-monospace,monospace;font-size:11px;font-weight:700">X = H cos = ' + n4(L.x) + '</text>';
+      s += '<text x="' + (px + 8) + '" y="' + ((oy + py) / 2) + '" style="fill:var(--orange);font-family:ui-monospace,monospace;font-size:11px;font-weight:700">Y = H sin = ' + n4(L.y) + '</text>';
+      s += '<text x="' + ((ox + px) / 2 - 20) + '" y="' + ((oy + py) / 2 - 10) + '" style="fill:var(--ink);font-family:ui-monospace,monospace;font-size:11px;font-weight:700">H = ' + n3(hyp) + '</text>';
+      svg.innerHTML = s;
+    }
+
+    function update() {
+      var L = legs();
+      card.querySelector('#angOut').textContent = ang + '°';
+      card.querySelector('#hypOut').textContent = n3(hyp) + '"';
+      eqBody.innerHTML =
+        'X = H × cos = <span class="num">' + n3(hyp) + '</span> × <span class="num">' + n4(cosd(ang)) + '</span> = <span class="res">' + n4(L.x) + '</span><br>' +
+        'Y = H × sin = <span class="num">' + n3(hyp) + '</span> × <span class="num">' + n4(sind(ang)) + '</span> = <span class="res">' + n4(L.y) + '</span><br>' +
+        'check: √(' + n4(L.x) + '² + ' + n4(L.y) + '²) = <span class="num">' + n4(Math.sqrt(L.x * L.x + L.y * L.y)) + '</span> ✓<br>' +
+        'and back: atan(' + n4(L.y) + ' ÷ ' + n4(L.x) + ') = <span class="num">' + r1(atanDeg(L.y, L.x)) + '°</span>',
+      droXc.set(n4(L.x), 'cos ' + ang + '° = ' + n4(cosd(ang)) + ' — every inch along the line is ' + n4(cosd(ang)) + '" of run.');
+      droYc.set(n4(L.y), 'sin ' + ang + '° = ' + n4(sind(ang)) + ' — every inch along the line climbs ' + n4(sind(ang)) + '".');
+      var spoken = M.sayMeasure(hyp).shop + ' along a ' + M.intWords(ang) + ' degree line: X ' +
+        M.sayMeasure(L.x).shop + ', Y ' + M.sayMeasure(L.y).shop + '.';
+      card.querySelector('#sayText').textContent = '“' + spoken + '”';
+      card.querySelector('#sayBtn').onclick = function () { M.speakText(spoken); };
+      draw();
+    }
+
+    card.querySelector('#angSlide').addEventListener('input', function () { ang = Number(this.value); update(); });
+    card.querySelector('#hypSlide').addEventListener('input', function () { hyp = Number(this.value) / 100; update(); });
+
+    update();
+    window.__m9 = {
+      set: function (a, h) { ang = a; hyp = h; card.querySelector('#angSlide').value = a; card.querySelector('#hypSlide').value = Math.round(h * 100); update(); },
+      info: function () { return { ang: ang, hyp: hyp, legs: legs() }; }
+    };
+  }
+
+  /* ============ question generators (practice + quiz) ============ */
+  var ANGLES = [10, 15, 20, 25, 30, 35, 40, 50, 55, 60, 65, 70, 75, 80];   /* no 45 — sin=cos would blur the traps */
+  var HYPS = [0.750, 1.000, 1.250, 1.500, 2.000, 2.500, 3.000];
+  var RUNS = [0.750, 1.000, 1.250, 1.500, 2.000, 2.500];
+  var RISES = [0.250, 0.375, 0.500, 0.625, 0.750, 1.000];
+
+  function genSideFromAngle() {
+    var A = M.pick(ANGLES), H = M.pick(HYPS);
+    var wantX = Math.random() < 0.5;
+    var a = r4(H * (wantX ? cosd(A) : sind(A)));
+    var swap = r4(H * (wantX ? sind(A) : cosd(A)));
+    var fn = wantX ? 'cos' : 'sin';
+    return { type: 'num', a: a, tol: 0.001,
+      q: 'A hole sits <span class="num">' + n3(H) + '"</span> away along a <span class="num">' + A + '°</span> line. ' +
+        'How far is that in <b>' + (wantX ? 'X (the run, along the bottom)' : 'Y (the rise)') + '</b>?',
+      explain: (wantX ? 'X is NEXT TO the angle → cos: ' : 'Y is OPPOSITE the angle → sin: ') +
+        n3(H) + ' × ' + fn + ' ' + A + '° = ' + n3(H) + ' × ' + n4(wantX ? cosd(A) : sind(A)) +
+        ' = <span class="num">' + n4(a) + '</span>.',
+      hint: 'Which leg is asked — the one NEXT TO the angle or OPPOSITE it? Next-to takes cos (CAH), opposite takes sin (SOH). Then it is one multiply: H × that.',
+      steps: '1 · ' + (wantX ? 'The run touches the angle → CAH → X = H × cos' : 'The rise faces the angle → SOH → Y = H × sin') + '<br>' +
+        '2 · ' + fn + ' <span class="num">' + A + '°</span> = <span class="num">' + n4(wantX ? cosd(A) : sind(A)) + '</span> (calculator, DEG)<br>' +
+        '3 · <span class="num">' + n3(H) + '</span> × ' + n4(wantX ? cosd(A) : sind(A)) + ' = <span class="res">' + n4(a) + '"</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - swap) <= 0.003 && Math.abs(swap - a) > 0.01) return { label: 'Swapped sin and cos',
+          your: n4(swap) + ' is the OTHER leg — ' + (wantX ? 'sin gives the rise, not the run' : 'cos gives the run, not the rise'),
+          right: (wantX ? 'next-to the angle → cos: ' : 'opposite the angle → sin: ') + n3(H) + ' × ' + n4(wantX ? cosd(A) : sind(A)) + ' = ' + n4(a) };
+        var tn = r4(H * tand(A));
+        if (Math.abs(v - tn) <= 0.003 && Math.abs(tn - a) > 0.01) return { label: 'Used tan',
+          your: 'tan compares the two LEGS to each other — it never touches the hypotenuse',
+          right: n3(H) + ' × ' + fn + ' ' + A + '° = ' + n4(a) };
+        if (Math.abs(v - H) <= 0.003) return { label: 'Handed back the hypotenuse',
+          your: n3(H) + ' is the slanted distance itself — the leg is always SHORTER',
+          right: n3(H) + ' × ' + n4(wantX ? cosd(A) : sind(A)) + ' = ' + n4(a) };
+        return { label: 'Trig slip',
+          your: n4(v) + ' is not H × ' + fn + '(' + A + '°)',
+          right: n3(H) + ' × ' + n4(wantX ? cosd(A) : sind(A)) + ' = ' + n4(a) };
+      } };
+  }
+
+  function genAngleFromSides(taper) {
+    var X, Y, a;
+    for (var t = 0; t < 40; t++) {
+      X = M.pick(RUNS); Y = M.pick(RISES);
+      a = r1(atanDeg(Y, X));
+      if (a >= 8 && a <= 55 && Math.abs(a - 45) > 2) break;
+    }
+    var comp = r1(90 - a);
+    var ratio = r4(Y / X);
+    var qText = taper
+      ? 'A taper rises <span class="num">' + n3(Y) + '"</span> over a run of <span class="num">' + n3(X) + '"</span>. What is its angle?'
+      : 'You measured legs: rise <span class="num">' + n3(Y) + '"</span>, run <span class="num">' + n3(X) + '"</span>. What angle does the diagonal make with the bottom?';
+    return { type: 'num', a: a, tol: 0.5, unit: 'deg',
+      q: qText,
+      explain: 'TOA driven backwards: atan(rise ÷ run) = atan(' + n3(Y) + ' ÷ ' + n3(X) + ') = atan(' + n4(ratio) +
+        ') = <span class="num">' + a + '°</span>.',
+      hint: 'The two LEGS are tan\'s territory (TOA). Divide rise by run — in that order — then INV tan on the calculator turns the ratio back into degrees.',
+      steps: '1 · tan(angle) = rise ÷ run → angle = atan(rise ÷ run)<br>' +
+        '2 · <span class="num">' + n3(Y) + '</span> ÷ <span class="num">' + n3(X) + '</span> = <span class="num">' + n4(ratio) + '</span><br>' +
+        '3 · INV tan (degrees): atan(' + n4(ratio) + ') = <span class="res">' + a + '°</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - comp) <= 1 && Math.abs(comp - a) > 1.5) return { label: 'Inverted the ratio — that is the OTHER corner',
+          your: 'run ÷ rise gives the corner at the TOP of the triangle: 90 − ' + a + ' = ' + comp + '° — the part comes out tipped the wrong way',
+          right: 'rise ÷ run, in that order: atan(' + n3(Y) + ' ÷ ' + n3(X) + ') = ' + a + '°' };
+        if (Math.abs(v - ratio) <= 0.03 && Math.abs(ratio - a) > 1) return { label: 'Stopped at the ratio',
+          your: n4(ratio) + ' is tan of the angle — the INV tan step turns it into degrees',
+          right: 'atan(' + n4(ratio) + ') = ' + a + '°' };
+        if (Math.abs(v - r4(a * Math.PI / 180)) <= 0.02 && a > 5) return { label: 'Radians leaked in',
+          your: n4(a * Math.PI / 180) + ' is the same angle in radians — the shop speaks degrees',
+          right: a + '°' };
+        return { label: 'Backwards-trig slip',
+          your: v + ' is not atan(rise ÷ run) in degrees',
+          right: 'atan(' + n3(Y) + ' ÷ ' + n3(X) + ') = ' + a + '°' };
+      } };
+  }
+
+  function genHyp() {
+    var X = M.pick(RUNS), Y = M.pick(RISES);
+    var a = r4(Math.sqrt(X * X + Y * Y));
+    var add = r4(X + Y);
+    return { type: 'num', a: a, tol: 0.001,
+      q: 'The tool has to travel from corner to corner: <span class="num">' + n3(X) + '"</span> in X and ' +
+        '<span class="num">' + n3(Y) + '"</span> in Y. How long is the <b>diagonal</b> itself?',
+      explain: 'Pythagoras: √(' + n3(X) + '² + ' + n3(Y) + '²) = √(' + n4(X * X) + ' + ' + n4(Y * Y) + ') = √' +
+        n4(X * X + Y * Y) + ' = <span class="num">' + n4(a) + '</span>.',
+      hint: 'Two legs, want the slant: square both, add, square-root. (Adding the legs straight up walks around the corner — the diagonal is the shortcut, always shorter.)',
+      steps: '1 · H = √(X² + Y²)<br>' +
+        '2 · <span class="num">' + n3(X) + '</span>² = ' + n4(X * X) + ' · <span class="num">' + n3(Y) + '</span>² = ' + n4(Y * Y) + '<br>' +
+        '3 · sum = <span class="num">' + n4(X * X + Y * Y) + '</span><br>' +
+        '4 · √ = <span class="res">' + n4(a) + '"</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - add) <= 0.003 && Math.abs(add - a) > 0.01) return { label: 'Added the legs',
+          your: n3(X) + ' + ' + n3(Y) + ' = ' + n4(add) + ' walks the two edges around the corner — the diagonal cuts across, shorter',
+          right: '√(' + n3(X) + '² + ' + n3(Y) + '²) = ' + n4(a) };
+        if (Math.abs(v - r4(X * X + Y * Y)) <= 0.003 && Math.abs(X * X + Y * Y - a) > 0.01) return { label: 'Forgot the square root',
+          your: n4(X * X + Y * Y) + ' is the SUM of squares — the last step un-squares it',
+          right: '√' + n4(X * X + Y * Y) + ' = ' + n4(a) };
+        if (Math.abs(v - Math.abs(X - Y)) <= 0.003) return { label: 'Subtracted the legs',
+          your: 'the difference of the legs is not a distance anywhere on this triangle',
+          right: '√(' + n3(X) + '² + ' + n3(Y) + '²) = ' + n4(a) };
+        return { label: 'Pythagoras slip',
+          your: n4(v) + ' is not √(X² + Y²)',
+          right: '√(' + n3(X) + '² + ' + n3(Y) + '²) = ' + n4(a) };
+      } };
+  }
+
+  function genWhichFn() {
+    var vars = [
+      { have: 'the angle and the hypotenuse', want: 'the side NEXT TO the angle', right: 'cos', why: 'CAH: cos = adjacent ÷ hypotenuse' },
+      { have: 'the angle and the hypotenuse', want: 'the side OPPOSITE the angle', right: 'sin', why: 'SOH: sin = opposite ÷ hypotenuse' },
+      { have: 'both legs (rise and run)', want: 'the angle', right: 'tan', why: 'TOA: tan = opposite ÷ adjacent — then INV tan for the angle' },
+      { have: 'both legs (rise and run)', want: 'the diagonal', right: 'Pythagoras', why: 'no trig needed: H = √(X² + Y²)' }
+    ];
+    var v = M.pick(vars);
+    var CH = ['sin', 'cos', 'tan', 'Pythagoras'];
+    var a = CH.indexOf(v.right);
+    return { type: 'mc', a: a, choices: CH,
+      q: 'Tool pick: you know <b>' + v.have + '</b> and need <b>' + v.want + '</b>. Which tool does the job?',
+      explain: v.why + ' → <span class="num">' + v.right + '</span>.',
+      hint: 'Say SOH-CAH-TOA out loud and find the hook that contains BOTH the thing you have and the thing you want. If the hypotenuse is nowhere in the problem, think tan — or no trig at all.',
+      steps: '1 · SOH: sin ties opposite ↔ hypotenuse<br>2 · CAH: cos ties adjacent ↔ hypotenuse<br>' +
+        '3 · TOA: tan ties opposite ↔ adjacent<br>4 · Both legs → diagonal is Pythagoras, no trig<br>' +
+        '5 · You have ' + v.have + ', you want ' + v.want + ' → <span class="res">' + v.right + '</span>',
+      diagnose: function (chosen) {
+        return { label: 'Wrong hook',
+          your: CH[chosen] + ' does not tie together ' + v.have + ' and ' + v.want,
+          right: v.why };
+      } };
+  }
+
+  function genTaper() { return genAngleFromSides(true); }
+
+  var GENS = { sideFromAngle: genSideFromAngle, angleFromSides: function () { return genAngleFromSides(false); },
+    hyp: genHyp, whichFn: genWhichFn, taper: genTaper };
+  function gen(kind) { var q = GENS[kind](); q.kind = kind; q.from = 'Module 9'; return q; }
+
+  function makeSet(kinds) {
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    return M.shuffle(out);
+  }
+  function practiceQs() {
+    return makeSet(['sideFromAngle', 'sideFromAngle', 'sideFromAngle', 'angleFromSides', 'angleFromSides',
+      'hyp', 'hyp', 'whichFn', 'whichFn', 'taper']);
+  }
+  function quizQs() {
+    return makeSet(['sideFromAngle', 'sideFromAngle', 'sideFromAngle', 'angleFromSides', 'angleFromSides',
+      'hyp', 'hyp', 'whichFn', 'taper', 'taper']);
+  }
+
+  /* worked twin for the coach's WORK ONE LIKE IT — always different numbers */
+  function coachRegen(kind, current) {
+    var plain = function (h) { return String(h).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(); };
+    var q = null;
+    for (var t = 0; t < 6; t++) {
+      q = gen(kind);
+      if (!current || plain(q.q) !== plain(current.q)) break;
+    }
+    var ans = q.type === 'mc' ? plain(String(q.choices[q.a]))
+      : (q.unit ? q.a + ' ' + q.unit : M.fmtExact(q.a));
+    return {
+      title: plain(q.q),
+      steps: (q.steps || q.explain || '') + '<br>Answer: <span class="res">' + M.esc(ans) + '</span>',
+      spoken: M.sayAnswerQ(q),
+    };
+  }
+
+  M.modulePage('m9', {
+    explainer: EXPLAINER,
+    playground: playground,
+    practiceQs: practiceQs,
+    quizQs: quizQs,
+    coach: { regen: coachRegen },
+  });
+})();
+</script>
+</body>
+</html>

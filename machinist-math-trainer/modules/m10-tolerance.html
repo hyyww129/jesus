@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 10 · Tolerances &amp; Measurement</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← HUB</a>
+    <div class="eyebrow">Module 10 · Machinist Math Trainer</div>
+    <h1>Tolerances &amp; <span class="b">Measurement</span></h1>
+    <p class="sub">No dimension is exact — the print tells you how wrong you're allowed to be.
+      This module turns ± into limits, verdicts, and which way to move next.</p>
+  </header>
+  <div id="mmt-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var M = window.MMT;
+
+  function r4(v) { return Math.round(v * 10000) / 10000; }
+  function n3(v) { return M.fmtExact(v, 3); }
+  function n4(v) { return M.fmt(v, 4); }
+  function thou(v) { return Math.round(v * 1000 * 10) / 10; }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>A print never really says "make it 1.500". It says <span class="num">1.500 ± 0.005</span> — ' +
+  '"anywhere in here and the part is good". The ± unpacks into two <span class="term">limits</span>:</p>' +
+  '<div class="worked">upper = 1.500 + 0.005 = <span class="res">1.505</span><br>' +
+  'lower = 1.500 − 0.005 = <span class="res">1.495</span><br>' +
+  'total band = 1.505 − 1.495 = <span class="num">0.010</span> — the ± number DOUBLED</div>' +
+  '<p>That last line is the classic mix-up: ±0.005 gives you a <b>0.010 band</b> (ten thou of room), ' +
+  'not five. The ± counts from the middle, and it counts both ways.</p>' +
+  '<p><span class="term">In or out?</span> A measured part is in spec when lower ≤ measured ≤ upper — ' +
+  '<b>inclusive</b>. Land exactly ON 1.505 and the part is legal (convention worth stating out loud, ' +
+  'because arguments happen). One tenth past it and it\'s scrap or rework.</p>' +
+  '<p><span class="term">Unilateral</span> tolerance runs one way only: 1.500 <b>+0.005 / −0.000</b> means ' +
+  'limits 1.500 to 1.505 — nominal itself is the bottom limit. Aim for the <b>middle of the band</b> ' +
+  '(1.5025 here): every process wobbles, and the middle gives the wobble room in both directions.</p>' +
+  '<p><span class="term">Which way to move?</span> The part measures 1.508 against 1.500 ± 0.005: it is ' +
+  '0.003 over the upper limit and <b>0.008 over nominal</b>. Cut <b>0.008</b> more and you sit dead on ' +
+  'nominal, middle of the band — not 0.003, which parks you exactly on the limit with zero room to breathe. ' +
+  'Undersize on an outside cut is worse news: the material is already gone.</p>' +
+  '<p><span class="term">Trust the right tool</span> (shop rules of thumb, not laws):</p>' +
+  '<table class="ref"><tr><th>Tool</th><th>Trust it to about</th></tr>' +
+  '<tr><td>Steel rule</td><td>1/64" ≈ 0.015</td></tr>' +
+  '<tr><td>Calipers</td><td>± 0.001</td></tr>' +
+  '<tr><td>Micrometer</td><td>0.0001 (a tenth)</td></tr></table>' +
+  '<p style="margin-top:10px">A ±0.0005 callout checked with calipers is a guess wearing a costume. ' +
+  'Match the instrument to the band: the tool should resolve about a tenth of the tolerance it polices.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — a tolerance band you can wiggle</h2><div class="body">' +
+      '<div class="slider-row"><span class="name">NOMINAL</span>' +
+      '<input type="range" id="nomSlide" min="500" max="2500" step="5" value="1500" aria-label="nominal dimension in thou">' +
+      '<span class="out" id="nomOut"></span></div>' +
+      '<div class="slider-row"><span class="name">± TOL</span>' +
+      '<input type="range" id="tolSlide" min="1" max="20" step="1" value="5" aria-label="plus-minus tolerance in thou">' +
+      '<span class="out" id="tolOut"></span></div>' +
+      '<div class="slider-row"><span class="name">MEASURED</span>' +
+      '<input type="range" id="measSlide" min="-30" max="30" step="1" value="8" aria-label="measured offset from nominal in thou">' +
+      '<span class="out" id="measOut"></span></div>' +
+      '<p class="hint">Drag MEASURED across the band (arrow keys work) — watch the verdict flip exactly ON the ' +
+      'limit, not near it. Then widen the ± and see the green room grow both ways.</p>' +
+      '<div class="scrollbox" style="margin-top:8px"><svg id="bandView" height="150" role="img" aria-label="tolerance band diagram"></svg></div>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div>' +
+      '<button id="sayBtn">🔊 SAY THE VERDICT</button>' +
+      '<p class="hint" id="sayText" style="margin-top:0"></p></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var nom = 1.500, tol = 0.005, offs = 0.008;
+    var svg = card.querySelector('#bandView');
+    var eqBody = card.querySelector('#eqBody');
+    var droCtl = M.dro(card.querySelector('#droBox'), 'MEAS');
+
+    function state() {
+      var up = r4(nom + tol), lo = r4(nom - tol), meas = r4(nom + offs);
+      var verdict = meas > up ? 'OVER' : meas < lo ? 'UNDER' : 'IN';
+      return { up: up, lo: lo, meas: meas, verdict: verdict };
+    }
+
+    function draw() {
+      var s0 = state();
+      var W = 620, H = 150, cx = W / 2, S = 7600;
+      function PX(v) { return cx + (v - nom) * S / 1000 * 12; }
+      svg.setAttribute('width', W);
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      var s = '<line x1="20" y1="86" x2="' + (W - 20) + '" y2="86" style="stroke:var(--line);stroke-width:2"/>';
+      s += '<rect x="' + PX(s0.lo) + '" y="60" width="' + (PX(s0.up) - PX(s0.lo)) + '" height="52" ' +
+        'style="fill:var(--good-bg);stroke:var(--good-bd);stroke-width:2"/>';
+      s += '<line x1="' + PX(nom) + '" y1="54" x2="' + PX(nom) + '" y2="118" stroke-dasharray="4 3" style="stroke:var(--ink);stroke-width:1.5"/>';
+      s += '<text x="' + PX(nom) + '" y="132" text-anchor="middle" style="fill:var(--ink);font-family:ui-monospace,monospace;font-size:10.5px">NOM ' + n3(nom) + '</text>';
+      s += '<text x="' + PX(s0.lo) + '" y="50" text-anchor="middle" style="fill:var(--good-bd);font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700">' + n3(s0.lo) + '</text>';
+      s += '<text x="' + PX(s0.up) + '" y="50" text-anchor="middle" style="fill:var(--good-bd);font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700">' + n3(s0.up) + '</text>';
+      var mx = Math.max(24, Math.min(W - 24, PX(s0.meas)));
+      var col = s0.verdict === 'IN' ? 'var(--blue)' : 'var(--orange)';
+      s += '<path d="M ' + mx + ' 22 l -7 -14 l 14 0 z" style="fill:' + col + '"/>';
+      s += '<line x1="' + mx + '" y1="22" x2="' + mx + '" y2="112" style="stroke:' + col + ';stroke-width:2.5"/>';
+      s += '<text x="' + mx + '" y="16" text-anchor="middle" style="fill:' + col + ';font-family:ui-monospace,monospace;font-size:11px;font-weight:700">' + n4(s0.meas) + '</text>';
+      svg.innerHTML = s;
+    }
+
+    function update() {
+      var s0 = state();
+      card.querySelector('#nomOut').textContent = n3(nom) + '"';
+      card.querySelector('#tolOut').textContent = '± ' + n3(tol) + '"';
+      card.querySelector('#measOut').textContent = (offs >= 0 ? '+' : '') + thou(offs) + ' thou';
+      var overBy = r4(s0.meas - s0.up), underBy = r4(s0.lo - s0.meas), toNom = r4(s0.meas - nom);
+      eqBody.innerHTML =
+        'upper = ' + n3(nom) + ' + ' + n3(tol) + ' = <span class="num">' + n3(s0.up) + '</span><br>' +
+        'lower = ' + n3(nom) + ' − ' + n3(tol) + ' = <span class="num">' + n3(s0.lo) + '</span><br>' +
+        'band = 2 × ' + n3(tol) + ' = <span class="num">' + n3(2 * tol) + '</span> (' + thou(2 * tol) + ' thou)<br>' +
+        'measured <span class="num">' + n4(s0.meas) + '</span> → ' +
+        (s0.verdict === 'IN'
+          ? '<span class="res">IN SPEC</span> <span class="dim">(' + n3(s0.lo) + ' ≤ ' + n4(s0.meas) + ' ≤ ' + n3(s0.up) + ', limits inclusive)</span>'
+          : s0.verdict === 'OVER'
+            ? '<span class="res">OVER by ' + thou(overBy) + ' thou</span> <span class="dim">— take ' + thou(toNom) + ' more to sit on nominal</span>'
+            : '<span class="res">UNDER by ' + thou(underBy) + ' thou</span> <span class="dim">— the material is already gone</span>');
+      var meaning = s0.verdict === 'IN'
+        ? 'Good part. It sits ' + (Math.abs(toNom) < 0.0001 ? 'dead on nominal' : thou(Math.abs(toNom)) + ' thou ' + (toNom > 0 ? 'above' : 'below') + ' nominal') +
+          ' with ' + thou(r4(s0.up - s0.meas)) + ' thou of room to the top limit and ' + thou(r4(s0.meas - s0.lo)) + ' to the bottom.'
+        : s0.verdict === 'OVER'
+          ? 'Oversize. ' + thou(overBy) + ' thou past the top limit — cut ' + thou(toNom) + ' thou more and you land dead on nominal, middle of the band.'
+          : 'Undersize by ' + thou(underBy) + ' thou past the bottom limit. On an outside cut that material is gone — this one is rework or scrap.';
+      droCtl.set(n4(s0.meas), meaning);
+      var spoken = s0.verdict === 'IN'
+        ? 'In spec. Measured ' + M.sayMeasure(s0.meas).shop + ', inside ' + M.sayMeasure(s0.lo).shop + ' to ' + M.sayMeasure(s0.up).shop + '.'
+        : s0.verdict === 'OVER'
+          ? 'Oversize by ' + M.sayMeasure(overBy).shop + '. Take ' + M.sayMeasure(toNom).shop + ' more to reach nominal.'
+          : 'Undersize by ' + M.sayMeasure(underBy).shop + '. That one is gone.';
+      card.querySelector('#sayText').textContent = '“' + spoken + '”';
+      card.querySelector('#sayBtn').onclick = function () { M.speakText(spoken); };
+      draw();
+    }
+
+    card.querySelector('#nomSlide').addEventListener('input', function () { nom = Number(this.value) / 1000; update(); });
+    card.querySelector('#tolSlide').addEventListener('input', function () { tol = Number(this.value) / 1000; update(); });
+    card.querySelector('#measSlide').addEventListener('input', function () { offs = Number(this.value) / 1000; update(); });
+
+    update();
+    window.__m10 = {
+      set: function (n, t, o) { nom = n; tol = t; offs = o;
+        card.querySelector('#nomSlide').value = Math.round(n * 1000);
+        card.querySelector('#tolSlide').value = Math.round(t * 1000);
+        card.querySelector('#measSlide').value = Math.round(o * 1000); update(); },
+      info: function () { return state(); }
+    };
+  }
+
+  /* ============ question generators (practice + quiz) ============ */
+  var NOMS = [0.750, 1.000, 1.250, 1.500, 1.750, 2.000, 2.250];
+  var TOLS = [0.002, 0.003, 0.005, 0.010];
+
+  function genLimit() {
+    var nom = M.pick(NOMS), tol = M.pick(TOLS);
+    var uni = Math.random() < 0.3;
+    var wantUpper = Math.random() < 0.5;
+    var up = r4(nom + tol), lo = uni ? nom : r4(nom - tol);
+    var a = wantUpper ? up : lo;
+    var spec = uni ? n3(nom) + ' +' + n3(tol) + ' / −0.000' : n3(nom) + ' ± ' + n3(tol);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'The print says <span class="num">' + spec + '</span>. What is the <b>' + (wantUpper ? 'upper' : 'lower') + '</b> limit?',
+      explain: (uni ? 'Unilateral — it only grows: ' : '') + (wantUpper
+        ? 'upper = ' + n3(nom) + ' + ' + n3(tol) + ' = <span class="num">' + n3(up) + '</span>.'
+        : (uni ? 'the −0.000 side adds nothing: lower = nominal = <span class="num">' + n3(lo) + '</span>.'
+               : 'lower = ' + n3(nom) + ' − ' + n3(tol) + ' = <span class="num">' + n3(lo) + '</span>.')),
+      hint: uni
+        ? 'Read both halves of the callout separately: the + side stretches the limit up, the −0.000 side stretches it down by NOTHING.'
+        : 'The ± counts from nominal, both directions: plus for the top of the band, minus for the bottom. One add or one subtract.',
+      steps: '1 · upper = nominal + plus-side · lower = nominal − minus-side<br>' +
+        '2 · ' + (wantUpper ? n3(nom) + ' + ' + n3(tol) : n3(nom) + ' − ' + (uni ? '0.000' : n3(tol))) +
+        ' = <span class="res">' + n3(a) + '"</span>',
+      diagnose: function (v) {
+        var flip = wantUpper ? r4(nom - tol) : r4(nom + tol);
+        if (Math.abs(v - flip) <= 0.0009 && Math.abs(flip - a) > 0.002) return { label: 'Went the wrong way',
+          your: n3(flip) + ' is the ' + (wantUpper ? 'LOWER' : 'UPPER') + ' limit — the sign ran backwards',
+          right: (wantUpper ? 'upper = nominal + tol = ' : 'lower = nominal − tol = ') + n3(a) };
+        if (Math.abs(v - nom) <= 0.0009 && Math.abs(nom - a) > 0.0009) return { label: 'Handed back the nominal',
+          your: n3(nom) + ' is the middle of the band — the limit lives ' + n3(tol) + ' away from it',
+          right: n3(a) };
+        if (Math.abs(v - (wantUpper ? nom + 2 * tol : nom - 2 * tol)) <= 0.0009) return { label: 'Used the whole band',
+          your: 'you pushed a full band (2 × ' + n3(tol) + ') off nominal — each limit is only ONE tol away',
+          right: n3(nom) + (wantUpper ? ' + ' : ' − ') + n3(tol) + ' = ' + n3(a) };
+        return { label: 'Limit slip',
+          your: n4(v) + ' is not nominal ± tol',
+          right: n3(a) };
+      } };
+  }
+
+  function genBand() {
+    var nom = M.pick(NOMS), tol = M.pick(TOLS);
+    var uni = Math.random() < 0.35;
+    var a = uni ? thou(tol) : thou(2 * tol);
+    var spec = uni ? n3(nom) + ' +' + n3(tol) + ' / −0.000' : n3(nom) + ' ± ' + n3(tol);
+    return { type: 'num', a: a, tol: 0.4, unit: 'thou',
+      q: '<span class="num">' + spec + '</span> — how much total room does that give you, in <b>thou</b>?',
+      explain: uni
+        ? 'One-sided: the band runs nominal → nominal + ' + n3(tol) + ' = <span class="num">' + a + ' thou</span> total.'
+        : 'The ± counts BOTH ways: 2 × ' + n3(tol) + ' = ' + n3(2 * tol) + '" = <span class="num">' + a + ' thou</span>.',
+      hint: 'Total room = upper limit minus lower limit. Write both limits down first — then subtract. (Watch whether the callout is ± or one-sided.)',
+      steps: '1 · upper = ' + n3(nom + tol) + ' · lower = ' + (uni ? n3(nom) : n3(nom - tol)) + '<br>' +
+        '2 · band = upper − lower = <span class="num">' + (uni ? n3(tol) : n3(2 * tol)) + '"</span><br>' +
+        '3 · in thou: <span class="res">' + a + ' thou</span>',
+      diagnose: function (v) {
+        if (!uni && Math.abs(v - thou(tol)) <= 0.5) return { label: 'Forgot the band is DOUBLE the ±',
+          your: thou(tol) + ' thou is one side only — the ± swings both ways from nominal',
+          right: '2 × ' + thou(tol) + ' = ' + a + ' thou of total room' };
+        if (uni && Math.abs(v - thou(2 * tol)) <= 0.5) return { label: 'Doubled a one-sided tolerance',
+          your: 'the −0.000 side contributes nothing — this band only runs up',
+          right: 'band = ' + a + ' thou, all of it above nominal' };
+        if (Math.abs(v - a / 1000) <= 0.002) return { label: 'Answered in inches',
+          your: 'that number is the band in INCHES — the question asked for thou',
+          right: a + ' thou' };
+        return { label: 'Band slip',
+          your: v + ' thou is not upper − lower',
+          right: a + ' thou' };
+      } };
+  }
+
+  function genInSpec() {
+    var nom = M.pick(NOMS), tol = M.pick(TOLS);
+    var up = r4(nom + tol), lo = r4(nom - tol);
+    var roll = Math.random();
+    var meas, right;
+    if (roll < 0.22) { meas = M.pick([up, lo]); right = 0; }                     /* exactly on a limit — legal */
+    else if (roll < 0.5) { meas = r4(nom + (Math.random() < 0.5 ? 1 : -1) * tol * (0.2 + Math.random() * 0.6)); right = 0; }
+    else if (roll < 0.75) { meas = r4(up + M.pick([0.001, 0.002, 0.003])); right = 1; }
+    else { meas = r4(lo - M.pick([0.001, 0.002, 0.003])); right = 2; }
+    var CH = ['IN SPEC — good part', 'OUT — oversize', 'OUT — undersize'];
+    var onLimit = meas === up || meas === lo;
+    return { type: 'mc', a: right, choices: CH,
+      q: 'Print: <span class="num">' + n3(nom) + ' ± ' + n3(tol) + '</span>. Your mic reads ' +
+        '<span class="num">' + n4(meas) + '"</span>. Verdict?',
+      explain: 'Limits: ' + n3(lo) + ' to ' + n3(up) + ', inclusive. ' + n4(meas) +
+        (right === 0
+          ? (onLimit ? ' sits EXACTLY on a limit — and on-the-limit is legal.' : ' is inside.')
+          : right === 1 ? ' is past the top limit by ' + thou(r4(meas - up)) + ' thou.' : ' is below the bottom limit by ' + thou(r4(lo - meas)) + ' thou.') +
+        ' → <span class="num">' + CH[right] + '</span>',
+      hint: 'Write the two limits down first: nominal ± tol. Then place the measured number against them — and remember, sitting exactly ON a limit still counts as in.',
+      steps: '1 · upper = ' + n3(nom) + ' + ' + n3(tol) + ' = <span class="num">' + n3(up) + '</span><br>' +
+        '2 · lower = ' + n3(nom) + ' − ' + n3(tol) + ' = <span class="num">' + n3(lo) + '</span><br>' +
+        '3 · ' + n3(lo) + ' ≤ ' + n4(meas) + ' ≤ ' + n3(up) + '? ' + (right === 0 ? 'yes' + (onLimit ? ' — exactly on the limit is IN' : '') : 'no') +
+        '<br>4 · <span class="res">' + CH[right] + '</span>',
+      diagnose: function (chosen) {
+        if (right === 0 && onLimit && chosen !== 0) return { label: 'Called an on-the-limit part out',
+          your: n4(meas) + ' sits exactly ON a limit — limits are inclusive; dead-on is legal (tight, but legal)',
+          right: CH[0] };
+        if (right !== 0 && chosen === 0) return { label: 'Passed a bad part',
+          your: n4(meas) + ' is outside ' + n3(lo) + '–' + n3(up) + ' — this one escapes to a customer',
+          right: CH[right] };
+        if (right !== 0 && chosen !== 0) return { label: 'Right verdict, wrong direction',
+          your: 'over means past the TOP limit, under means below the BOTTOM — you flipped them',
+          right: n4(meas) + ' vs ' + n3(lo) + '–' + n3(up) + ' → ' + CH[right] };
+        return { label: 'Limits misread',
+          your: 'the measured value sits differently against ' + n3(lo) + '–' + n3(up),
+          right: CH[right] };
+      } };
+  }
+
+  function genRemove() {
+    var nom = M.pick(NOMS), tol = M.pick([0.003, 0.005]);
+    var over = M.pick([0.006, 0.008, 0.010, 0.012]);
+    var meas = r4(nom + over);
+    var a = thou(over);
+    var toLimit = thou(r4(meas - (nom + tol)));
+    return { type: 'num', a: a, tol: 0.4, unit: 'thou',
+      q: 'Outside cut, print <span class="num">' + n3(nom) + ' ± ' + n3(tol) + '</span>, part measures ' +
+        '<span class="num">' + n4(meas) + '"</span> — oversize. How many <b>thou</b> do you take off to land on <b>nominal</b>?',
+      explain: 'measured − nominal: ' + n4(meas) + ' − ' + n3(nom) + ' = ' + n3(over) + '" = <span class="num">' + a +
+        ' thou</span> — that parks you mid-band, not balancing on the limit.',
+      hint: 'The cut removes exactly what you tell it. Distance from where the part IS to where you WANT it: measured minus nominal. (To the limit is less — but why aim at the edge of a cliff?)',
+      steps: '1 · target = nominal = <span class="num">' + n3(nom) + '</span> (middle of the band)<br>' +
+        '2 · remove = measured − target = ' + n4(meas) + ' − ' + n3(nom) + ' = <span class="num">' + n3(over) + '"</span><br>' +
+        '3 · <span class="res">' + a + ' thou</span> off the dial',
+      diagnose: function (v) {
+        if (Math.abs(v - toLimit) <= 0.5 && Math.abs(toLimit - a) > 0.8) return { label: 'Cut only to the limit',
+          your: toLimit + ' thou lands you EXACTLY on ' + n3(nom + tol) + ' — legal, but one tenth of tool wear from scrap',
+          right: 'aim mid-band: ' + n4(meas) + ' − ' + n3(nom) + ' = ' + a + ' thou' };
+        if (Math.abs(v - thou(tol)) <= 0.5 && Math.abs(thou(tol) - a) > 0.8) return { label: 'Removed the tolerance',
+          your: thou(tol) + ' thou is the ± number — it says how much room you have, not how far off you are',
+          right: n4(meas) + ' − ' + n3(nom) + ' = ' + a + ' thou' };
+        if (Math.abs(v + a) <= 0.5) return { label: 'Sign confusion',
+          your: 'negative removal would ADD material — this is a mill, not a welder',
+          right: 'take ' + a + ' thou OFF' };
+        if (Math.abs(v - a / 1000) <= 0.01) return { label: 'Answered in inches',
+          your: n4(v) + ' is the removal in inches — the question asked thou',
+          right: a + ' thou' };
+        return { label: 'Offset slip',
+          your: v + ' is not measured − nominal in thou',
+          right: n4(meas) + ' − ' + n3(nom) + ' = ' + a + ' thou' };
+      } };
+  }
+
+  function genAim() {
+    var nom = M.pick(NOMS), tol = M.pick([0.004, 0.006, 0.010]);
+    var a = r4(nom + tol / 2);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'Unilateral callout: <span class="num">' + n3(nom) + ' +' + n3(tol) + ' / −0.000</span>. ' +
+        'What dimension do you <b>aim</b> for?',
+      explain: 'Limits run ' + n3(nom) + ' to ' + n3(nom + tol) + '. Aim mid-band: ' + n3(nom) + ' + ' +
+        n3(tol) + '/2 = <span class="num">' + n4(a) + '</span> — wobble room both ways.',
+      hint: 'First find both limits (careful — one side adds nothing). The aim point is the middle of the band, and on a one-sided callout the middle is NOT the nominal.',
+      steps: '1 · limits: <span class="num">' + n3(nom) + '</span> to <span class="num">' + n3(nom + tol) + '</span><br>' +
+        '2 · middle = ' + n3(nom) + ' + ' + n3(tol) + ' ÷ 2 = <span class="num">' + n3(nom) + ' + ' + n3(tol / 2) + '</span><br>' +
+        '3 · aim <span class="res">' + n4(a) + '"</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - nom) <= 0.0009) return { label: 'Aimed at nominal',
+          your: 'on THIS callout nominal is the bottom LIMIT — aim there and half your wobble is instant scrap',
+          right: 'mid-band: ' + n3(nom) + ' + ' + n3(tol / 2) + ' = ' + n4(a) };
+        if (Math.abs(v - (nom + tol)) <= 0.0009) return { label: 'Aimed at the top limit',
+          your: n3(nom + tol) + ' is the EDGE of legal — no room for the process to wobble up',
+          right: 'mid-band: ' + n4(a) };
+        if (Math.abs(v - (nom + tol / 2) * 10) <= 0.005 || Math.abs(v - (nom + tol / 2) / 10) <= 0.005) return { label: 'Decimal slip',
+          your: 'right idea, wrong decade: ' + n4(v),
+          right: n4(a) };
+        return { label: 'Mid-band slip',
+          your: n4(v) + ' is not the middle of ' + n3(nom) + '–' + n3(nom + tol),
+          right: n3(nom) + ' + ' + n3(tol / 2) + ' = ' + n4(a) };
+      } };
+  }
+
+  function genPickTool() {
+    var vars = [
+      { t: '± 1/64"', right: 0, note: 'a rule call — roughly 15 thou of room' },
+      { t: '± 0.005', right: 1, note: 'calipers resolve a thou; five thou of band is comfortable' },
+      { t: '± 0.003', right: 1, note: 'still caliper country — three thou of band against a one-thou instrument' },
+      { t: '± 0.0005', right: 2, note: 'half a thou of band needs tenths — only the mic reads tenths' },
+      { t: '± 0.0002', right: 2, note: 'two tenths of band — mic, carefully, on a good day' }
+    ];
+    var v = M.pick(vars);
+    var CH = ['Steel rule', 'Calipers', 'Micrometer'];
+    return { type: 'mc', a: v.right, choices: CH,
+      q: 'The callout is <span class="num">' + v.t + '</span>. Which tool do you trust to check it?',
+      explain: 'Rule ≈ 1/64 · calipers ≈ ±0.001 · mic ≈ 0.0001 (rules of thumb). ' + v.t + ' → <span class="num">' +
+        CH[v.right] + '</span> — ' + v.note + '.',
+      hint: 'Rule of thumb: the instrument should resolve about a TENTH of the tolerance it polices. Rule ≈ 15 thou, calipers ≈ 1 thou, mic ≈ 1 tenth. Which one fits inside this band ten times?',
+      steps: '1 · Steel rule ≈ 1/64 (15 thou) · calipers ≈ ± 1 thou · micrometer ≈ 1 tenth<br>' +
+        '2 · Band: ' + v.t + ' — ' + v.note + '<br>' +
+        '3 · <span class="res">' + CH[v.right] + '</span>',
+      diagnose: function (chosen) {
+        if (chosen < v.right) return { label: 'Instrument too coarse',
+          your: CH[chosen] + ' cannot even SEE errors the size this callout forbids — the check is a guess',
+          right: v.t + ' → ' + CH[v.right] };
+        return { label: 'Overkill (and slower)',
+          your: CH[chosen] + ' works, but it is the slow way to check a band this wide — match the tool to the band',
+          right: v.t + ' → ' + CH[v.right] };
+      } };
+  }
+
+  var GENS = { limit: genLimit, band: genBand, inSpec: genInSpec, remove: genRemove,
+    aim: genAim, pickTool: genPickTool };
+  function gen(kind) { var q = GENS[kind](); q.kind = kind; q.from = 'Module 10'; return q; }
+
+  function makeSet(kinds) {
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    return M.shuffle(out);
+  }
+  function practiceQs() {
+    return makeSet(['limit', 'limit', 'band', 'band', 'inSpec', 'inSpec', 'remove', 'remove', 'aim', 'pickTool']);
+  }
+  function quizQs() {
+    return makeSet(['limit', 'limit', 'band', 'band', 'inSpec', 'inSpec', 'remove', 'remove', 'aim', 'pickTool']);
+  }
+
+  /* worked twin for the coach's WORK ONE LIKE IT — always different numbers */
+  function coachRegen(kind, current) {
+    var plain = function (h) { return String(h).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(); };
+    var q = null;
+    for (var t = 0; t < 6; t++) {
+      q = gen(kind);
+      if (!current || plain(q.q) !== plain(current.q)) break;
+    }
+    var ans = q.type === 'mc' ? plain(String(q.choices[q.a]))
+      : (q.unit ? q.a + ' ' + q.unit : M.fmtExact(q.a));
+    return {
+      title: plain(q.q),
+      steps: (q.steps || q.explain || '') + '<br>Answer: <span class="res">' + M.esc(ans) + '</span>',
+      spoken: M.sayAnswerQ(q),
+    };
+  }
+
+  M.modulePage('m10', {
+    explainer: EXPLAINER,
+    playground: playground,
+    practiceQs: practiceQs,
+    quizQs: quizQs,
+    coach: { regen: coachRegen },
+  });
+})();
+</script>
+</body>
+</html>

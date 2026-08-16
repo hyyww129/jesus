@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 8 · Bolt-Hole Circle Trig</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← HUB</a>
+    <div class="eyebrow">Module 08 · Machinist Math Trainer</div>
+    <h1>Bolt-Hole <span class="b">Circle Trig</span></h1>
+    <p class="sub">N holes on a circle, placed by cos and sin. The control does this for you —
+      this module makes sure you can check the control.</p>
+  </header>
+  <div id="mmt-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var M = window.MMT;
+
+  function r4(v) { return Math.round(v * 10000) / 10000; }
+  function n3(v) { return M.fmtExact(v, 3); }
+  function n4(v) { return M.fmt(v, 4); }
+  function rad(deg) { return deg * Math.PI / 180; }
+  function cosd(deg) { return Math.cos(rad(deg)); }
+  function sind(deg) { return Math.sin(rad(deg)); }
+  function norm360(a) { return ((a % 360) + 360) % 360; }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var ex = { N: 6, B: 3.000, XC: 2.000, YC: 2.000, start: 90 };
+  var exR = ex.B / 2, exStep = 360 / ex.N;
+  var exA1 = ex.start + exStep;   /* hole 2 at 150° */
+  var exX = r4(ex.XC + exR * cosd(exA1)), exY = r4(ex.YC + exR * sind(exA1));
+
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>Six bolt holes around a flange. The print gives you a <span class="term">bolt circle</span>: its ' +
+  '<b>center</b>, its <b>diameter</b>, and a <b>start angle</b>. Three rules place every hole:</p>' +
+  '<p><b>1 — Angles.</b> Zero degrees points at <span class="term">3 o\'clock</span> (the +X direction) and ' +
+  'angles grow <span class="term">counterclockwise</span> — the same convention the ProtoTRAK\'s bolt-hole ' +
+  'event uses. Evenly spaced holes are <b>360 ÷ N</b> apart; hole k sits at start + (k−1) × step.</p>' +
+  '<p><b>2 — The radius.</b> The print gives a <i>diameter</i>. The math wants the <span class="term">radius</span>: ' +
+  'R = B ÷ 2. Forgetting that divide-by-2 is THE bolt-circle mistake — every hole lands twice as far out.</p>' +
+  '<p><b>3 — cos places X, sin places Y.</b></p>' +
+  '<div class="worked">X = XC + R × cos(angle)<br>Y = YC + R × sin(angle)</div>' +
+  '<p>Work one all the way: ' + ex.N + ' holes, bolt circle <b>' + n3(ex.B) + '"</b> (so R = <b>' + n3(exR) +
+  '</b>), center (<b>' + n3(ex.XC) + ', ' + n3(ex.YC) + '</b>), first hole at <b>' + ex.start + '°</b> (straight up):</p>' +
+  '<div class="worked">step = 360 ÷ <span class="num">' + ex.N + '</span> = <span class="num">' + exStep + '°</span><br>' +
+  'hole 1: 90° → X = 2.000 + 1.500 × cos 90° = 2.000 + 0 = <span class="num">2.0000</span> · ' +
+  'Y = 2.000 + 1.500 × 1 = <span class="num">3.5000</span><br>' +
+  'hole 2: 90 + 60 = <span class="num">' + exA1 + '°</span> → X = 2.000 + 1.500 × cos ' + exA1 + '° = 2.000 + 1.500 × (' +
+  n4(cosd(exA1)) + ') = <span class="res">' + n4(exX) + '</span><br>' +
+  'hole 2 Y = 2.000 + 1.500 × sin ' + exA1 + '° = 2.000 + 1.500 × (' + n4(sind(exA1)) + ') = <span class="res">' + n4(exY) + '</span></div>' +
+  '<p>cos 150° comes off the calculator (this trainer\'s built-in one has sin/cos/tan keys, in degrees). ' +
+  'A few values worth knowing cold:</p>' +
+  '<table class="ref"><tr><th>angle</th><th>cos</th><th>sin</th></tr>' +
+  [[0, 1, 0], [30, 0.8660, 0.5], [45, 0.7071, 0.7071], [60, 0.5, 0.8660], [90, 0, 1]]
+    .map(function (r) { return '<tr><td>' + r[0] + '°</td><td>' + r[1] + '</td><td>' + r[2] + '</td></tr>'; }).join('') +
+  '</table>' +
+  '<p style="margin-top:10px">Sanity habit: cos and sin never leave −1…+1, so every hole must land within ' +
+  'one radius of the center — left/right by cos, up/down by sin. If a coordinate comes out further than R ' +
+  'from center, the diameter snuck in where the radius belonged.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — spin a bolt circle, tap a hole</h2><div class="body">' +
+      '<div class="slider-row"><span class="name">HOLES</span>' +
+      '<input type="range" id="nSlide" min="3" max="12" step="1" value="6" aria-label="number of holes">' +
+      '<span class="out" id="nOut"></span></div>' +
+      '<div class="slider-row"><span class="name">BOLT Ø</span>' +
+      '<input type="range" id="bSlide" min="100" max="300" step="25" value="300" aria-label="bolt circle diameter in hundredths"><span class="out" id="bOut"></span></div>' +
+      '<div class="slider-row"><span class="name">START</span>' +
+      '<input type="range" id="aSlide" min="0" max="345" step="15" value="90" aria-label="start angle in degrees">' +
+      '<span class="out" id="aOut"></span></div>' +
+      '<p class="hint">Center is fixed at (2.000, 2.000) here. Tap any hole — or arrow through them with the ' +
+      'buttons — and the full cos/sin math for THAT hole writes itself out live.</p>' +
+      '<div class="btnrow"><button data-hop="-1">◀ PREV HOLE</button><button data-hop="1">NEXT HOLE ▶</button></div>' +
+      '<div class="scrollbox" style="margin-top:8px"><svg id="bhcView" height="300" role="img" aria-label="bolt hole circle"></svg></div>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live — hole <span id="holeNo"></span></span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droX"></div><div id="droY"></div>' +
+      '<button id="sayBtn">🔊 SAY THIS HOLE</button>' +
+      '<p class="hint" id="sayText" style="margin-top:0"></p></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var XC = 2.000, YC = 2.000;
+    var N = 6, B = 3.000, start = 90, sel = 0;
+    var svg = card.querySelector('#bhcView');
+    var eqBody = card.querySelector('#eqBody');
+    var droXc = M.dro(card.querySelector('#droX'), 'X');
+    var droYc = M.dro(card.querySelector('#droY'), 'Y');
+
+    function holeAngle(k) { return norm360(start + k * (360 / N)); }
+    function holeX(k) { return r4(XC + (B / 2) * cosd(holeAngle(k))); }
+    function holeY(k) { return r4(YC + (B / 2) * sind(holeAngle(k))); }
+
+    function draw() {
+      var W = 620, H = 300, S = 62, cx = 240, cy = 150;
+      function PX(x) { return cx + (x - XC) * S; }
+      function PY(y) { return cy - (y - YC) * S; }
+      svg.setAttribute('width', W);
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      var R = B / 2;
+      var s = '<circle cx="' + cx + '" cy="' + cy + '" r="' + (R * S) + '" style="fill:none;stroke:var(--line);stroke-width:1.5" stroke-dasharray="6 4"/>';
+      s += '<line x1="' + (cx - 8) + '" y1="' + cy + '" x2="' + (cx + 8) + '" y2="' + cy + '" style="stroke:var(--ink);stroke-width:1.5"/>';
+      s += '<line x1="' + cx + '" y1="' + (cy - 8) + '" x2="' + cx + '" y2="' + (cy + 8) + '" style="stroke:var(--ink);stroke-width:1.5"/>';
+      s += '<text x="' + (cx + 11) + '" y="' + (cy + 13) + '" style="fill:var(--soft);font-family:ui-monospace,monospace;font-size:10px">(' + n3(XC) + ', ' + n3(YC) + ')</text>';
+      /* zero-degree ray */
+      s += '<line x1="' + cx + '" y1="' + cy + '" x2="' + (cx + R * S + 18) + '" y2="' + cy + '" style="stroke:var(--soft);stroke-width:1" stroke-dasharray="2 3"/>';
+      s += '<text x="' + (cx + R * S + 20) + '" y="' + (cy + 3) + '" style="fill:var(--soft);font-family:ui-monospace,monospace;font-size:10px">0°</text>';
+      for (var k = 0; k < N; k++) {
+        var hx = PX(holeX(k)), hy = PY(holeY(k));
+        var on = k === sel;
+        s += '<circle data-hole="' + k + '" cx="' + hx + '" cy="' + hy + '" r="' + (on ? 13 : 10) + '" style="cursor:pointer;fill:' +
+          (on ? 'var(--orange)' : 'var(--panel)') + ';stroke:var(--ink);stroke-width:1.5"/>';
+        s += '<text data-hole="' + k + '" x="' + hx + '" y="' + (hy + 3.5) + '" text-anchor="middle" style="cursor:pointer;fill:' +
+          (on ? 'var(--paper)' : 'var(--ink)') + ';font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700">' + (k + 1) + '</text>';
+      }
+      /* radius ray to the selected hole */
+      s += '<line x1="' + cx + '" y1="' + cy + '" x2="' + PX(holeX(sel)) + '" y2="' + PY(holeY(sel)) +
+        '" style="stroke:var(--blue);stroke-width:2"/>';
+      s += '<text x="' + ((cx + PX(holeX(sel))) / 2 + 6) + '" y="' + ((cy + PY(holeY(sel))) / 2 - 4) +
+        '" style="fill:var(--blue);font-family:ui-monospace,monospace;font-size:10.5px;font-weight:700">R ' + n3(R) + '</text>';
+      svg.innerHTML = s;
+    }
+
+    function update() {
+      if (sel >= N) sel = 0;
+      var R = B / 2, step = 360 / N;
+      var ang = holeAngle(sel), c = cosd(ang), sn = sind(ang);
+      var hx = holeX(sel), hy = holeY(sel);
+      card.querySelector('#nOut').textContent = N + ' holes';
+      card.querySelector('#bOut').textContent = n3(B) + '"';
+      card.querySelector('#aOut').textContent = start + '°';
+      card.querySelector('#holeNo').textContent = (sel + 1) + ' of ' + N;
+      eqBody.innerHTML =
+        'step = 360 ÷ <span class="num">' + N + '</span> = <span class="num">' + n3(step).replace(/\.000$/, '') + '°</span><br>' +
+        'angle = ' + start + ' + ' + sel + ' × step = <span class="num">' + n3(ang).replace(/\.000$/, '') + '°</span><br>' +
+        'R = ' + n3(B) + ' ÷ 2 = <span class="num">' + n3(R) + '</span><br>' +
+        'X = ' + n3(XC) + ' + ' + n3(R) + ' × cos = ' + n3(XC) + ' + ' + n3(R) + ' × (' + n4(c) + ') = <span class="res">' + n4(hx) + '</span><br>' +
+        'Y = ' + n3(YC) + ' + ' + n3(R) + ' × sin = ' + n3(YC) + ' + ' + n3(R) + ' × (' + n4(sn) + ') = <span class="res">' + n4(hy) + '</span>';
+      droXc.set(n4(hx), 'cos ' + Math.round(ang) + '° = ' + n4(c) + ' — the hole sits ' +
+        (Math.abs(c) < 0.0001 ? 'dead level with' : n3(Math.abs(R * c)) + '" ' + (c > 0 ? 'right of' : 'left of')) + ' center.');
+      droYc.set(n4(hy), 'sin ' + Math.round(ang) + '° = ' + n4(sn) + ' — ' +
+        (Math.abs(sn) < 0.0001 ? 'dead level with' : n3(Math.abs(R * sn)) + '" ' + (sn > 0 ? 'above' : 'below')) + ' center.');
+      var spoken = 'Hole ' + (sel + 1) + ' sits at ' + M.intWords(Math.round(ang)) + ' degrees. X ' +
+        M.sayMeasure(hx).shop + '. Y ' + M.sayMeasure(hy).shop + '.';
+      card.querySelector('#sayText').textContent = '“' + spoken + '”';
+      card.querySelector('#sayBtn').onclick = function () { M.speakText(spoken); };
+      draw();
+    }
+
+    card.querySelector('#nSlide').addEventListener('input', function () { N = Number(this.value); update(); });
+    card.querySelector('#bSlide').addEventListener('input', function () { B = Number(this.value) / 100; update(); });
+    card.querySelector('#aSlide').addEventListener('input', function () { start = Number(this.value); update(); });
+    card.querySelectorAll('[data-hop]').forEach(function (b) {
+      b.addEventListener('click', function () { sel = (sel + N + Number(b.getAttribute('data-hop'))) % N; update(); });
+    });
+    svg.addEventListener('click', function (e) {
+      var t = e.target.closest ? e.target.closest('[data-hole]') : null;
+      if (t) { sel = Number(t.getAttribute('data-hole')); update(); }
+    });
+
+    update();
+    window.__m8 = {
+      set: function (n, b, a, k) { N = n; B = b; start = a; sel = k || 0;
+        card.querySelector('#nSlide').value = n; card.querySelector('#bSlide').value = Math.round(b * 100);
+        card.querySelector('#aSlide').value = a; update(); },
+      info: function () { return { N: N, B: B, start: start, sel: sel, x: holeX(sel), y: holeY(sel), ang: holeAngle(sel) }; }
+    };
+  }
+
+  /* ============ question generators (practice + quiz) ============ */
+  var CENTERS = [[1.500, 2.000], [2.000, 2.000], [2.000, 2.500], [2.500, 2.000]];
+  var BS = [1.500, 2.000, 2.500, 3.000];
+  var COORD_ANGLES = [30, 45, 60, 120, 135, 150, 210, 225, 240, 300, 315, 330];
+
+  function genStepAngle() {
+    var N = M.pick([3, 4, 5, 6, 8, 9, 10, 12]);
+    var a = r4(360 / N);
+    return { type: 'num', a: a, tol: 0.05, unit: 'deg',
+      q: 'A flange takes <span class="num">' + N + '</span> bolts, evenly spaced on the circle. ' +
+        'What is the angle <b>step</b> between neighboring holes?',
+      explain: 'Full circle shared by ' + N + ' holes: 360 ÷ ' + N + ' = <span class="num">' + n3(a).replace(/\.000$/, '') + '°</span>.',
+      hint: 'One full turn is 360°, and the holes share it equally. One divide.',
+      steps: '1 · step = 360 ÷ N<br>' +
+        '2 · <span class="num">360</span> ÷ <span class="num">' + N + '</span> = <span class="res">' + n3(a).replace(/\.000$/, '') + '°</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - 360 / (N - 1)) <= 0.6 && Math.abs(360 / (N - 1) - a) > 1) return { label: 'Fence-post slip',
+          your: '360 ÷ ' + (N - 1) + ' = ' + n3(360 / (N - 1)) + ' — but a CIRCLE has no ends; ' + N + ' holes make exactly ' + N + ' gaps',
+          right: '360 ÷ ' + N + ' = ' + n3(a).replace(/\.000$/, '') + '°' };
+        if (Math.abs(v - N) <= 0.5) return { label: 'Answered the hole count',
+          your: N + ' is how many holes — the question asked the angle between them',
+          right: '360 ÷ ' + N + ' = ' + n3(a).replace(/\.000$/, '') + '°' };
+        return { label: 'Divide slip',
+          your: v + ' is not 360 ÷ ' + N,
+          right: '360 ÷ ' + N + ' = ' + n3(a).replace(/\.000$/, '') + '°' };
+      } };
+  }
+
+  function genHoleAngle() {
+    var N = M.pick([4, 5, 6, 8, 12]);
+    var step = 360 / N;
+    var start = M.pick([0, 15, 30, 45, 60, 90]);
+    var k = 2 + Math.floor(Math.random() * (N - 1));   /* hole number 2..N */
+    var raw = start + (k - 1) * step;
+    var a = norm360(raw);
+    return { type: 'num', a: a, tol: 0.05, unit: 'deg',
+      q: '<span class="num">' + N + '</span> holes, hole 1 at <span class="num">' + start + '°</span>. ' +
+        'Counting counterclockwise, what angle does hole <span class="num">' + k + '</span> sit at? (answer 0–359)',
+      explain: 'step = 360 ÷ ' + N + ' = ' + n3(step).replace(/\.000$/, '') + '°. Hole ' + k + ' is ' + (k - 1) +
+        ' steps past hole 1: ' + start + ' + ' + (k - 1) + ' × ' + n3(step).replace(/\.000$/, '') +
+        (raw !== a ? ' = ' + n3(raw).replace(/\.000$/, '') + ' → minus 360' : '') +
+        ' = <span class="num">' + n3(a).replace(/\.000$/, '') + '°</span>.',
+      hint: 'Hole 1 already sits AT the start angle — it costs zero steps. Each hole after that adds one step of 360 ÷ N. How many steps from hole 1 to hole ' + k + '?',
+      steps: '1 · step = 360 ÷ <span class="num">' + N + '</span> = <span class="num">' + n3(step).replace(/\.000$/, '') + '°</span><br>' +
+        '2 · Hole ' + k + ' is <span class="num">' + (k - 1) + '</span> steps past hole 1 (not ' + k + ' — hole 1 is at the start itself)<br>' +
+        '3 · ' + start + ' + ' + (k - 1) + ' × ' + n3(step).replace(/\.000$/, '') + ' = ' + n3(raw).replace(/\.000$/, '') + '°' +
+        (raw !== a ? '<br>4 · Past 360 → wrap: ' + n3(raw).replace(/\.000$/, '') + ' − 360 = <span class="res">' + n3(a).replace(/\.000$/, '') + '°</span>'
+                   : '<br>4 · Under 360 already → <span class="res">' + n3(a).replace(/\.000$/, '') + '°</span>'),
+      diagnose: function (v) {
+        var slip = norm360(start + k * step);
+        if (Math.abs(v - slip) <= 0.6 && Math.abs(slip - a) > 1) return { label: 'Off-by-one on the steps',
+          your: 'you charged hole ' + k + ' for ' + k + ' steps — but hole 1 sits AT the start; only ' + (k - 1) + ' steps separate them',
+          right: start + ' + ' + (k - 1) + ' × ' + n3(step).replace(/\.000$/, '') + ' = ' + n3(a).replace(/\.000$/, '') + '°' };
+        if (raw !== a && Math.abs(v - raw) <= 0.6) return { label: 'Forgot to wrap past 360',
+          your: n3(raw).replace(/\.000$/, '') + '° is a full lap plus the real answer — angles restart at 360',
+          right: n3(raw).replace(/\.000$/, '') + ' − 360 = ' + n3(a).replace(/\.000$/, '') + '°' };
+        if (Math.abs(v - step) <= 0.6 && Math.abs(step - a) > 1) return { label: 'Gave the step',
+          your: n3(step).replace(/\.000$/, '') + '° is the spacing — the question asked where hole ' + k + ' IS',
+          right: start + ' + ' + (k - 1) + ' × ' + n3(step).replace(/\.000$/, '') + ' = ' + n3(a).replace(/\.000$/, '') + '°' };
+        return { label: 'Angle slip',
+          your: v + ' is not start + (k − 1) × step',
+          right: start + ' + ' + (k - 1) + ' × ' + n3(step).replace(/\.000$/, '') + ' = ' + n3(a).replace(/\.000$/, '') + '°' };
+      } };
+  }
+
+  function coordDiag(axis, CTR, R, B, ang, a) {
+    var c = axis === 'X' ? cosd(ang) : sind(ang);
+    var other = axis === 'X' ? sind(ang) : cosd(ang);
+    var base = axis === 'X' ? CTR[0] : CTR[1];
+    return function (v) {
+      var swap = r4(base + R * other);
+      if (Math.abs(v - swap) <= 0.003 && Math.abs(swap - a) > 0.01) return { label: 'Swapped cos and sin',
+        your: n4(swap) + ' is the ' + (axis === 'X' ? 'Y' : 'X') + ' recipe — remember: <b>cos places X, sin places Y</b>',
+        right: axis + ' = ' + n3(base) + ' + ' + n3(R) + ' × (' + n4(c) + ') = ' + n4(a) };
+      var dia = r4(base + B * c);
+      if (Math.abs(v - dia) <= 0.003 && Math.abs(dia - a) > 0.01) return { label: 'Used the DIAMETER',
+        your: 'the ' + n3(B) + ' bolt circle went in whole — the hole lands twice as far from center as it should',
+        right: 'R = ' + n3(B) + ' ÷ 2 = ' + n3(R) + ': ' + axis + ' = ' + n3(base) + ' + ' + n3(R) + ' × (' + n4(c) + ') = ' + n4(a) };
+      var noc = r4(R * c);
+      if (Math.abs(v - noc) <= 0.003 && Math.abs(noc - a) > 0.01) return { label: 'Forgot the center',
+        your: n4(noc) + ' measures from (0, 0) — the circle\'s center is at ' + n3(base),
+        right: n3(base) + ' + ' + n4(noc) + ' = ' + n4(a) };
+      var sgn = r4(base - R * c);
+      if (Math.abs(v - sgn) <= 0.003 && Math.abs(sgn - a) > 0.01) return { label: 'Sign slip on the trig value',
+        your: (axis === 'X' ? 'cos' : 'sin') + ' ' + Math.round(ang) + '° = ' + n4(c) + ' — its sign rode along; you flipped it',
+        right: n3(base) + ' + ' + n3(R) + ' × (' + n4(c) + ') = ' + n4(a) };
+      return { label: 'Formula slip',
+        your: n4(v) + ' is not center + R × ' + (axis === 'X' ? 'cos' : 'sin'),
+        right: axis + ' = ' + n3(base) + ' + ' + n3(R) + ' × (' + n4(c) + ') = ' + n4(a) };
+    };
+  }
+
+  function genCoordAt() {
+    var CTR = M.pick(CENTERS), B = M.pick(BS), R = B / 2;
+    var ang = M.pick(COORD_ANGLES);
+    var axis = M.pick(['X', 'Y']);
+    var c = axis === 'X' ? cosd(ang) : sind(ang);
+    var base = axis === 'X' ? CTR[0] : CTR[1];
+    var a = r4(base + R * c);
+    return { type: 'num', a: a, tol: 0.001,
+      q: 'Bolt circle: center (<span class="num">' + n3(CTR[0]) + ', ' + n3(CTR[1]) + '</span>), diameter ' +
+        '<span class="num">' + n3(B) + '"</span>. One hole sits at <span class="num">' + ang + '°</span>. What is its <b>' + axis + '</b>?',
+      explain: 'R = ' + n3(B) + ' ÷ 2 = ' + n3(R) + '. ' + axis + ' = ' + n3(base) + ' + ' + n3(R) + ' × ' +
+        (axis === 'X' ? 'cos' : 'sin') + ' ' + ang + '° = ' + n3(base) + ' + ' + n3(R) + ' × (' + n4(c) +
+        ') = <span class="num">' + n4(a) + '</span>.',
+      hint: 'Three ingredients: the radius (HALF the printed diameter), the ' + (axis === 'X' ? 'cos' : 'sin') +
+        ' of the angle (calculator, degrees), and the center\'s ' + axis + ' added on top. cos places X, sin places Y.',
+      steps: '1 · R = B ÷ 2 = <span class="num">' + n3(B) + '</span> ÷ 2 = <span class="num">' + n3(R) + '</span><br>' +
+        '2 · ' + (axis === 'X' ? 'cos' : 'sin') + ' <span class="num">' + ang + '°</span> = <span class="num">' + n4(c) + '</span> (calculator, DEG)<br>' +
+        '3 · ' + axis + ' = center + R × trig = ' + n3(base) + ' + ' + n3(R) + ' × (' + n4(c) + ')<br>' +
+        '4 · = <span class="res">' + n4(a) + '"</span>',
+      diagnose: coordDiag(axis, CTR, R, B, ang, a) };
+  }
+
+  function genHoleXY() {
+    for (var t = 0; t < 60; t++) {
+      var N = M.pick([4, 6, 8, 12]);
+      var step = 360 / N;
+      var start = M.pick([0, 30, 45, 90]);
+      var k = 2 + Math.floor(Math.random() * (N - 1));
+      var ang = norm360(start + (k - 1) * step);
+      if (ang % 90 === 0) continue;   /* axis angles make traps collide */
+      var CTR = M.pick(CENTERS), B = M.pick(BS), R = B / 2;
+      var axis = M.pick(['X', 'Y']);
+      var c = axis === 'X' ? cosd(ang) : sind(ang);
+      var base = axis === 'X' ? CTR[0] : CTR[1];
+      var a = r4(base + R * c);
+      return { type: 'num', a: a, tol: 0.001,
+        q: 'The whole event: <span class="num">' + N + '</span> holes on a <span class="num">' + n3(B) + '"</span> circle, ' +
+          'center (<span class="num">' + n3(CTR[0]) + ', ' + n3(CTR[1]) + '</span>), hole 1 at <span class="num">' + start + '°</span>. ' +
+          'What is hole <span class="num">' + k + '</span>\'s <b>' + axis + '</b>?',
+        explain: 'Angle: ' + start + ' + ' + (k - 1) + ' × ' + n3(step).replace(/\.000$/, '') + ' = ' + n3(ang).replace(/\.000$/, '') +
+          '°. R = ' + n3(R) + '. ' + axis + ' = ' + n3(base) + ' + ' + n3(R) + ' × (' + n4(c) + ') = <span class="num">' + n4(a) + '</span>.',
+        hint: 'Chain the three skills: angle first (start + (k−1) × 360/N), then R = B ÷ 2, then center + R × ' +
+          (axis === 'X' ? 'cos' : 'sin') + '. One line at a time — never in your head all at once.',
+        steps: '1 · step = 360 ÷ ' + N + ' = <span class="num">' + n3(step).replace(/\.000$/, '') + '°</span><br>' +
+          '2 · angle = ' + start + ' + ' + (k - 1) + ' × ' + n3(step).replace(/\.000$/, '') + ' = <span class="num">' + n3(ang).replace(/\.000$/, '') + '°</span><br>' +
+          '3 · R = ' + n3(B) + ' ÷ 2 = <span class="num">' + n3(R) + '</span><br>' +
+          '4 · ' + (axis === 'X' ? 'cos' : 'sin') + ' ' + n3(ang).replace(/\.000$/, '') + '° = <span class="num">' + n4(c) + '</span><br>' +
+          '5 · ' + axis + ' = ' + n3(base) + ' + ' + n3(R) + ' × (' + n4(c) + ') = <span class="res">' + n4(a) + '"</span>',
+        diagnose: function (v) {
+          var wrongHole = r4(base + R * (axis === 'X' ? cosd(norm360(start + k * step)) : sind(norm360(start + k * step))));
+          if (Math.abs(v - wrongHole) <= 0.003 && Math.abs(wrongHole - a) > 0.01) return { label: 'Off-by-one on the hole',
+            your: n4(wrongHole) + ' is the NEXT hole over — hole ' + k + ' is only ' + (k - 1) + ' steps past hole 1',
+            right: 'angle = ' + start + ' + ' + (k - 1) + ' × ' + n3(step).replace(/\.000$/, '') + ' = ' + n3(ang).replace(/\.000$/, '') + '° → ' + axis + ' = ' + n4(a) };
+          return coordDiag(axis, CTR, R, B, ang, a)(v);
+        } };
+    }
+    return genCoordAt();
+  }
+
+  function genQuadrant() {
+    var ang = M.pick([30, 60, 120, 150, 210, 240, 300, 330]);
+    var c = cosd(ang), s = sind(ang);
+    var CH = ['Right and up', 'Left and up', 'Left and down', 'Right and down'];
+    var a = c > 0 ? (s > 0 ? 0 : 3) : (s > 0 ? 1 : 2);
+    return { type: 'mc', a: a, choices: CH,
+      q: 'No math, just the picture: from the circle\'s center, which way is a hole at <span class="num">' + ang + '°</span>?',
+      explain: 'From 3 o\'clock, counterclockwise ' + ang + '°: cos ' + ang + '° is ' + (c > 0 ? 'positive → right' : 'negative → left') +
+        ', sin ' + ang + '° is ' + (s > 0 ? 'positive → up' : 'negative → down') + ' → <span class="num">' + CH[a] + '</span>.',
+      hint: 'Stand at the center. 0° points right, 90° up, 180° left, 270° down. Which quarter of the clock face does ' + ang + '° fall in?',
+      steps: '1 · 0–90° = right &amp; up · 90–180° = left &amp; up · 180–270° = left &amp; down · 270–360° = right &amp; down<br>' +
+        '2 · <span class="num">' + ang + '°</span> falls in the ' + ['first', 'second', 'third', 'fourth'][a] + ' quarter<br>' +
+        '3 · <span class="res">' + CH[a] + '</span>',
+      diagnose: function (chosen) {
+        var flips = [];
+        if ((chosen === 0 || chosen === 3) !== (c > 0)) flips.push('left/right (that is cos\'s sign)');
+        if ((chosen === 0 || chosen === 1) !== (s > 0)) flips.push('up/down (that is sin\'s sign)');
+        return { label: 'Quadrant flipped',
+          your: 'you crossed the ' + flips.join(' and the '),
+          right: ang + '° from 3 o\'clock, counterclockwise → ' + CH[a] };
+      } };
+  }
+
+  var GENS = { stepAngle: genStepAngle, holeAngle: genHoleAngle, coordAt: genCoordAt,
+    holeXY: genHoleXY, quadrant: genQuadrant };
+  function gen(kind) { var q = GENS[kind](); q.kind = kind; q.from = 'Module 8'; return q; }
+
+  function makeSet(kinds) {
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    return M.shuffle(out);
+  }
+  function practiceQs() {
+    return makeSet(['stepAngle', 'stepAngle', 'holeAngle', 'holeAngle', 'quadrant', 'quadrant',
+      'coordAt', 'coordAt', 'coordAt', 'holeXY']);
+  }
+  function quizQs() {
+    return makeSet(['stepAngle', 'holeAngle', 'holeAngle', 'quadrant', 'coordAt', 'coordAt',
+      'coordAt', 'holeXY', 'holeXY', 'holeXY']);
+  }
+
+  /* worked twin for the coach's WORK ONE LIKE IT — always different numbers */
+  function coachRegen(kind, current) {
+    var plain = function (h) { return String(h).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(); };
+    var q = null;
+    for (var t = 0; t < 6; t++) {
+      q = gen(kind);
+      if (!current || plain(q.q) !== plain(current.q)) break;
+    }
+    var ans = q.type === 'mc' ? plain(String(q.choices[q.a]))
+      : (q.unit ? q.a + ' ' + q.unit : M.fmtExact(q.a));
+    return {
+      title: plain(q.q),
+      steps: (q.steps || q.explain || '') + '<br>Answer: <span class="res">' + M.esc(ans) + '</span>',
+      spoken: M.sayAnswerQ(q),
+    };
+  }
+
+  M.modulePage('m8', {
+    explainer: EXPLAINER,
+    playground: playground,
+    practiceQs: practiceQs,
+    quizQs: quizQs,
+    coach: { regen: coachRegen },
+  });
+})();
+</script>
+</body>
+</html>
