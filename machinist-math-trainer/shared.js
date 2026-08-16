@@ -15,9 +15,9 @@
       desc: 'Negative vs positive, and adding signed moves without guessing.' },
     { id: 'm3',  n: 3,  title: 'X, Y, Z Coordinates', file: 'modules/m03-coordinates.html', built: true,
       desc: 'The machine as graph paper. Part zero, absolute vs incremental.' },
-    { id: 'm4',  n: 4,  title: 'The Edge Finder & Zero Offsets', file: 'modules/m04-edge-finder.html', built: false,
+    { id: 'm4',  n: 4,  title: 'The Edge Finder & Zero Offsets', file: 'modules/m04-edge-finder.html', built: true,
       desc: 'The 0.200 tip / 0.100 rule, sign by approach side, zero at center.' },
-    { id: 'm5',  n: 5,  title: 'RPM from Cutting Speed', file: 'modules/m05-rpm.html', built: false,
+    { id: 'm5',  n: 5,  title: 'RPM from Cutting Speed', file: 'modules/m05-rpm.html', built: true,
       desc: 'RPM = SFM × 3.82 ÷ diameter — and why. Capped at 4200.' },
     { id: 'm6',  n: 6,  title: 'Feed Rate', file: 'modules/m06-feed.html', built: false,
       desc: 'IPM = RPM × flutes × chip load, with starter chip-load tables.' },
@@ -1082,6 +1082,255 @@
         return { label: 'Y sign backwards',
           your: 'Y ' + sw(cy) + ' means ' + (cy > 0 ? 'away from you' : 'toward you') + ' — the question says the opposite',
           right: (qd.sy > 0 ? 'away from you, toward the column' : 'toward you') + ' → Y ' + sw(qd.sy) };
+      } };
+  };
+
+  BANKS.m4 = function () {
+    var OFF = FACTS.edgeFinderOffset, TIP = FACTS.edgeFinderTip;
+    var O3 = fmtExact(OFF, 3), T3 = fmtExact(TIP, 3);
+    function sq(v) { return signed(v, 4); }
+    function r4(v) { return Math.round(v * 10000) / 10000; }
+    function nr(v, t) { return Math.abs(v - t) <= 0.002; }
+    var kind = pick(['setValue', 'setValue', 'edgePos', 'center', 'width', 'zShim']);
+    if (kind === 'setValue') {
+      var axis = pick(['X', 'Y']);
+      var dir = pick([1, -1]);
+      var sgn = dir > 0 ? '+' : '-';
+      var sideWord = axis === 'X' ? (dir > 0 ? 'LEFT' : 'RIGHT') : (dir > 0 ? 'NEAR' : 'FAR');
+      var a = r4(-dir * OFF);
+      return { type: 'num', a: a, tol: 0.0005, from: 'Module 4',
+        q: 'You jog <span class="num">' + sgn + axis + '</span> until the edge finder kicks on the part\'s <b>' +
+          sideWord + '</b> edge. That edge is ' + axis + ' zero. What do you SET ' + axis + ' to? (sign matters)',
+        explain: 'The spindle center stops ' + O3 + ' on the side you came FROM — SET sign is OPPOSITE the jog: <span class="num">' + sq(a) + '</span>.',
+        hint: 'The DRO tracks the spindle CENTER, and half the ' + T3 + ' tip separates it from the edge — on the side you came from. SET sign is OPPOSITE the jog.',
+        steps: '1 · Tip is <span class="num">' + T3 + '"</span> across → center sits <span class="num">' + O3 + '"</span> from the touched edge<br>' +
+          '2 · Jogged ' + sgn + axis + ' → the center stopped on the ' + (dir > 0 ? 'minus' : 'plus') + ' side<br>' +
+          '3 · SET ' + axis + ' = <span class="res">' + sq(a) + '"</span>',
+        diagnose: function (v) {
+          if (nr(v, -a)) return { label: 'Sign flipped on the ' + O3,
+            your: sq(-a) + ' pushes the ' + O3 + ' WITH the jog — every feature would cut ' + T3 + ' off location',
+            right: 'the center stopped on the side you came FROM: SET = ' + sq(a) };
+          if (nr(v, 0)) return { label: 'Forgot the ' + O3,
+            your: '0.0000 claims the spindle center reached the edge — only the tip\'s skin did',
+            right: 'the center is ' + O3 + ' back: SET = ' + sq(a) };
+          if (nr(v, 2 * a) || nr(v, -2 * a)) return { label: 'Used the tip diameter',
+            your: 'that is the whole ' + T3 + ' tip — the center rides only HALF that from the touch',
+            right: 'half of ' + T3 + ' = ' + O3 + ' → SET = ' + sq(a) };
+          return { label: 'Half-a-tip slip',
+            your: sq(v) + ' does not come from edge ± half a tip',
+            right: 'SET = 0 ' + (dir > 0 ? '−' : '+') + ' ' + O3 + ' = ' + sq(a) };
+        } };
+    }
+    if (kind === 'edgePos') {
+      var dir2 = pick([1, -1]);
+      var sgn2 = dir2 > 0 ? '+' : '-';
+      var R = pick([-1.8750, -1.2500, -0.7500, 0.6250, 1.2500, 2.4375]);
+      var a2 = r4(R + dir2 * OFF);
+      var op = dir2 > 0 ? '+' : '−';
+      return { type: 'num', a: a2, tol: 0.0005, from: 'Module 4',
+        q: 'You jog <span class="num">' + sgn2 + 'X</span>, the finder kicks, and the DRO reads <span class="num">X ' +
+          sq(R) + '"</span>. What X value is the <b>edge</b> itself at?',
+        explain: 'The DRO gives the spindle center; the edge is ' + O3 + ' farther along, in the jog direction: ' +
+          sq(R) + ' ' + op + ' ' + O3 + ' = <span class="num">' + sq(a2) + '</span>.',
+        hint: 'The reading is where the spindle CENTER stopped — the edge is half a tip beyond it, the way you were jogging.',
+        steps: '1 · DRO at the kiss = spindle center = <span class="num">' + sq(R) + '</span><br>' +
+          '2 · The edge sits <span class="num">' + O3 + '</span> beyond the center, in the jog direction (' + sgn2 + 'X)<br>' +
+          '3 · edge = ' + sq(R) + ' ' + op + ' ' + O3 + ' = <span class="res">' + sq(a2) + '"</span>',
+        diagnose: function (v) {
+          if (nr(v, R)) return { label: 'Read the DRO as the edge',
+            your: sq(R) + ' is the spindle CENTER — the tip\'s skin touched the edge, half a tip away',
+            right: 'edge = ' + sq(R) + ' ' + op + ' ' + O3 + ' = ' + sq(a2) };
+          if (nr(v, R - dir2 * OFF)) return { label: 'Sign flipped on the ' + O3,
+            your: 'you stepped BACKWARD from the center — the edge is AHEAD, the way you were jogging',
+            right: sq(R) + ' ' + op + ' ' + O3 + ' = ' + sq(a2) };
+          return { label: 'Half-a-tip slip',
+            your: sq(v) + ' does not come from center ± half a tip',
+            right: sq(R) + ' ' + op + ' ' + O3 + ' = ' + sq(a2) };
+        } };
+    }
+    if (kind === 'center') {
+      var L = pick([-1.500, -1.000, -0.500, 0.500, 1.000]);
+      var W = pick([0.750, 1.000, 1.250, 1.500, 2.000]);
+      if (Math.abs(L + W / 2) < 0.001) W += 0.500;
+      var R1 = r4(L - OFF), R2 = r4(L + W + OFF);
+      var aC = r4(L + W / 2), half = r4((R2 - R1) / 2), sum = r4(R1 + R2);
+      return { type: 'num', a: aC, tol: 0.0005, from: 'Module 4',
+        q: 'Kiss the LEFT side of the part — DRO <span class="num">X ' + sq(R1) + '"</span>. Kiss the RIGHT side — ' +
+          '<span class="num">X ' + sq(R2) + '"</span>. What X is the part\'s <b>center</b>?',
+        explain: 'Center = average of the two raw readings: (' + sq(R1) + ' + ' + sq(R2) + ') ÷ 2 = <span class="num">' +
+          sq(aC) + '</span>. The two ' + O3 + ' offsets point opposite ways and cancel.',
+        hint: 'Both numbers are spindle-center POSITIONS, one per side. The middle of two positions is their average — and the two half-tip offsets kill each other.',
+        steps: '1 · Each reading stands ' + O3 + ' OUTSIDE its own side<br>' +
+          '2 · center = (<span class="num">' + sq(R1) + '</span> + <span class="num">' + sq(R2) + '</span>) ÷ 2<br>' +
+          '3 · = ' + sq(sum) + ' ÷ 2 = <span class="res">' + sq(aC) + '"</span> — no correction, the offsets cancelled',
+        diagnose: function (v) {
+          if (nr(v, half)) return { label: 'Averaged the spread, not the positions',
+            your: 'half the DISTANCE between kisses is a length, not a location',
+            right: '(' + sq(R1) + ' + ' + sq(R2) + ') ÷ 2 = ' + sq(aC) };
+          if (nr(v, aC + OFF) || nr(v, aC - OFF)) return { label: 'Corrected by ' + O3 + ' where it cancels',
+            your: 'one reading is already ' + O3 + ' low and the other ' + O3 + ' high — the average killed both',
+            right: '(' + sq(R1) + ' + ' + sq(R2) + ') ÷ 2 = ' + sq(aC) + ', no correction' };
+          if (nr(v, sum)) return { label: 'Forgot to divide by 2',
+            your: sq(sum) + ' is the SUM of the readings, not their middle',
+            right: sq(sum) + ' ÷ 2 = ' + sq(aC) };
+          return { label: 'Averaging slip',
+            your: sq(v) + ' is not the average of the two readings',
+            right: '(' + sq(R1) + ' + ' + sq(R2) + ') ÷ 2 = ' + sq(aC) };
+        } };
+    }
+    if (kind === 'width') {
+      var L2 = pick([-0.750, -0.250, 0.250, 0.750]);
+      var W2 = pick([0.625, 0.875, 1.000, 1.375, 1.750]);
+      var Ra = r4(L2 - OFF), Rb = r4(L2 + W2 + OFF);
+      var spread = r4(Rb - Ra);
+      return { type: 'num', a: W2, tol: 0.0005, from: 'Module 4',
+        q: 'Same zero for both kisses: the LEFT side reads <span class="num">X ' + sq(Ra) + '"</span>, the RIGHT side reads ' +
+          '<span class="num">X ' + sq(Rb) + '"</span>. How <b>wide</b> is the part?',
+        explain: 'The spread ' + fmtExact(spread, 3) + ' carries ' + O3 + ' of tip hanging outside at EACH end — one full tip. Width = ' +
+          fmtExact(spread, 3) + ' − ' + T3 + ' = <span class="num">' + fmt(W2, 4) + '</span>.',
+        hint: 'Distance between the readings first. Then ask: is that the part alone, or the part plus something the tip added at each end?',
+        steps: '1 · spread = <span class="num">' + sq(Rb) + '</span> − (<span class="num">' + sq(Ra) + '</span>) = <span class="num">' + fmtExact(spread, 3) + '</span><br>' +
+          '2 · The center stands ' + O3 + ' OUTSIDE the part at each kiss → the spread holds one full tip<br>' +
+          '3 · width = ' + fmtExact(spread, 3) + ' − ' + T3 + ' = <span class="res">' + fmt(W2, 4) + '"</span>',
+        diagnose: function (v) {
+          if (nr(v, spread)) return { label: 'Forgot the tip',
+            your: 'the raw spread includes ' + O3 + ' of tip at EACH end',
+            right: fmtExact(spread, 3) + ' − ' + T3 + ' = ' + fmt(W2, 4) };
+          if (nr(v, spread - OFF)) return { label: 'Subtracted ' + O3 + ', not ' + T3,
+            your: 'you corrected only ONE side — the tip pokes out at BOTH kisses',
+            right: fmtExact(spread, 3) + ' − ' + T3 + ' = ' + fmt(W2, 4) };
+          if (nr(v, spread + TIP)) return { label: 'Added the tip instead of subtracting',
+            your: 'the spread is already too BIG by a tip',
+            right: fmtExact(spread, 3) + ' − ' + T3 + ' = ' + fmt(W2, 4) };
+          return { label: 'Spread slip',
+            your: sq(v) + ' does not come from spread − tip',
+            right: fmtExact(spread, 3) + ' − ' + T3 + ' = ' + fmt(W2, 4) };
+        } };
+    }
+    var sh = pick([0.002, 0.003, 0.004]);
+    return { type: 'num', a: sh, tol: 0.0005, from: 'Module 4',
+      q: 'Z touch-off on a paper shim <span class="num">' + fmtExact(sh, 3) + '"</span> thick: the tool just drags on the ' +
+        'paper, and the part\'s top face is Z zero. What do you SET Z to? (sign matters)',
+      explain: 'The tool is riding a paper ' + fmtExact(sh, 3) + ' ABOVE the part. SET Z = <span class="num">+' + fmt(sh, 4) + '</span>, never 0.000.',
+      hint: 'Where is the tool TIP right now, relative to Z zero? Something is between it and the part. Above zero is positive.',
+      steps: '1 · The tip rests on the shim, not the part<br>' +
+        '2 · tip height = part top + shim = 0 + <span class="num">' + fmtExact(sh, 3) + '</span><br>' +
+        '3 · SET Z = <span class="res">+' + fmt(sh, 4) + '"</span>',
+      diagnose: function (v) {
+        if (Math.abs(v) <= 0.0009) return { label: 'Forgot the shim',
+          your: 'SET 0.000 claims the tool is ON the part — every depth would run ' + fmtExact(sh, 3) + ' shallow',
+          right: 'SET Z = +' + fmt(sh, 4) };
+        if (Math.abs(v + sh) <= 0.0009) return { label: 'Sign flipped',
+          your: 'minus puts the tip BELOW the top face — it is riding a shim ABOVE it',
+          right: 'above zero is positive: +' + fmt(sh, 4) };
+        return { label: 'Setup slip',
+          your: signed(v, 4) + ' does not come from part top + shim',
+          right: '0 + ' + fmtExact(sh, 3) + ' = +' + fmt(sh, 4) };
+      } };
+  };
+  BANKS.m5 = function () {
+    var CAP = FACTS.rpmMax, K = 3.82;
+    var COMBOS = [
+      { k: 'aluminumHSS', mat: 'aluminum', tool: 'HSS' },
+      { k: 'aluminumCarbide', mat: 'aluminum', tool: 'carbide' },
+      { k: 'steelHSS', mat: 'mild steel', tool: 'HSS' },
+      { k: 'steelCarbide', mat: 'mild steel', tool: 'carbide' }];
+    var DIAS = [[0.25, '1/4"'], [0.375, '3/8"'], [0.5, '1/2"'], [0.75, '3/4"'], [1, '1"']];
+    function nf(x) { return String(Math.round(x * 1000) / 1000); }
+    function nr(v, t) { return Math.abs(v - t) <= Math.max(2, Math.abs(t) * 0.015); }
+    var kind = pick(['rpmCalc', 'rpmCalc', 'rpmCap', 'pickSfm']);
+    if (kind === 'pickSfm') {
+      var ci = Math.floor(Math.random() * COMBOS.length);
+      var c = COMBOS[ci], val = FACTS.sfm[c.k];
+      var choices = ['SFM ' + val];
+      for (var i = 0; i < COMBOS.length; i++) if (i !== ci) choices.push('SFM ' + FACTS.sfm[COMBOS[i].k]);
+      return { type: 'mc', a: 0, choices: choices, from: 'Module 5',
+        q: 'Chart check: a <b>' + c.tool + '</b> end mill going into <b>' + c.mat + '</b>. Which starting point do you pull?',
+        explain: 'Carbide runs faster than HSS; aluminum takes more speed than steel. ' + c.tool + ' in ' + c.mat +
+          ' starts at <span class="num">' + val + ' SFM</span> — a starting point, not a law.',
+        hint: 'The chart is a 2×2 grid: material picks the row, tool picks the column. Carbide beats HSS in the same metal; aluminum outruns steel with the same tool.',
+        steps: COMBOS.map(function (co, i2) {
+          var vv = FACTS.sfm[co.k];
+          return (i2 === ci ? '<span class="res">' : '<span class="num">') + co.mat + ' · ' + co.tool + ' → ' + vv + ' SFM</span>' +
+            (i2 === ci ? ' ← your cell' : '');
+        }).join('<br>'),
+        diagnose: function (chosen) {
+          var pv = parseInt(String(choices[chosen]).replace(/\D/g, ''), 10);
+          var pc = null;
+          for (var i3 = 0; i3 < COMBOS.length; i3++) if (FACTS.sfm[COMBOS[i3].k] === pv) pc = COMBOS[i3];
+          if (!pc) return null;
+          return { label: pc.mat === c.mat ? 'Right material, wrong tool' : (pc.tool === c.tool ? 'Right tool, wrong material' : 'Wrong row AND wrong column'),
+            your: 'SFM ' + pv + ' is the ' + pc.tool + '-in-' + pc.mat + ' cell of the chart',
+            right: c.tool + ' in ' + c.mat + ' → SFM ' + val };
+        } };
+    }
+    if (kind === 'rpmCap') {
+      var caps = [];
+      for (var a1 = 0; a1 < COMBOS.length; a1++) {
+        var s1 = FACTS.sfm[COMBOS[a1].k];
+        var smalls = [[0.125, '1/8"'], [0.1875, '3/16"']];
+        for (var b1 = 0; b1 < smalls.length; b1++) {
+          var raw1 = Math.round(s1 * K / smalls[b1][0]);
+          if (raw1 > CAP + 300) caps.push({ c: COMBOS[a1], d: smalls[b1], raw: raw1 });
+        }
+      }
+      var p1 = pick(caps), sC = FACTS.sfm[p1.c.k], dC = p1.d[0];
+      return { type: 'num', a: CAP, tol: 1, unit: 'rpm', from: 'Module 5',
+        q: 'Chart says <span class="num">' + sC + ' SFM</span> — ' + p1.c.tool + ' in ' + p1.c.mat + '. The end mill is ' +
+          '<span class="num">' + p1.d[1] + '</span> (<span class="num">' + fmtExact(dC, 3) + '"</span>). The spindle maxes at ' +
+          '<span class="num">' + CAP + ' RPM</span>. What do you actually run?',
+        explain: 'The formula asks for ' + p1.raw + ' RPM; the machine only has ' + CAP + '. Run <span class="num">' + CAP + '</span>.',
+        hint: 'Run SFM × 3.82 ÷ D as always, then hold the result against the machine max of ' + CAP + '. The smaller number wins.',
+        steps: '1 · <span class="num">' + sC + '</span> × <span class="num">3.82</span> = <span class="num">' + nf(sC * K) + '</span><br>' +
+          '2 · ÷ <span class="num">' + fmtExact(dC, 3) + '</span> = <span class="num">' + p1.raw + '</span><br>' +
+          '3 · Over the ' + CAP + ' max → <span class="res">run ' + CAP + ' RPM</span>',
+        diagnose: function (v) {
+          if (nr(v, p1.raw)) return { label: 'Forgot the cap',
+            your: p1.raw + ' is the raw formula number — no gear on this machine turns that fast',
+            right: 'formula first, cap second: run ' + CAP };
+          if (nr(v, sC / dC)) return { label: 'Skipped the 3.82',
+            your: sC + ' ÷ ' + dC + ' = ' + nf(sC / dC) + ' — the 12 ÷ π conversion never happened',
+            right: sC + ' × 3.82 ÷ ' + dC + ' = ' + p1.raw + ' → capped at ' + CAP };
+          return { label: 'Formula error',
+            your: nf(v) + ' is not SFM × 3.82 ÷ D (then cap-checked)',
+            right: sC + ' × 3.82 ÷ ' + dC + ' = ' + p1.raw + ' → run ' + CAP };
+        } };
+    }
+    var pool = [];
+    var sfms = [90, 150, 250, 350, 400, 600];
+    for (var a2 = 0; a2 < sfms.length; a2++) {
+      for (var b2 = 0; b2 < DIAS.length; b2++) {
+        var r2 = sfms[a2] * K / DIAS[b2][0];
+        if (r2 >= 250 && r2 <= CAP - 60) pool.push([sfms[a2], DIAS[b2]]);
+      }
+    }
+    var p2 = pick(pool), s2 = p2[0], d2 = p2[1][0];
+    var a3 = Math.round(s2 * K / d2);
+    return { type: 'num', a: a3, tol: 1, unit: 'rpm', from: 'Module 5',
+      q: 'The chart says <span class="num">' + s2 + ' SFM</span>. The end mill is <span class="num">' + p2[1][1] +
+        '</span> — <span class="num">' + fmtExact(d2, 3) + '"</span> across. What RPM do you dial in?',
+      explain: s2 + ' × 3.82 ÷ ' + fmtExact(d2, 3) + ' = <span class="num">' + a3 + '</span> RPM — under the ' + CAP + ' cap.',
+      hint: 'Multiply the SFM by 3.82 (that is 12 ÷ π), then divide by the diameter in inches. Cap-check against ' + CAP + ' to finish.',
+      steps: '1 · RPM = SFM × 3.82 ÷ D<br>' +
+        '2 · <span class="num">' + s2 + '</span> × <span class="num">3.82</span> = <span class="num">' + nf(s2 * K) + '</span><br>' +
+        '3 · ÷ <span class="num">' + fmtExact(d2, 3) + '</span> = <span class="num">' + nf(s2 * K / d2) + '</span><br>' +
+        '4 · Under ' + CAP + ' → <span class="res">' + a3 + ' RPM</span>',
+      diagnose: function (v) {
+        if (Math.abs(d2 - 1) > 0.001 && nr(v, s2 * K * d2)) return { label: 'Multiplied by the diameter',
+          your: s2 + ' × 3.82 × ' + d2 + ' = ' + nf(s2 * K * d2) + ' — the diameter climbed on top',
+          right: 'the diameter DIVIDES: ' + s2 + ' × 3.82 ÷ ' + d2 + ' = ' + a3 };
+        if (nr(v, a3 * 2)) return { label: 'Divided by the radius',
+          your: 'that is ÷ ' + nf(d2 / 2) + ' — the radius, half the tool',
+          right: 'the formula wants the full diameter: ' + s2 + ' × 3.82 ÷ ' + d2 + ' = ' + a3 };
+        if (nr(v, s2 / d2)) return { label: 'Skipped the 3.82',
+          your: s2 + ' ÷ ' + d2 + ' = ' + nf(s2 / d2) + ' — the 12 ÷ π conversion never happened',
+          right: s2 + ' × 3.82 ÷ ' + d2 + ' = ' + a3 };
+        if (nr(v, a3 * 10) || nr(v, a3 / 10)) return { label: 'Decimal slip on the diameter',
+          your: 'the diameter went in with its point in the wrong spot → ' + nf(v),
+          right: s2 + ' × 3.82 ÷ ' + fmtExact(d2, 3) + ' = ' + a3 };
+        return { label: 'Formula error',
+          your: nf(v) + ' was not SFM × 3.82 ÷ D',
+          right: s2 + ' × 3.82 ÷ ' + d2 + ' = ' + a3 };
       } };
   };
 
