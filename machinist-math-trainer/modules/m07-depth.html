@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 7 · Depth, Peck &amp; Passes</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← HUB</a>
+    <div class="eyebrow">Module 07 · Machinist Math Trainer</div>
+    <h1>Depth, Peck &amp; <span class="b">Passes</span></h1>
+    <p class="sub">You never take the whole depth in one bite. This module is one idea used three ways:
+      divide, then ALWAYS round up.</p>
+  </header>
+  <div id="mmt-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var M = window.MMT;
+
+  function r4(v) { return Math.round(v * 10000) / 10000; }
+  function n3(v) { return M.fmtExact(v, 3); }
+  function near(v, t, win) { return Math.abs(v - t) <= (win === undefined ? 0.35 : win); }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>A pocket 0.437" deep does not get milled 0.437" deep in one go — the tool deflects, chips pack, ' +
+  'the cut screams. You split depth into <span class="term">passes</span>. The only math is a divide ' +
+  'with one iron rule bolted on:</p>' +
+  '<div class="worked">passes &nbsp;=&nbsp; depth ÷ max-per-pass, &nbsp;<span class="num">rounded UP</span> — always up, never down</div>' +
+  '<p>Work it: 0.437" deep, and you\'ve decided 0.150" is the most this setup should take at once ' +
+  '(<span class="term">a starting point</span>, not a law — roughing around 0.050–0.100" per pass is a ' +
+  'common habit on a light mill in aluminum):</p>' +
+  '<div class="worked"><span class="num">0.437</span> ÷ <span class="num">0.150</span> = 2.91…<br>' +
+  'round UP → <span class="num">3 passes</span> &nbsp;<span class="res">(round down and the part ends 0.137" too shallow)</span><br>' +
+  'even split: <span class="num">0.437</span> ÷ <span class="num">3</span> = <span class="res">0.1457" per pass</span></div>' +
+  '<p>Why the even split? Three passes of 0.150 would leave a skinny 0.137 last cut — legal, but three ' +
+  'matched cuts of 0.1457 sound the same, load the tool the same, and finish cleaner. Divide the depth ' +
+  'by the <i>rounded-up</i> count.</p>' +
+  '<p><span class="term">Peck drilling</span> — same idea standing vertically. A deep hole packs chips in the ' +
+  'flutes until the drill seizes, so you drill a bite, pull out to clear, drill again. Shop convention (a ' +
+  'starting point): when the hole is deeper than <b>3× the drill diameter</b>, peck about <b>1× diameter</b> ' +
+  'per bite. A 1/4" drill going 1.100" deep: 1.100 ÷ 0.250 = 4.4 → <b>5 pecks</b>. Same divide, same round-UP.</p>' +
+  '<p><span class="term">Stepover</span> — the idea lying on its side. A 2.000"-wide pocket with a 1/2" end mill: ' +
+  'the first pass cuts a full tool width, every later pass advances by the stepover (roughing at 40–60% of ' +
+  'diameter is the common start). At 0.250" stepover:</p>' +
+  '<div class="worked">first pass covers <span class="num">0.500</span> → remaining 2.000 − 0.500 = <span class="num">1.500</span><br>' +
+  '1.500 ÷ <span class="num">0.250</span> = 6 more passes<br>' +
+  'total = 1 + 6 = <span class="res">7 passes</span> &nbsp;(1 + roundUP(remaining ÷ stepover))</div>' +
+  '<p>Three jobs, one skill: <b>divide, round up, and only then split even.</b> The rounded-up number is ' +
+  'the one you dial; rounding down is how parts ship shallow and drills weld themselves into holes.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — slice a depth into passes</h2><div class="body">' +
+      '<div class="btnrow" id="modeRow" style="margin-bottom:10px">' +
+      '<button data-mode="mill" class="on">MILL — DEPTH PASSES</button>' +
+      '<button data-mode="drill">DRILL — PECKS</button></div>' +
+      '<div class="slider-row"><span class="name" id="depthName">DEPTH</span>' +
+      '<input type="range" id="depthSlide" min="100" max="1000" step="25" value="437" aria-label="total depth in thou">' +
+      '<span class="out" id="depthOut"></span></div>' +
+      '<div class="slider-row" id="maxRow"><span class="name">MAX / PASS</span>' +
+      '<input type="range" id="maxSlide" min="50" max="300" step="25" value="150" aria-label="max depth per pass in thou">' +
+      '<span class="out" id="maxOut"></span></div>' +
+      '<div class="btnrow" id="diaRow" style="margin:10px 0;display:none"></div>' +
+      '<div class="scrollbox" style="margin-top:6px"><svg id="depthView" height="170" role="img" aria-label="the depth sliced into passes"></svg></div>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div>' +
+      '<button id="sayBtn">🔊 SAY THE PLAN</button>' +
+      '<p class="hint" id="sayText" style="margin-top:0"></p></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var droCtl = M.dro(card.querySelector('#droBox'), 'PLAN');
+    var eqBody = card.querySelector('#eqBody');
+    var svg = card.querySelector('#depthView');
+    var mode = 'mill', depth = 0.437, maxPer = 0.150, dia = 0.250;
+
+    var diaRow = card.querySelector('#diaRow');
+    [[0.125, '1/8"'], [0.25, '1/4"'], [0.375, '3/8"'], [0.5, '1/2"']].forEach(function (d) {
+      var b = document.createElement('button');
+      b.textContent = d[1] + ' DRILL';
+      b.setAttribute('data-dia', String(d[0]));
+      b.addEventListener('click', function () { dia = d[0]; update(); });
+      diaRow.appendChild(b);
+    });
+
+    function calcMill() {
+      var raw = depth / maxPer;
+      var passes = Math.ceil(raw - 1e-9);
+      return { raw: raw, passes: passes, per: r4(depth / passes) };
+    }
+    function calcDrill() {
+      var need = depth > 3 * dia + 1e-9;
+      var raw = depth / dia;
+      var pecks = Math.ceil(raw - 1e-9);
+      return { need: need, raw: raw, pecks: pecks };
+    }
+
+    function draw() {
+      var W = 620, H = 170, top = 18, scale = 130 / 1.0;
+      svg.setAttribute('width', W);
+      svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H);
+      var s = '<line x1="30" y1="' + top + '" x2="' + (W - 30) + '" y2="' + top + '" style="stroke:var(--ink);stroke-width:2"/>';
+      s += '<text x="34" y="' + (top - 5) + '" style="fill:var(--soft);font-family:ui-monospace,monospace;font-size:10px">PART TOP</text>';
+      var bot = top + depth * scale;
+      if (mode === 'mill') {
+        var c = calcMill();
+        for (var i = 0; i < c.passes; i++) {
+          var y0 = top + c.per * i * scale, y1 = top + c.per * (i + 1) * scale;
+          s += '<rect x="140" y="' + y0 + '" width="200" height="' + (y1 - y0) + '" style="fill:var(--panel);stroke:var(--blue);stroke-width:1.5"/>';
+          s += '<text x="350" y="' + (y1 - 3) + '" style="fill:var(--blue);font-family:ui-monospace,monospace;font-size:10.5px">pass ' + (i + 1) + ' · ' + M.fmt(c.per, 4) + '"</text>';
+        }
+      } else {
+        var cd = calcDrill();
+        for (var j = 0; j < cd.pecks; j++) {
+          var yy = top + Math.min(depth, dia * (j + 1)) * scale;
+          s += '<line x1="140" y1="' + yy + '" x2="340" y2="' + yy + '" stroke-dasharray="4 3" style="stroke:var(--orange);stroke-width:1.5"/>';
+          s += '<text x="350" y="' + (yy + 3) + '" style="fill:var(--orange);font-family:ui-monospace,monospace;font-size:10.5px">peck ' + (j + 1) + '</text>';
+        }
+        s += '<rect x="228" y="' + top + '" width="24" height="' + (bot - top) + '" style="fill:none;stroke:var(--ink);stroke-width:1.5"/>';
+      }
+      s += '<line x1="30" y1="' + bot + '" x2="' + (W - 30) + '" y2="' + bot + '" stroke-dasharray="6 4" style="stroke:var(--orange);stroke-width:1.5"/>';
+      s += '<text x="34" y="' + (bot + 12) + '" style="fill:var(--orange);font-family:ui-monospace,monospace;font-size:10px">' + n3(depth) + '" DEEP</text>';
+      svg.innerHTML = s;
+    }
+
+    function update() {
+      card.querySelector('#depthOut').textContent = n3(depth) + '"';
+      card.querySelector('#maxOut').textContent = n3(maxPer) + '"';
+      card.querySelector('#maxRow').style.display = mode === 'mill' ? '' : 'none';
+      diaRow.style.display = mode === 'drill' ? '' : 'none';
+      diaRow.querySelectorAll('button').forEach(function (b) {
+        b.classList.toggle('on', Number(b.getAttribute('data-dia')) === dia);
+      });
+      var eq, meanV, meanT, spoken;
+      if (mode === 'mill') {
+        var c = calcMill();
+        eq = 'passes = depth ÷ max, rounded UP<br>' +
+          '= <span class="num">' + n3(depth) + '</span> ÷ <span class="num">' + n3(maxPer) + '</span> = ' +
+          (Math.round(c.raw * 100) / 100) + '<br>' +
+          '→ round UP → <span class="num">' + c.passes + ' passes</span><br>' +
+          'even split: ' + n3(depth) + ' ÷ ' + c.passes + ' = <span class="res">' + M.fmt(c.per, 4) + '" / pass</span>';
+        meanV = c.passes + ' × ' + M.fmt(c.per, 4);
+        meanT = 'Take <b>' + c.passes + '</b> matched passes of <b>' + M.fmt(c.per, 4) + '"</b> to land exactly ' +
+          n3(depth) + '" deep. Round DOWN instead and you ship the pocket ' +
+          M.fmt(depth - Math.floor(c.raw) * maxPer > 0 ? depth - Math.floor(c.raw) * maxPer : 0, 3) + '" shallow.';
+        spoken = n3(depth) + ' deep at ' + n3(maxPer) + ' a pass: ' + (Math.round(c.raw * 100) / 100) +
+          ', round up, ' + M.intWords(c.passes) + ' passes, ' + M.sayMeasure(c.per).shop + ' each.';
+      } else {
+        var cd = calcDrill();
+        eq = 'peck when depth &gt; 3 × dia: ' + n3(depth) + ' vs 3 × ' + n3(dia) + ' = ' + n3(3 * dia) +
+          ' → <span class="num">' + (cd.need ? 'PECK IT' : 'straight shot') + '</span><br>' +
+          'pecks = depth ÷ (1 × dia), rounded UP<br>' +
+          '= <span class="num">' + n3(depth) + '</span> ÷ <span class="num">' + n3(dia) + '</span> = ' +
+          (Math.round(cd.raw * 100) / 100) + ' → <span class="res">' + cd.pecks + ' pecks</span>';
+        meanV = cd.need ? cd.pecks + ' pecks' : 'no peck';
+        meanT = cd.need
+          ? 'The hole runs ' + n3(depth) + '" — deeper than three diameters (' + n3(3 * dia) + '"), so bite ' +
+            n3(dia) + '" at a time and pull out to clear chips: <b>' + cd.pecks + ' pecks</b>.'
+          : 'Only ' + n3(depth) + '" deep against a ' + n3(3 * dia) + '" threshold — drill it in one push, no pecking needed.';
+        spoken = cd.need
+          ? 'Deeper than three diameters. ' + M.intWords(cd.pecks) + ' pecks of ' + M.sayMeasure(dia).shop + ' each.'
+          : 'Shallower than three diameters. Straight shot, no pecks.';
+      }
+      eqBody.innerHTML = eq;
+      droCtl.set(meanV, meanT);
+      card.querySelector('#sayText').textContent = '“' + spoken + '”';
+      card.querySelector('#sayBtn').onclick = function () { M.speakText(spoken); };
+      draw();
+    }
+
+    card.querySelectorAll('#modeRow button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        mode = b.getAttribute('data-mode');
+        card.querySelectorAll('#modeRow button').forEach(function (x) { x.classList.remove('on'); });
+        b.classList.add('on');
+        update();
+      });
+    });
+    card.querySelector('#depthSlide').addEventListener('input', function () {
+      depth = Number(this.value) / 1000; update();
+    });
+    card.querySelector('#maxSlide').addEventListener('input', function () {
+      maxPer = Number(this.value) / 1000; update();
+    });
+
+    update();
+    window.__m7 = {
+      set: function (d, mx) { depth = d; maxPer = mx; card.querySelector('#depthSlide').value = Math.round(d * 1000); card.querySelector('#maxSlide').value = Math.round(mx * 1000); update(); },
+      drill: function (d, dd) { mode = 'drill'; depth = d; dia = dd; card.querySelector('#depthSlide').value = Math.round(d * 1000); update(); },
+      info: function () { return mode === 'mill' ? calcMill() : calcDrill(); }
+    };
+  }
+
+  /* ============ question generators (practice + quiz) ============ */
+  var DEPTHS = [0.312, 0.437, 0.550, 0.625, 0.700, 0.850, 0.930];
+  var MAXES = [0.100, 0.125, 0.150, 0.200, 0.250];
+
+  function pickMill() {
+    for (var t = 0; t < 40; t++) {
+      var d = M.pick(DEPTHS), mx = M.pick(MAXES);
+      var raw = d / mx;
+      if (Math.abs(raw - Math.round(raw)) > 0.05 && raw > 1.2 && raw < 9) return { d: d, mx: mx, raw: raw };
+    }
+    return { d: 0.437, mx: 0.150, raw: 0.437 / 0.150 };
+  }
+
+  function genPassCount() {
+    var p = pickMill();
+    var a = Math.ceil(p.raw);
+    var fl = Math.floor(p.raw);
+    return { type: 'num', a: a, tol: 0.4, unit: 'passes',
+      q: 'A slot needs to end up <span class="num">' + n3(p.d) + '"</span> deep. You will take at most ' +
+        '<span class="num">' + n3(p.mx) + '"</span> per pass. How many passes?',
+      explain: n3(p.d) + ' ÷ ' + n3(p.mx) + ' = ' + (Math.round(p.raw * 100) / 100) +
+        ' → round UP → <span class="num">' + a + '</span> passes.',
+      hint: 'Divide the depth by the biggest bite you allow. The answer will not be whole — and a partial pass is still a pass you have to make. Which way must you round?',
+      steps: '1 · passes = depth ÷ max per pass<br>' +
+        '2 · <span class="num">' + n3(p.d) + '</span> ÷ <span class="num">' + n3(p.mx) + '</span> = <span class="num">' +
+        (Math.round(p.raw * 100) / 100) + '</span><br>' +
+        '3 · Round UP — the leftover ' + M.fmt(p.d - fl * p.mx, 3) + '" still has to come out → <span class="res">' + a + ' passes</span>',
+      diagnose: function (v) {
+        if (near(v, fl)) return { label: 'Rounded DOWN — the part ships shallow',
+          your: fl + ' passes of ' + n3(p.mx) + ' only reaches ' + M.fmt(fl * p.mx, 3) + '" — the pocket ends ' +
+            M.fmt(p.d - fl * p.mx, 3) + '" short of the print',
+          right: 'a partial pass is still a pass: round UP to ' + a };
+        if (near(v, Math.round(p.raw * 100) / 100, 0.2) && Math.abs(v - a) > 0.4) return { label: 'Left it as a decimal',
+          your: v + ' passes cannot be dialed — you make whole passes',
+          right: 'round the ' + (Math.round(p.raw * 100) / 100) + ' UP → ' + a };
+        if (near(v, a + 1)) return { label: 'One too many',
+          your: (a + 1) + ' passes works but wastes a cut — ' + a + ' × ' + n3(p.mx) + ' already covers ' + n3(p.d),
+          right: 'ceil(' + (Math.round(p.raw * 100) / 100) + ') = ' + a };
+        return { label: 'Divide slip',
+          your: v + ' is not depth ÷ max rounded up',
+          right: n3(p.d) + ' ÷ ' + n3(p.mx) + ' = ' + (Math.round(p.raw * 100) / 100) + ' → ' + a };
+      } };
+  }
+
+  function genPerPass() {
+    var p = pickMill();
+    var passes = Math.ceil(p.raw);
+    var a = r4(p.d / passes);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: '<span class="num">' + n3(p.d) + '"</span> of depth, max <span class="num">' + n3(p.mx) + '"</span> a pass — ' +
+        'that rounds up to <span class="num">' + passes + '</span> passes. For matched cuts, how deep is <b>each</b> pass?',
+      explain: 'Split the depth over the rounded-up count: ' + n3(p.d) + ' ÷ ' + passes + ' = <span class="num">' +
+        M.fmt(a, 4) + '"</span> — every pass identical, and they sum back to ' + n3(p.d) + '.',
+      hint: 'The pass COUNT is already decided (' + passes + '). Even cuts means one divide: total depth over that count — not the max you allowed.',
+      steps: '1 · even split = depth ÷ passes<br>' +
+        '2 · <span class="num">' + n3(p.d) + '</span> ÷ <span class="num">' + passes + '</span> = <span class="num">' + M.fmt(p.d / passes, 5) + '</span><br>' +
+        '3 · <span class="res">' + M.fmt(a, 4) + '" per pass</span> — check: × ' + passes + ' = ' + n3(p.d) + ' ✓',
+      diagnose: function (v) {
+        if (Math.abs(v - p.mx) <= 0.0015) return { label: 'Handed back the max',
+          your: n3(p.mx) + ' is the LIMIT you set, not the even split — ' + passes + ' × ' + n3(p.mx) + ' = ' +
+            M.fmt(passes * p.mx, 3) + ', deeper than the part',
+          right: n3(p.d) + ' ÷ ' + passes + ' = ' + M.fmt(a, 4) };
+        if (Math.abs(v - r4(p.d / (passes - 1))) <= 0.0015 && passes > 1) return { label: 'Divided by the un-rounded count',
+          your: 'that split uses ' + (passes - 1) + ' passes — each cut would be over your ' + n3(p.mx) + ' limit',
+          right: 'use the rounded-UP count: ' + n3(p.d) + ' ÷ ' + passes + ' = ' + M.fmt(a, 4) };
+        if (Math.abs(v - a * 10) <= 0.005 || Math.abs(v - a / 10) <= 0.0005) return { label: 'Decimal slip',
+          your: 'right digits, wrong spot: ' + v,
+          right: n3(p.d) + ' ÷ ' + passes + ' = ' + M.fmt(a, 4) };
+        return { label: 'Split slip',
+          your: v + ' is not depth ÷ ' + passes,
+          right: n3(p.d) + ' ÷ ' + passes + ' = ' + M.fmt(a, 4) };
+      } };
+  }
+
+  var DRILLS = [[0.125, '1/8"'], [0.201, '#7 (0.201")'], [0.250, '1/4"'], [0.375, '3/8"'], [0.500, '1/2"']];
+  function genPeckCount() {
+    for (var t = 0; t < 40; t++) {
+      var dr = M.pick(DRILLS);
+      var mult = M.pick([3.4, 3.8, 4.2, 4.6, 5.2, 6.4]);
+      var d = r4(Math.round(dr[0] * mult * 1000) / 1000);
+      var raw = d / dr[0];
+      if (d > 3 * dr[0] && Math.abs(raw - Math.round(raw)) > 0.08) {
+        var a = Math.ceil(raw);
+        return { type: 'num', a: a, tol: 0.4, unit: 'pecks',
+          q: 'A <span class="num">' + dr[1] + '</span> drill has to reach <span class="num">' + n3(d) + '"</span> deep — ' +
+            'well past three diameters, so you peck about one diameter per bite. How many pecks?',
+          explain: n3(d) + ' ÷ ' + n3(dr[0]) + ' = ' + (Math.round(raw * 10) / 10) + ' → round UP → <span class="num">' + a + '</span> pecks.',
+          hint: 'One peck ≈ one diameter of depth (the common starting point). Divide the hole depth by the drill diameter — then remember a partial peck is still a trip down the hole.',
+          steps: '1 · peck ≈ 1 × dia = <span class="num">' + n3(dr[0]) + '"</span> a bite<br>' +
+            '2 · <span class="num">' + n3(d) + '</span> ÷ <span class="num">' + n3(dr[0]) + '</span> = <span class="num">' + (Math.round(raw * 10) / 10) + '</span><br>' +
+            '3 · Round UP → <span class="res">' + a + ' pecks</span>',
+          diagnose: function (v) {
+            if (near(v, Math.floor(raw))) return { label: 'Rounded DOWN',
+              your: Math.floor(raw) + ' pecks stops ' + M.fmt(d - Math.floor(raw) * dr[0], 3) + '" short of the bottom',
+              right: 'the last partial bite is still a peck: ' + a };
+            if (near(v, 3)) return { label: 'Answered the 3× rule',
+              your: 'the 3 in "3× diameter" only decides WHETHER to peck — not how many',
+              right: 'pecks = depth ÷ dia = ' + (Math.round(raw * 10) / 10) + ' → ' + a };
+            return { label: 'Divide slip',
+              your: v + ' is not depth ÷ diameter rounded up',
+              right: n3(d) + ' ÷ ' + n3(dr[0]) + ' = ' + (Math.round(raw * 10) / 10) + ' → ' + a };
+          } };
+      }
+    }
+    return genPassCount();
+  }
+
+  function genNeedPeck() {
+    var dr = M.pick(DRILLS);
+    var peckIt = Math.random() < 0.5;
+    var mult = peckIt ? M.pick([3.5, 4.5, 5.5]) : M.pick([1.5, 2.2, 2.8]);
+    var d = r4(Math.round(dr[0] * mult * 1000) / 1000);
+    var thr = r4(3 * dr[0]);
+    var CH = ['Peck it — clear chips every bite', 'Straight shot — one push to depth'];
+    return { type: 'mc', a: peckIt ? 0 : 1, choices: CH,
+      q: 'A <span class="num">' + dr[1] + '</span> drill, hole <span class="num">' + n3(d) + '"</span> deep. ' +
+        'Peck it or straight shot?',
+      explain: 'Threshold = 3 × dia = 3 × ' + n3(dr[0]) + ' = ' + n3(thr) + '". The hole is ' + n3(d) +
+        '" — ' + (peckIt ? 'deeper' : 'shallower') + ', so <span class="num">' + CH[peckIt ? 0 : 1] + '</span>. (3× is the common starting rule.)',
+      hint: 'The rule of thumb compares the depth to THREE diameters, not to the diameter itself. Compute 3 × dia first, then compare.',
+      steps: '1 · threshold = 3 × dia = 3 × <span class="num">' + n3(dr[0]) + '</span> = <span class="num">' + n3(thr) + '"</span><br>' +
+        '2 · hole = <span class="num">' + n3(d) + '"</span> — ' + (peckIt ? 'over' : 'under') + ' the threshold<br>' +
+        '3 · <span class="res">' + CH[peckIt ? 0 : 1] + '</span>',
+      diagnose: function () {
+        return { label: 'Compared to the wrong line',
+          your: 'the common slip is comparing the depth to one diameter (' + n3(dr[0]) + ') — the chip-packing rule uses THREE',
+          right: '3 × ' + n3(dr[0]) + ' = ' + n3(thr) + ' vs ' + n3(d) + ' → ' + CH[peckIt ? 0 : 1] };
+      } };
+  }
+
+  function genStepover() {
+    var combos = [
+      { W: 1.500, D: 0.500, S: 0.250 }, { W: 2.000, D: 0.500, S: 0.250 },
+      { W: 2.500, D: 0.500, S: 0.250 }, { W: 2.000, D: 0.375, S: 0.1875 },
+      { W: 1.750, D: 0.750, S: 0.375 }, { W: 3.000, D: 0.750, S: 0.375 }
+    ];
+    var c = M.pick(combos);
+    var more = Math.ceil((c.W - c.D) / c.S - 1e-9);
+    var a = 1 + more;
+    var pct = Math.round(c.S / c.D * 100);
+    return { type: 'num', a: a, tol: 0.4, unit: 'passes',
+      q: 'A pocket <span class="num">' + n3(c.W) + '"</span> wide, a <span class="num">' + n3(c.D) + '"</span> end mill, ' +
+        'stepover <span class="num">' + n3(c.S) + '"</span> (' + pct + '% of the cutter). How many passes to cover the width?',
+      explain: 'First pass cuts a full ' + n3(c.D) + '. The rest: (' + n3(c.W) + ' − ' + n3(c.D) + ') ÷ ' + n3(c.S) +
+        ' = ' + (Math.round((c.W - c.D) / c.S * 100) / 100) + ' → ' + more + ' more. Total <span class="num">' + a + '</span>.',
+      hint: 'Pass one is special: it cuts a full tool width. Every pass after that only adds one stepover. Handle the first pass, THEN divide what is left.',
+      steps: '1 · Pass 1 covers the tool\'s own width: <span class="num">' + n3(c.D) + '"</span><br>' +
+        '2 · Left to cover: ' + n3(c.W) + ' − ' + n3(c.D) + ' = <span class="num">' + n3(c.W - c.D) + '"</span><br>' +
+        '3 · ÷ stepover <span class="num">' + n3(c.S) + '</span> = ' + (Math.round((c.W - c.D) / c.S * 100) / 100) + ' → round UP → ' + more + '<br>' +
+        '4 · total = 1 + ' + more + ' = <span class="res">' + a + ' passes</span>',
+      diagnose: function (v) {
+        if (near(v, more)) return { label: 'Forgot pass one',
+          your: more + ' only counts the stepover passes — the first full-width pass got left out',
+          right: '1 + ' + more + ' = ' + a };
+        if (near(v, Math.ceil(c.W / c.S - 1e-9)) && Math.abs(Math.ceil(c.W / c.S - 1e-9) - a) > 0.4) return { label: 'Divided the whole width by the stepover',
+          your: 'the first pass is a full tool width (' + n3(c.D) + '), not a stepover — subtract it before dividing',
+          right: '1 + (' + n3(c.W) + ' − ' + n3(c.D) + ') ÷ ' + n3(c.S) + ' = ' + a };
+        if (near(v, Math.ceil(c.W / c.D - 1e-9)) && Math.abs(Math.ceil(c.W / c.D - 1e-9) - a) > 0.4) return { label: 'Stepped over a full diameter',
+          your: 'stepping a whole tool width leaves uncut ridges between passes — the stepover is ' + n3(c.S),
+          right: '1 + (' + n3(c.W) + ' − ' + n3(c.D) + ') ÷ ' + n3(c.S) + ' = ' + a };
+        return { label: 'Coverage slip',
+          your: v + ' is not 1 + (width − dia) ÷ stepover',
+          right: '1 + (' + n3(c.W) + ' − ' + n3(c.D) + ') ÷ ' + n3(c.S) + ' = ' + a };
+      } };
+  }
+
+  var GENS = { passCount: genPassCount, perPass: genPerPass, peckCount: genPeckCount,
+    needPeck: genNeedPeck, stepover: genStepover };
+  function gen(kind) { var q = GENS[kind](); q.kind = kind; q.from = 'Module 7'; return q; }
+
+  function makeSet(kinds) {
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    return M.shuffle(out);
+  }
+  function practiceQs() {
+    return makeSet(['passCount', 'passCount', 'perPass', 'perPass', 'peckCount', 'peckCount',
+      'needPeck', 'needPeck', 'stepover', 'stepover']);
+  }
+  function quizQs() {
+    return makeSet(['passCount', 'passCount', 'perPass', 'perPass', 'peckCount', 'peckCount',
+      'needPeck', 'stepover', 'stepover', 'stepover']);
+  }
+
+  /* worked twin for the coach's WORK ONE LIKE IT — always different numbers */
+  function coachRegen(kind, current) {
+    var plain = function (h) { return String(h).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(); };
+    var q = null;
+    for (var t = 0; t < 6; t++) {
+      q = gen(kind);
+      if (!current || plain(q.q) !== plain(current.q)) break;
+    }
+    var ans = q.type === 'mc' ? plain(String(q.choices[q.a]))
+      : (q.unit ? q.a + ' ' + q.unit : M.fmtExact(q.a));
+    return {
+      title: plain(q.q),
+      steps: (q.steps || q.explain || '') + '<br>Answer: <span class="res">' + M.esc(ans) + '</span>',
+      spoken: M.sayAnswerQ(q),
+    };
+  }
+
+  M.modulePage('m7', {
+    explainer: EXPLAINER,
+    playground: playground,
+    practiceQs: practiceQs,
+    quizQs: quizQs,
+    coach: { regen: coachRegen },
+  });
+})();
+</script>
+</body>
+</html>

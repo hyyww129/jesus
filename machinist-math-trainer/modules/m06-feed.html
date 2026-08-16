@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Module 6 · Feed Rate</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← HUB</a>
+    <div class="eyebrow">Module 06 · Machinist Math Trainer</div>
+    <h1>Feed <span class="b">Rate</span></h1>
+    <p class="sub">RPM says how fast the tool spins. Feed says how fast the table moves under it —
+      and it comes from how thick a chip each tooth is allowed to bite.</p>
+  </header>
+  <div id="mmt-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var M = window.MMT;
+
+  /* machine truths come from FACTS — never retyped into formulas */
+  var CAP = M.FACTS.rpmMax;
+  var CHIP = M.FACTS.chipload;          /* dia-string -> inches per tooth */
+  var K382 = 3.82;
+
+  var DIA_LIST = [
+    { key: '0.125',  f: '1/8"',  v: 0.125,  say: 'eighth inch' },
+    { key: '0.1875', f: '3/16"', v: 0.1875, say: 'three sixteenths' },
+    { key: '0.25',   f: '1/4"',  v: 0.25,   say: 'quarter inch' },
+    { key: '0.375',  f: '3/8"',  v: 0.375,  say: 'three eighths' },
+    { key: '0.5',    f: '1/2"',  v: 0.5,    say: 'half inch' },
+    { key: '0.75',   f: '3/4"',  v: 0.75,   say: 'three quarter inch' }
+  ];
+  function iptOf(d) { return CHIP[d.key]; }
+  function r1(x) { return Math.round(x * 10) / 10; }
+  function nf(x) { return String(Math.round(x * 10000) / 10000); }
+  function near(v, t, win) { return Math.abs(v - t) <= (win === undefined ? Math.max(0.15, Math.abs(t) * 0.02) : win); }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var exIpt = CHIP['0.5'];                                   /* 0.003 */
+  var exIpm = r1(1910 * 2 * exIpt);                          /* 11.5 */
+
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>Every tooth that sweeps past the metal bites off one chip. The <span class="term">chip load</span> ' +
+  'is how thick that bite is allowed to be — inches per tooth. Feed is just all the bites per minute added up:</p>' +
+  '<div class="worked">feed IPM &nbsp;=&nbsp; RPM × flutes × chip load</div>' +
+  '<p>Read it out loud and it explains itself: <i>turns a minute</i> × <i>teeth per turn</i> × ' +
+  '<i>inches per tooth</i> = <i>inches per minute</i>. The units cancel like a supply chain.</p>' +
+  '<p>Work one through — the 1/2" 2-flute end mill from Module 5, running its 1910 RPM in aluminum. ' +
+  'The chart starts a half-inch end mill at <b>' + nf(exIpt) + '"</b> per tooth:</p>' +
+  '<div class="worked"><span class="num">1910</span> RPM × <span class="num">2</span> flutes = ' +
+  '3820 bites a minute<br>3820 × <span class="num">' + nf(exIpt) + '"</span> per bite = ' +
+  '<span class="res">' + exIpm.toFixed(1) + ' IPM</span></div>' +
+  '<p>The table crawls eleven and a half inches every minute, and each tooth peels a chip about as ' +
+  'thick as a sheet of printer paper. That is what a healthy cut sounds like — a steady hiss, not a scream.</p>' +
+  '<table class="ref"><tr><th>End mill</th><th>Chip load / tooth</th></tr>' +
+  DIA_LIST.map(function (d) {
+    return '<tr><td>' + d.f + '</td><td>' + nf(iptOf(d)) + '"</td></tr>';
+  }).join('') + '</table>' +
+  '<p style="margin-top:10px">Those are <span class="term">starting points</span>, shop convention, not law — ' +
+  'bigger tools take bigger bites because they are stiffer. (Drills are a different animal: roughly ' +
+  'diameter ÷ 100 per <i>revolution</i>, not per tooth — that is a later lesson.)</p>' +
+  '<p><b>The mistake that snaps tools:</b> a decimal slip on the chip load. 0.003 and 0.03 look like ' +
+  'cousins; one is a paper-thin chip, the other is a 10× overfeed that breaks a 1/4" end mill in the ' +
+  'first second of the cut. Count the zeros twice, every time.</p>' +
+  '<p>Now open the <b>Playground</b> — stack RPM, flutes and bite size and watch them multiply.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — stack the three dials</h2><div class="body">' +
+      '<div class="slider-row"><span class="name">RPM</span>' +
+      '<input type="range" id="rpmSlide" min="100" max="' + CAP + '" step="50" value="1900" aria-label="spindle RPM">' +
+      '<span class="out" id="rpmOut"></span></div>' +
+      '<div class="btnrow" id="fluteRow" style="margin:10px 0"></div>' +
+      '<div class="btnrow" id="diaRow" style="margin:10px 0"></div>' +
+      '<div class="slider-row"><span class="name">CHIP LOAD</span>' +
+      '<input type="range" id="iptSlide" min="5" max="50" step="1" aria-label="chip load in ten-thousandths per tooth">' +
+      '<span class="out" id="iptOut"></span></div>' +
+      '<p class="hint">Pick a diameter and the chart\'s starting chip load loads itself — then drag it and ' +
+      'feel the feed move. All three dials multiply; none of them is optional.</p>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div>' +
+      '<button id="sayBtn">🔊 SAY THIS SETUP</button>' +
+      '<p class="hint" id="sayText" style="margin-top:0"></p></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var droCtl = M.dro(card.querySelector('#droBox'), 'IPM');
+    var eqBody = card.querySelector('#eqBody');
+    var rpmSlide = card.querySelector('#rpmSlide');
+    var iptSlide = card.querySelector('#iptSlide');
+    var rpm = 1900, flutes = 2, dia = DIA_LIST[4], ipt = iptOf(DIA_LIST[4]);
+
+    var fluteRow = card.querySelector('#fluteRow');
+    [1, 2, 3, 4].forEach(function (n) {
+      var b = document.createElement('button');
+      b.textContent = n + (n === 1 ? ' FLUTE' : ' FLUTES');
+      b.setAttribute('data-fl', String(n));
+      b.addEventListener('click', function () { flutes = n; update(); });
+      fluteRow.appendChild(b);
+    });
+    var diaRow = card.querySelector('#diaRow');
+    DIA_LIST.forEach(function (d) {
+      var b = document.createElement('button');
+      b.textContent = d.f;
+      b.setAttribute('data-dia', d.key);
+      b.addEventListener('click', function () {
+        dia = d; ipt = iptOf(d);
+        iptSlide.value = Math.round(ipt * 10000);
+        update();
+      });
+      diaRow.appendChild(b);
+    });
+    iptSlide.value = Math.round(ipt * 10000);
+    rpmSlide.addEventListener('input', function () { rpm = Number(rpmSlide.value); update(); });
+    iptSlide.addEventListener('input', function () { ipt = Number(iptSlide.value) / 10000; update(); });
+
+    function calc() { return { ipm: rpm * flutes * ipt, bites: rpm * flutes }; }
+
+    function update() {
+      var c = calc();
+      card.querySelector('#rpmOut').textContent = rpm + ' RPM';
+      card.querySelector('#iptOut').textContent = nf(ipt) + '"';
+      fluteRow.querySelectorAll('button').forEach(function (b) {
+        b.classList.toggle('on', Number(b.getAttribute('data-fl')) === flutes);
+      });
+      diaRow.querySelectorAll('button').forEach(function (b) {
+        b.classList.toggle('on', b.getAttribute('data-dia') === dia.key);
+      });
+      var chartIpt = iptOf(dia);
+      eqBody.innerHTML = 'IPM = RPM × flutes × chip load<br>' +
+        '= <span class="num">' + rpm + '</span> × <span class="num">' + flutes + '</span> × <span class="num">' +
+        nf(ipt) + '</span><br>' +
+        '= ' + nf(rpm * flutes) + ' bites/min × ' + nf(ipt) + '"<br>' +
+        '= <span class="res">' + r1(c.ipm).toFixed(1) + ' IPM</span>' +
+        (Math.abs(ipt - chartIpt) > 0.00005
+          ? '<br><span class="dim">chart start for ' + dia.f + ' is ' + nf(chartIpt) + ' — you are ' +
+            (ipt > chartIpt ? 'above' : 'below') + ' it</span>' : '');
+      droCtl.set(r1(c.ipm).toFixed(1),
+        'The table crawls <b>' + r1(c.ipm).toFixed(1) + '</b> inches every minute — ' + flutes +
+        (flutes === 1 ? ' tooth takes' : ' teeth take') + ' ' + nf(rpm * flutes) +
+        ' bites a minute, each one ' + nf(ipt) + '" thick.');
+      var sayEl = card.querySelector('#sayText');
+      if (sayEl) sayEl.textContent = 'Said out loud: “' + speech() + '”';
+    }
+    function speech() {
+      var c = calc();
+      return M.intWords(rpm) + ' R P M, ' + M.intWords(flutes) + (flutes === 1 ? ' flute, ' : ' flutes, ') +
+        M.sayMeasure(ipt).shop + ' a tooth. Multiplied out, the feed is ' +
+        M.intWords(Math.round(c.ipm)) + (Math.round(r1(c.ipm) * 10) % 10 ? ' point ' + (Math.round(r1(c.ipm) * 10) % 10) : '') +
+        ' inches a minute.';
+    }
+    card.querySelector('#sayBtn').addEventListener('click', function () { M.speakText(speech()); });
+
+    update();
+    window.__m6 = {
+      set: function (r, fl, key) {
+        rpm = r; rpmSlide.value = r;
+        if (fl) flutes = fl;
+        if (key) {
+          for (var i = 0; i < DIA_LIST.length; i++) if (DIA_LIST[i].key === key) dia = DIA_LIST[i];
+          ipt = iptOf(dia); iptSlide.value = Math.round(ipt * 10000);
+        }
+        update();
+      },
+      info: function () { var c = calc(); return { rpm: rpm, flutes: flutes, ipt: ipt, ipm: r1(c.ipm) }; }
+    };
+  }
+
+  /* ============ question generators (practice + quiz) ============ */
+  var RPM_POOL = [600, 800, 1000, 1200, 1500, 1800, 2000, 2400, 3000, 3600, 4000];
+
+  function diagIpm(rpm, fl, ipt, a) {
+    var rightP = rpm + ' × ' + fl + ' × ' + nf(ipt) + ' = ' + a.toFixed(1);
+    return function (v) {
+      if (near(v, rpm * ipt) && fl !== 1) return { label: 'Forgot the flutes',
+        your: rpm + ' × ' + nf(ipt) + ' = ' + r1(rpm * ipt).toFixed(1) + ' — that is a ONE-tooth cutter; yours has ' + fl,
+        right: 'every tooth bites: ' + rightP };
+      if (near(v, a * 10)) return { label: 'Decimal slip on the chip load — the tool-snapper',
+        your: 'the chip load went in as ' + nf(ipt * 10) + ' instead of ' + nf(ipt) + ' → ' + r1(v).toFixed(1) +
+          ' IPM, a 10× overfeed that breaks the tool in the first second',
+        right: 'count the zeros twice: ' + rightP };
+      if (near(v, a / 10)) return { label: 'Decimal slip on the chip load',
+        your: 'the chip load went in as ' + nf(ipt / 10) + ' — a bite so thin the tool rubs and burns instead of cutting',
+        right: rightP };
+      if (near(v, fl * ipt, 0.05)) return { label: 'Forgot the RPM',
+        your: nf(fl * ipt) + ' is one revolution\'s worth of advance — the spindle turns ' + rpm + ' times a minute',
+        right: rightP };
+      if (near(v, rpm * ipt / fl) && fl !== 1) return { label: 'Divided by the flutes',
+        your: 'flutes MULTIPLY — more teeth means more bites a minute, not fewer',
+        right: rightP };
+      return { label: 'Formula error',
+        your: 'whatever produced ' + r1(v).toFixed(1) + ' was not RPM × flutes × chip load',
+        right: rightP };
+    };
+  }
+
+  function genIpmCalc() {
+    var d = M.pick(DIA_LIST), fl = M.pick([2, 2, 3, 4]), rpm = M.pick(RPM_POOL);
+    var ipt = iptOf(d);
+    var a = r1(rpm * fl * ipt);
+    return { type: 'num', a: a, tol: 0.1, unit: 'ipm',
+      q: 'A <span class="num">' + d.f + '</span> end mill with <span class="num">' + fl + '</span> flutes turns at ' +
+        '<span class="num">' + rpm + ' RPM</span>, chip load <span class="num">' + nf(ipt) + '"</span> per tooth. What feed do you dial in?',
+      explain: rpm + ' × ' + fl + ' × ' + nf(ipt) + ' = <span class="num">' + a.toFixed(1) + '</span> IPM.',
+      hint: 'Three dials, one product: turns a minute × teeth per turn × inches per tooth. Multiply straight through — the units cancel into inches per minute.',
+      steps: '1 · IPM = RPM × flutes × chip load<br>' +
+        '2 · Bites a minute: <span class="num">' + rpm + '</span> × <span class="num">' + fl + '</span> = <span class="num">' + (rpm * fl) + '</span><br>' +
+        '3 · × <span class="num">' + nf(ipt) + '"</span> a bite = <span class="num">' + nf(rpm * fl * ipt) + '</span><br>' +
+        '4 · Round: <span class="res">' + a.toFixed(1) + ' IPM</span>',
+      diagnose: diagIpm(rpm, fl, ipt, a) };
+  }
+
+  function genPickChip() {
+    var idx = Math.floor(Math.random() * DIA_LIST.length);
+    var d = DIA_LIST[idx];
+    var right = iptOf(d);
+    var choices = [nf(right) + '" / tooth'];
+    var others = DIA_LIST.filter(function (x, i) { return i !== idx; });
+    others = M.shuffle(others).slice(0, 3);
+    for (var i = 0; i < others.length; i++) choices.push(nf(iptOf(others[i])) + '" / tooth');
+    return { type: 'mc', a: 0, choices: choices,
+      q: 'Chart check: what is the starting chip load for a <span class="num">' + d.f + '</span> end mill?',
+      explain: 'Bigger tools are stiffer, so they take bigger bites. A ' + d.f + ' end mill starts at <span class="num">' +
+        nf(right) + '"</span> per tooth — a starting point to tune from.',
+      hint: 'The chart runs with the tool: skinny tools take paper-thin bites, fat tools take bigger ones. Find the ' + d.f + ' row.',
+      steps: DIA_LIST.map(function (x) {
+        var mine = x.key === d.key;
+        return (mine ? '<span class="res">' : '<span class="num">') + x.f + ' → ' + nf(iptOf(x)) + '"</span>' + (mine ? ' ← your tool' : '');
+      }).join('<br>'),
+      diagnose: function (chosen) {
+        var pv = parseFloat(String(choices[chosen]).replace('" / tooth', ''));
+        var oc = null;
+        for (var i2 = 0; i2 < DIA_LIST.length; i2++) if (Math.abs(iptOf(DIA_LIST[i2]) - pv) < 1e-9) oc = DIA_LIST[i2];
+        if (!oc) return null;
+        return { label: 'Wrong row of the chart',
+          your: nf(pv) + '" is the ' + oc.f + ' starting bite — ' + (oc.v > d.v ? 'too big for' : 'too timid for') + ' a ' + d.f,
+          right: d.f + ' starts at ' + nf(right) + '" per tooth' };
+      } };
+  }
+
+  function genChainCalc() {
+    var pool = [];
+    var sfms = [90, 250, 350];
+    for (var i = 0; i < sfms.length; i++) {
+      for (var j = 0; j < DIA_LIST.length; j++) {
+        var rpm = sfms[i] * K382 / DIA_LIST[j].v;
+        if (rpm >= 300 && rpm <= CAP - 60) pool.push([sfms[i], DIA_LIST[j]]);
+      }
+    }
+    var p = M.pick(pool), s = p[0], d = p[1];
+    var fl = M.pick([2, 3, 4]);
+    var ipt = iptOf(d);
+    var rpmR = Math.round(s * K382 / d.v);
+    var a = r1(rpmR * fl * ipt);
+    return { type: 'num', a: a, tol: 0.2, unit: 'ipm',
+      q: 'The whole chain: <span class="num">' + s + ' SFM</span>, a <span class="num">' + d.f + '</span> end mill ' +
+        '(<span class="num">' + M.fmtExact(d.v, 3) + '"</span>) with <span class="num">' + fl + '</span> flutes, chip load ' +
+        '<span class="num">' + nf(ipt) + '"</span>. RPM first, then feed — what IPM?',
+      explain: 'RPM = ' + s + ' × 3.82 ÷ ' + M.fmtExact(d.v, 3) + ' = ' + rpmR + '. Then ' + rpmR + ' × ' + fl + ' × ' +
+        nf(ipt) + ' = <span class="num">' + a.toFixed(1) + '</span> IPM.',
+      hint: 'Two formulas back to back, RPM first: SFM × 3.82 ÷ D (Module 5). Hold that number, then feed = RPM × flutes × chip load. Never mix the two into one line.',
+      steps: '1 · RPM = SFM × 3.82 ÷ D = <span class="num">' + s + '</span> × 3.82 ÷ <span class="num">' + M.fmtExact(d.v, 3) +
+        '</span> = <span class="num">' + rpmR + '</span> (under ' + CAP + ' ✓)<br>' +
+        '2 · IPM = RPM × flutes × chip load<br>' +
+        '3 · <span class="num">' + rpmR + '</span> × <span class="num">' + fl + '</span> × <span class="num">' + nf(ipt) + '</span> = <span class="num">' + nf(rpmR * fl * ipt) + '</span><br>' +
+        '4 · <span class="res">' + a.toFixed(1) + ' IPM</span>',
+      diagnose: function (v) {
+        if (near(v, rpmR, 2)) return { label: 'Stopped at RPM',
+          your: rpmR + ' is the spindle speed — the question asked for the FEED that follows from it',
+          right: rpmR + ' × ' + fl + ' × ' + nf(ipt) + ' = ' + a.toFixed(1) + ' IPM' };
+        if (near(v, r1(rpmR * ipt)) && fl !== 1) return { label: 'Forgot the flutes',
+          your: rpmR + ' × ' + nf(ipt) + ' = ' + r1(rpmR * ipt).toFixed(1) + ' — a one-tooth cutter; yours has ' + fl,
+          right: rpmR + ' × ' + fl + ' × ' + nf(ipt) + ' = ' + a.toFixed(1) };
+        if (near(v, r1(s * fl * ipt))) return { label: 'Fed the SFM into the feed formula',
+          your: s + ' is surface feet, not RPM — the chain runs SFM → RPM → IPM, no shortcuts',
+          right: 'RPM first: ' + rpmR + ', then × ' + fl + ' × ' + nf(ipt) + ' = ' + a.toFixed(1) };
+        return diagIpm(rpmR, fl, ipt, a)(v);
+      } };
+  }
+
+  function genFlutesEffect() {
+    var CH = ['It doubles', 'It halves', 'It stays the same', 'It goes up 4×'];
+    var rpm = M.pick([1200, 1800, 2400]);
+    var ipt = CHIP['0.375'];
+    var f2 = r1(rpm * 2 * ipt), f4 = r1(rpm * 4 * ipt);
+    return { type: 'mc', a: 0, choices: CH,
+      q: 'Same RPM, same chip load per tooth. You swap the <span class="num">2-flute</span> end mill for a ' +
+        '<span class="num">4-flute</span>. What happens to the feed?',
+      explain: 'Twice the teeth per turn = twice the bites a minute = twice the feed. At ' + rpm + ' RPM and ' +
+        nf(ipt) + '": ' + f2.toFixed(1) + ' → ' + f4.toFixed(1) + ' IPM.',
+      hint: 'Feed = RPM × flutes × chip load. Only one of the three moved — which way does the product go?',
+      steps: '1 · IPM = RPM × flutes × chip load — flutes sit in the product<br>' +
+        '2 · 2 flutes → 4 flutes doubles the bites a minute<br>' +
+        '3 · Prove it at <span class="num">' + rpm + '</span> RPM: ' + f2.toFixed(1) + ' → ' + f4.toFixed(1) + '<br>' +
+        '4 · <span class="res">It doubles</span>',
+      diagnose: function (chosen) {
+        if (chosen === 1) return { label: 'Flutes pushed the wrong way',
+          your: 'halving is what happens if you think more teeth SHARE the same feed — but the chip load is per tooth, fixed',
+          right: 'each of the 4 teeth still bites ' + nf(ipt) + '" → the feed doubles' };
+        if (chosen === 2) return { label: 'Thought flutes were free',
+          your: 'flutes are one of the three dials in the product — the feed cannot ignore them',
+          right: 'IPM = RPM × flutes × ipt → twice the flutes, twice the feed' };
+        return { label: 'Scaled twice',
+          your: '4× would need the flutes AND something else to double — only the flutes moved',
+          right: '2 → 4 flutes is one doubling: feed doubles' };
+      } };
+  }
+
+  function genBackSolve() {
+    var d = M.pick(DIA_LIST), fl = M.pick([2, 3, 4]), rpm = M.pick(RPM_POOL);
+    var ipt = iptOf(d);
+    var ipm = r1(rpm * fl * ipt);
+    return { type: 'num', a: ipt, tol: 0.0003, unit: 'inches per tooth',
+      q: 'Reverse gear: the machine is feeding <span class="num">' + ipm.toFixed(1) + ' IPM</span> at ' +
+        '<span class="num">' + rpm + ' RPM</span> with <span class="num">' + fl + '</span> flutes. ' +
+        'What chip load is each tooth taking?',
+      explain: 'Un-multiply: ' + ipm.toFixed(1) + ' ÷ ' + rpm + ' ÷ ' + fl + ' = <span class="num">' + nf(ipt) + '"</span> per tooth.',
+      hint: 'Same formula, driven backwards: IPM = RPM × flutes × ipt, so ipt = IPM ÷ RPM ÷ flutes. Divide by BOTH the things that multiplied.',
+      steps: '1 · IPM = RPM × flutes × ipt → ipt = IPM ÷ RPM ÷ flutes<br>' +
+        '2 · <span class="num">' + ipm.toFixed(1) + '</span> ÷ <span class="num">' + rpm + '</span> = <span class="num">' + nf(ipm / rpm) + '</span> per rev<br>' +
+        '3 · ÷ <span class="num">' + fl + '</span> teeth = <span class="res">' + nf(ipm / rpm / fl) + '"</span> per tooth',
+      diagnose: function (v) {
+        if (near(v, ipm / rpm, 0.0008) && fl !== 1) return { label: 'Stopped one divide short',
+          your: nf(ipm / rpm) + ' is per REVOLUTION — ' + fl + ' teeth share each rev',
+          right: ipm.toFixed(1) + ' ÷ ' + rpm + ' ÷ ' + fl + ' = ' + nf(ipt) };
+        if (near(v, ipt * 10, 0.002) || near(v, ipt / 10, 0.0002)) return { label: 'Decimal slip',
+          your: 'right digits, wrong spot: ' + nf(v),
+          right: ipm.toFixed(1) + ' ÷ ' + rpm + ' ÷ ' + fl + ' = ' + nf(ipt) };
+        if (v > 0.05) return { label: 'Un-multiplied the wrong way',
+          your: nf(v) + ' is far too thick for a chip — a division went in as a multiply',
+          right: 'ipt = IPM ÷ RPM ÷ flutes = ' + nf(ipt) };
+        return { label: 'Divide slip',
+          your: nf(v) + ' is not IPM ÷ RPM ÷ flutes',
+          right: ipm.toFixed(1) + ' ÷ ' + rpm + ' ÷ ' + fl + ' = ' + nf(ipt) };
+      } };
+  }
+
+  var GENS = { ipmCalc: genIpmCalc, pickChip: genPickChip, chainCalc: genChainCalc,
+    flutesEffect: genFlutesEffect, backSolve: genBackSolve };
+  function gen(kind) { var q = GENS[kind](); q.kind = kind; q.from = 'Module 6'; return q; }
+
+  function makeSet(kinds) {
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    return M.shuffle(out);
+  }
+  function practiceQs() {
+    return makeSet(['ipmCalc', 'ipmCalc', 'ipmCalc', 'pickChip', 'pickChip',
+      'chainCalc', 'chainCalc', 'flutesEffect', 'backSolve', 'backSolve']);
+  }
+  function quizQs() {
+    return makeSet(['ipmCalc', 'ipmCalc', 'ipmCalc', 'chainCalc', 'chainCalc', 'chainCalc',
+      'pickChip', 'flutesEffect', 'backSolve', 'backSolve']);
+  }
+
+  /* worked twin for the coach's WORK ONE LIKE IT — always different numbers */
+  function coachRegen(kind, current) {
+    var plain = function (h) { return String(h).replace(/<[^>]*>/g, '').replace(/\s+/g, ' ').trim(); };
+    var q = null;
+    for (var t = 0; t < 6; t++) {
+      q = gen(kind);
+      if (!current || plain(q.q) !== plain(current.q)) break;
+    }
+    var ans = q.type === 'mc' ? plain(String(q.choices[q.a]))
+      : (q.unit ? q.a + ' ' + q.unit : M.fmtExact(q.a));
+    return {
+      title: plain(q.q),
+      steps: (q.steps || q.explain || '') + '<br>Answer: <span class="res">' + M.esc(ans) + '</span>',
+      spoken: M.sayAnswerQ(q),
+    };
+  }
+
+  M.modulePage('m6', {
+    explainer: EXPLAINER,
+    playground: playground,
+    practiceQs: practiceQs,
+    quizQs: quizQs,
+    coach: { regen: coachRegen },
+  });
+})();
+</script>
+</body>
+</html>

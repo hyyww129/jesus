@@ -19,9 +19,9 @@
       desc: 'The 0.200 tip / 0.100 rule, sign by approach side, zero at center.' },
     { id: 'm5',  n: 5,  title: 'RPM from Cutting Speed', file: 'modules/m05-rpm.html', built: true,
       desc: 'RPM = SFM × 3.82 ÷ diameter — and why. Capped at 4200.' },
-    { id: 'm6',  n: 6,  title: 'Feed Rate', file: 'modules/m06-feed.html', built: false,
+    { id: 'm6',  n: 6,  title: 'Feed Rate', file: 'modules/m06-feed.html', built: true,
       desc: 'IPM = RPM × flutes × chip load, with starter chip-load tables.' },
-    { id: 'm7',  n: 7,  title: 'Depth, Peck & Passes', file: 'modules/m07-depth.html', built: false,
+    { id: 'm7',  n: 7,  title: 'Depth, Peck & Passes', file: 'modules/m07-depth.html', built: true,
       desc: 'Splitting depth into passes, peck rules, pocket stepover.' },
     { id: 'm8',  n: 8,  title: 'Bolt-Hole Circle Trig', file: 'modules/m08-bolt-circle.html', built: false,
       desc: 'N holes on a circle with cos and sin doing the placing.' },
@@ -1331,6 +1331,168 @@
         return { label: 'Formula error',
           your: nf(v) + ' was not SFM × 3.82 ÷ D',
           right: s2 + ' × 3.82 ÷ ' + d2 + ' = ' + a3 };
+      } };
+  };
+
+  BANKS.m6 = function () {
+    var DIAS = [['0.125', '1/8"'], ['0.1875', '3/16"'], ['0.25', '1/4"'], ['0.375', '3/8"'], ['0.5', '1/2"'], ['0.75', '3/4"']];
+    var RPMS = [600, 800, 1000, 1200, 1500, 1800, 2000, 2400, 3000, 3600];
+    function r1(x) { return Math.round(x * 10) / 10; }
+    function nf(x) { return String(Math.round(x * 10000) / 10000); }
+    function nr(v, t) { return Math.abs(v - t) <= Math.max(0.15, Math.abs(t) * 0.02); }
+    var kind = pick(['ipmCalc', 'ipmCalc', 'pickChip', 'backSolve']);
+    if (kind === 'pickChip') {
+      var ci = Math.floor(Math.random() * DIAS.length);
+      var d = DIAS[ci], right = FACTS.chipload[d[0]];
+      var choices = [nf(right) + '" / tooth'];
+      var others = shuffle(DIAS.filter(function (x, i) { return i !== ci; })).slice(0, 3);
+      for (var i = 0; i < others.length; i++) choices.push(nf(FACTS.chipload[others[i][0]]) + '" / tooth');
+      return { type: 'mc', a: 0, choices: choices, from: 'Module 6',
+        q: 'Chart check: what is the starting chip load for a <span class="num">' + d[1] + '</span> end mill?',
+        explain: 'Bigger tools are stiffer and take bigger bites: a ' + d[1] + ' starts at <span class="num">' + nf(right) + '"</span> per tooth — a starting point, not a law.',
+        hint: 'The chart runs with the tool: skinny tools take paper-thin bites, fat tools take bigger ones. Find the ' + d[1] + ' row.',
+        steps: DIAS.map(function (x, i2) {
+          return (i2 === ci ? '<span class="res">' : '<span class="num">') + x[1] + ' → ' + nf(FACTS.chipload[x[0]]) + '"</span>' + (i2 === ci ? ' ← your tool' : '');
+        }).join('<br>'),
+        diagnose: function (chosen) {
+          var pv = parseFloat(String(choices[chosen]).replace('" / tooth', ''));
+          var oc = null;
+          for (var i3 = 0; i3 < DIAS.length; i3++) if (Math.abs(FACTS.chipload[DIAS[i3][0]] - pv) < 1e-9) oc = DIAS[i3];
+          if (!oc) return null;
+          return { label: 'Wrong row of the chart',
+            your: nf(pv) + '" is the ' + oc[1] + ' starting bite',
+            right: d[1] + ' starts at ' + nf(right) + '" per tooth' };
+        } };
+    }
+    if (kind === 'backSolve') {
+      var d2 = pick(DIAS), fl2 = pick([2, 3, 4]), rpm2 = pick(RPMS);
+      var ipt2 = FACTS.chipload[d2[0]];
+      var ipm2 = r1(rpm2 * fl2 * ipt2);
+      return { type: 'num', a: ipt2, tol: 0.0003, unit: 'inches per tooth', from: 'Module 6',
+        q: 'Reverse gear: the machine feeds <span class="num">' + ipm2.toFixed(1) + ' IPM</span> at <span class="num">' + rpm2 +
+          ' RPM</span> with <span class="num">' + fl2 + '</span> flutes. What chip load is each tooth taking?',
+        explain: 'Un-multiply: ' + ipm2.toFixed(1) + ' ÷ ' + rpm2 + ' ÷ ' + fl2 + ' = <span class="num">' + nf(ipt2) + '"</span> per tooth.',
+        hint: 'Same formula driven backwards: ipt = IPM ÷ RPM ÷ flutes. Divide by BOTH the things that multiplied.',
+        steps: '1 · ipt = IPM ÷ RPM ÷ flutes<br>' +
+          '2 · <span class="num">' + ipm2.toFixed(1) + '</span> ÷ <span class="num">' + rpm2 + '</span> = <span class="num">' + nf(ipm2 / rpm2) + '</span> per rev<br>' +
+          '3 · ÷ <span class="num">' + fl2 + '</span> teeth = <span class="res">' + nf(ipm2 / rpm2 / fl2) + '"</span> per tooth',
+        diagnose: function (v) {
+          if (Math.abs(v - ipm2 / rpm2) <= 0.0008 && fl2 !== 1) return { label: 'Stopped one divide short',
+            your: nf(ipm2 / rpm2) + ' is per REVOLUTION — ' + fl2 + ' teeth share each rev',
+            right: ipm2.toFixed(1) + ' ÷ ' + rpm2 + ' ÷ ' + fl2 + ' = ' + nf(ipt2) };
+          if (Math.abs(v - ipt2 * 10) <= 0.002 || Math.abs(v - ipt2 / 10) <= 0.0002) return { label: 'Decimal slip',
+            your: 'right digits, wrong spot: ' + nf(v),
+            right: ipm2.toFixed(1) + ' ÷ ' + rpm2 + ' ÷ ' + fl2 + ' = ' + nf(ipt2) };
+          return { label: 'Divide slip',
+            your: nf(v) + ' is not IPM ÷ RPM ÷ flutes',
+            right: ipm2.toFixed(1) + ' ÷ ' + rpm2 + ' ÷ ' + fl2 + ' = ' + nf(ipt2) };
+        } };
+    }
+    var d3 = pick(DIAS), fl3 = pick([2, 2, 3, 4]), rpm3 = pick(RPMS);
+    var ipt3 = FACTS.chipload[d3[0]];
+    var a3 = r1(rpm3 * fl3 * ipt3);
+    return { type: 'num', a: a3, tol: 0.1, unit: 'ipm', from: 'Module 6',
+      q: 'A <span class="num">' + d3[1] + '</span> end mill with <span class="num">' + fl3 + '</span> flutes turns at ' +
+        '<span class="num">' + rpm3 + ' RPM</span>, chip load <span class="num">' + nf(ipt3) + '"</span> per tooth. What feed do you dial in?',
+      explain: rpm3 + ' × ' + fl3 + ' × ' + nf(ipt3) + ' = <span class="num">' + a3.toFixed(1) + '</span> IPM.',
+      hint: 'Turns a minute × teeth per turn × inches per tooth — multiply straight through and the units cancel into inches per minute.',
+      steps: '1 · IPM = RPM × flutes × chip load<br>' +
+        '2 · <span class="num">' + rpm3 + '</span> × <span class="num">' + fl3 + '</span> = <span class="num">' + (rpm3 * fl3) + '</span> bites/min<br>' +
+        '3 · × <span class="num">' + nf(ipt3) + '"</span> = <span class="res">' + a3.toFixed(1) + ' IPM</span>',
+      diagnose: function (v) {
+        if (nr(v, rpm3 * ipt3) && fl3 !== 1) return { label: 'Forgot the flutes',
+          your: rpm3 + ' × ' + nf(ipt3) + ' = ' + r1(rpm3 * ipt3).toFixed(1) + ' — a one-tooth cutter; yours has ' + fl3,
+          right: 'every tooth bites: ' + rpm3 + ' × ' + fl3 + ' × ' + nf(ipt3) + ' = ' + a3.toFixed(1) };
+        if (nr(v, a3 * 10)) return { label: 'Decimal slip on the chip load — the tool-snapper',
+          your: 'a 10× overfeed that breaks the tool in the first second of the cut',
+          right: 'count the zeros twice: ' + rpm3 + ' × ' + fl3 + ' × ' + nf(ipt3) + ' = ' + a3.toFixed(1) };
+        if (nr(v, a3 / 10)) return { label: 'Decimal slip on the chip load',
+          your: 'a bite so thin the tool rubs and burns instead of cutting',
+          right: rpm3 + ' × ' + fl3 + ' × ' + nf(ipt3) + ' = ' + a3.toFixed(1) };
+        return { label: 'Formula error',
+          your: 'whatever produced ' + r1(v).toFixed(1) + ' was not RPM × flutes × chip load',
+          right: rpm3 + ' × ' + fl3 + ' × ' + nf(ipt3) + ' = ' + a3.toFixed(1) };
+      } };
+  };
+  BANKS.m7 = function () {
+    function n3(v) { return fmtExact(v, 3); }
+    function nr(v, t) { return Math.abs(v - t) <= 0.35; }
+    var kind = pick(['passCount', 'passCount', 'peckCount', 'stepover']);
+    if (kind === 'peckCount') {
+      var DR = [[0.125, '1/8"'], [0.25, '1/4"'], [0.375, '3/8"'], [0.5, '1/2"']];
+      var dr = pick(DR);
+      var mult = pick([3.4, 3.8, 4.2, 4.6, 5.2]);
+      var dd = Math.round(dr[0] * mult * 1000) / 1000;
+      var raw = dd / dr[0];
+      var a = Math.ceil(raw - 1e-9);
+      return { type: 'num', a: a, tol: 0.4, unit: 'pecks', from: 'Module 7',
+        q: 'A <span class="num">' + dr[1] + '</span> drill has to reach <span class="num">' + n3(dd) + '"</span> deep — ' +
+          'past three diameters, so you peck about one diameter per bite. How many pecks?',
+        explain: n3(dd) + ' ÷ ' + n3(dr[0]) + ' = ' + (Math.round(raw * 10) / 10) + ' → round UP → <span class="num">' + a + '</span> pecks.',
+        hint: 'One peck ≈ one diameter of depth (the common starting point). Divide, and remember a partial peck is still a trip down the hole.',
+        steps: '1 · peck ≈ 1 × dia = <span class="num">' + n3(dr[0]) + '"</span><br>' +
+          '2 · <span class="num">' + n3(dd) + '</span> ÷ <span class="num">' + n3(dr[0]) + '</span> = <span class="num">' + (Math.round(raw * 10) / 10) + '</span><br>' +
+          '3 · Round UP → <span class="res">' + a + ' pecks</span>',
+        diagnose: function (v) {
+          if (nr(v, Math.floor(raw))) return { label: 'Rounded DOWN',
+            your: Math.floor(raw) + ' pecks stops short of the bottom',
+            right: 'the last partial bite is still a peck: ' + a };
+          return { label: 'Divide slip',
+            your: v + ' is not depth ÷ diameter rounded up',
+            right: n3(dd) + ' ÷ ' + n3(dr[0]) + ' = ' + (Math.round(raw * 10) / 10) + ' → ' + a };
+        } };
+    }
+    if (kind === 'stepover') {
+      var combos = [
+        { W: 1.500, D: 0.500, S: 0.250 }, { W: 2.000, D: 0.500, S: 0.250 },
+        { W: 2.500, D: 0.500, S: 0.250 }, { W: 2.000, D: 0.375, S: 0.1875 },
+        { W: 3.000, D: 0.750, S: 0.375 }];
+      var c = pick(combos);
+      var more = Math.ceil((c.W - c.D) / c.S - 1e-9);
+      var aS = 1 + more;
+      return { type: 'num', a: aS, tol: 0.4, unit: 'passes', from: 'Module 7',
+        q: 'A pocket <span class="num">' + n3(c.W) + '"</span> wide, a <span class="num">' + n3(c.D) + '"</span> end mill, ' +
+          'stepover <span class="num">' + n3(c.S) + '"</span>. How many passes to cover the width?',
+        explain: 'First pass cuts a full ' + n3(c.D) + '; the rest advance ' + n3(c.S) + ' each: 1 + (' + n3(c.W) + ' − ' +
+          n3(c.D) + ') ÷ ' + n3(c.S) + ' = <span class="num">' + aS + '</span>.',
+        hint: 'Pass one is special — it cuts a full tool width. Handle it first, THEN divide what is left by the stepover and round up.',
+        steps: '1 · Pass 1 covers <span class="num">' + n3(c.D) + '"</span><br>' +
+          '2 · Left: ' + n3(c.W) + ' − ' + n3(c.D) + ' = <span class="num">' + n3(c.W - c.D) + '"</span><br>' +
+          '3 · ÷ <span class="num">' + n3(c.S) + '</span> → round UP → ' + more + '<br>' +
+          '4 · total = 1 + ' + more + ' = <span class="res">' + aS + ' passes</span>',
+        diagnose: function (v) {
+          if (nr(v, more)) return { label: 'Forgot pass one',
+            your: more + ' only counts the stepover passes — the first full-width pass got left out',
+            right: '1 + ' + more + ' = ' + aS };
+          return { label: 'Coverage slip',
+            your: v + ' is not 1 + (width − dia) ÷ stepover',
+            right: '1 + (' + n3(c.W) + ' − ' + n3(c.D) + ') ÷ ' + n3(c.S) + ' = ' + aS };
+        } };
+    }
+    var DEPTHS = [0.312, 0.437, 0.550, 0.625, 0.700, 0.850];
+    var MAXES = [0.100, 0.125, 0.150, 0.200, 0.250];
+    var d, mx, raw2;
+    for (var t = 0; t < 40; t++) {
+      d = pick(DEPTHS); mx = pick(MAXES); raw2 = d / mx;
+      if (Math.abs(raw2 - Math.round(raw2)) > 0.05 && raw2 > 1.2 && raw2 < 9) break;
+    }
+    var aP = Math.ceil(raw2);
+    var fl = Math.floor(raw2);
+    return { type: 'num', a: aP, tol: 0.4, unit: 'passes', from: 'Module 7',
+      q: 'A slot needs to end up <span class="num">' + n3(d) + '"</span> deep, at most <span class="num">' + n3(mx) +
+        '"</span> per pass. How many passes?',
+      explain: n3(d) + ' ÷ ' + n3(mx) + ' = ' + (Math.round(raw2 * 100) / 100) + ' → round UP → <span class="num">' + aP + '</span>.',
+      hint: 'Divide the depth by the biggest bite you allow — then remember a partial pass is still a pass you have to make.',
+      steps: '1 · passes = depth ÷ max per pass<br>' +
+        '2 · <span class="num">' + n3(d) + '</span> ÷ <span class="num">' + n3(mx) + '</span> = <span class="num">' + (Math.round(raw2 * 100) / 100) + '</span><br>' +
+        '3 · Round UP → <span class="res">' + aP + ' passes</span>',
+      diagnose: function (v) {
+        if (nr(v, fl)) return { label: 'Rounded DOWN — the part ships shallow',
+          your: fl + ' passes only reaches ' + fmt(fl * mx, 3) + '" — the pocket ends short of the print',
+          right: 'a partial pass is still a pass: round UP to ' + aP };
+        return { label: 'Divide slip',
+          your: v + ' is not depth ÷ max rounded up',
+          right: n3(d) + ' ÷ ' + n3(mx) + ' = ' + (Math.round(raw2 * 100) / 100) + ' → ' + aP };
       } };
   };
 
