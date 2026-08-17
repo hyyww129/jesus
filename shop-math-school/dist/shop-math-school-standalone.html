@@ -1,0 +1,968 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shop Math School</title>
+<style>
+/* Shop Math School — shop-print look, shared by the skill tree and every level. */
+:root {
+  --paper: #F2EFE6;
+  --grid: #E2DECF;
+  --panel: #E9E5D8;
+  --ink: #22201C;
+  --soft: #5C574C;
+  --blue: #1F5FA8;
+  --orange: #E4572E;
+  --green: #58F08A;
+  --dro-bg: #0E1B13;
+  --dro-dim: #3E6B4E;
+  --good-bg: #E4F7EC;
+  --good-bd: #37C871;
+  --bad-bg: #FBE6DF;
+  --line: #CBC6B6;
+  --mono: ui-monospace, "SF Mono", "Cascadia Mono", Consolas, Menlo, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, Arial, sans-serif;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: var(--sans); color: var(--ink); background: var(--paper);
+  background-image:
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 26px 26px;
+  min-height: 100vh;
+  padding: 14px 12px 60px;
+}
+.wrap { max-width: 980px; margin: 0 auto; }
+
+/* header */
+header.bar {
+  border: 2px solid var(--ink); background: var(--paper);
+  box-shadow: 0 0 0 4px var(--paper), 0 0 0 5px var(--ink);
+  padding: 14px 16px; margin-bottom: 16px;
+}
+header.bar .hub-link {
+  float: right; font-family: var(--mono); font-size: 12px; color: var(--blue);
+  text-decoration: underline; display: inline-flex; align-items: center;
+  min-height: 44px; padding: 0 8px; margin: -8px -8px 0 4px;
+}
+.eyebrow {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .16em;
+  color: var(--soft); text-transform: uppercase;
+}
+header.bar h1 { font-size: 21px; font-weight: 800; letter-spacing: -.01em; margin-top: 4px; }
+header.bar h1 .b { color: var(--blue); }
+header.bar .sub { font-size: 13px; color: var(--soft); margin-top: 6px; line-height: 1.5; }
+
+/* rank banner */
+.rankbar {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  border: 1.5px solid var(--ink); background: var(--dro-bg); color: var(--green);
+  font-family: var(--mono); padding: 10px 14px; margin-bottom: 14px;
+}
+.rankbar .rk { font-size: 18px; font-weight: 800; letter-spacing: .06em; }
+.rankbar .ladder { font-size: 11px; color: var(--dro-dim); }
+.rankbar .ladder b { color: var(--green); }
+.rankbar .note { font-size: 11.5px; color: #9fd8ae; font-family: var(--sans); }
+
+/* cards */
+.card { border: 1.5px solid var(--ink); background: #fff; margin-bottom: 14px; }
+.card > h2 {
+  font-family: var(--mono); font-size: 10px; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--soft);
+  padding: 9px 14px; border-bottom: 1.5px solid var(--ink); background: var(--panel);
+}
+.card .body { padding: 14px; }
+.card > h2.with-close { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.card > h2.with-close button { min-height: 44px; padding: 6px 14px; flex-shrink: 0; }
+
+/* DRO readout */
+.dro { background: var(--dro-bg); border-radius: 6px; padding: 14px 16px; font-family: var(--mono); }
+.dro .row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+.dro .ax { color: var(--dro-dim); font-size: 14px; font-weight: 700; letter-spacing: .08em; }
+.dro .val { font-size: 34px; font-weight: 700; letter-spacing: .02em; color: var(--green); overflow-wrap: anywhere; }
+.dro .meaning { color: #9fd8ae; font-size: 12.5px; line-height: 1.5; margin-top: 8px; font-family: var(--sans); }
+
+/* live equation panel */
+.eq {
+  font-family: var(--mono); font-size: 16px; line-height: 1.8;
+  padding: 10px 12px; background: #FAF8F1; border: 1.5px dashed var(--line); border-radius: 5px;
+  overflow-x: auto;
+}
+.eq .lbl {
+  display: block; font-size: 10px; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--soft); margin-bottom: 4px;
+}
+.eq .num { color: var(--blue); font-weight: 700; }
+.eq .res { color: var(--orange); font-weight: 700; }
+.eq .dim { color: var(--soft); }
+
+/* buttons — big tap targets everywhere */
+button, .btn {
+  font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: .04em;
+  color: var(--ink); background: #FAF8F1;
+  border: 1.5px solid var(--ink); border-radius: 5px;
+  min-height: 46px; padding: 10px 16px; cursor: pointer;
+  box-shadow: 0 2px 0 var(--ink);
+  user-select: none; -webkit-user-select: none; touch-action: manipulation;
+}
+button:active, .btn:active { transform: translateY(2px); box-shadow: 0 0 0 var(--ink); }
+button:focus-visible, .btn:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+button.primary { color: #fff; background: var(--blue); border-color: var(--blue); box-shadow: 0 2px 0 #12365f; }
+button.primary:active { box-shadow: 0 0 0 #12365f; }
+button.accent { color: #fff; background: var(--orange); border-color: var(--orange); box-shadow: 0 2px 0 #93331a; }
+button.accent:active { box-shadow: 0 0 0 #93331a; }
+button.on { background: var(--blue); color: #fff; border-color: var(--blue); box-shadow: 0 2px 0 #12365f; }
+button:disabled { opacity: .45; cursor: default; }
+.btnrow { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* the four-part tabs */
+.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px; }
+.tabs button { font-size: 11px; padding: 10px 4px; }
+.tabs button .step-n { display: block; font-size: 9px; letter-spacing: .12em; color: inherit; opacity: .7; }
+
+/* inputs */
+input[type="text"], input[type="number"] {
+  font-family: var(--mono); font-size: 20px; font-weight: 700;
+  min-height: 50px; padding: 8px 12px; width: 100%;
+  border: 1.5px solid var(--ink); border-radius: 5px;
+  background: var(--dro-bg); color: var(--green);
+}
+input[type="range"] { width: 100%; accent-color: var(--blue); min-height: 44px; }
+.slider-row { display: grid; grid-template-columns: 110px 1fr 90px; gap: 10px; align-items: center; margin: 8px 0; }
+.slider-row .name { font-family: var(--mono); font-size: 12px; font-weight: 700; }
+.slider-row .out { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--blue); text-align: right; }
+
+/* game / boss */
+.q-progress { font-family: var(--mono); font-size: 12px; color: var(--soft); margin-bottom: 8px; }
+.q-text { font-size: 17px; line-height: 1.55; margin-bottom: 12px; }
+.q-text .num { font-family: var(--mono); color: var(--blue); font-weight: 700; }
+.choices { display: grid; gap: 8px; }
+.choices button { text-align: left; font-family: var(--mono); font-size: 15px; padding: 12px 14px; }
+.answer-row { display: flex; gap: 8px; align-items: stretch; }
+.answer-row input { flex: 1; }
+.feedback { font-size: 14px; line-height: 1.6; padding: 12px 14px; border-radius: 6px; margin-top: 12px; }
+.feedback.good { background: var(--good-bg); border: 1.5px solid var(--good-bd); }
+.feedback.bad  { background: var(--bad-bg);  border: 1.5px solid var(--orange); }
+.feedback b { display: block; margin-bottom: 4px; }
+.feedback .pts { color: var(--good-bd); font-family: var(--mono); }
+.feedback .num { font-family: var(--mono); color: var(--blue); font-weight: 700; }
+.feedback .diag { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); font-weight: 600; }
+.feedback .res { font-family: var(--mono); color: var(--orange); font-weight: 700; }
+.feedback .pathrow { display: block; font-weight: 400; font-size: 13.5px; margin-top: 5px; }
+.feedback .pathrow .path { font-family: var(--mono); font-weight: 700; }
+.feedback .pathrow.wrong .path { color: var(--orange); }
+.feedback .pathrow.right .path { color: var(--blue); }
+.feedback .steps { display: block; margin-top: 8px; padding: 8px 10px; background: #FAF8F1; border: 1px dashed var(--line); border-radius: 5px; font-family: var(--mono); font-size: 13.5px; line-height: 1.9; }
+.feedback .steps b { font-size: 10px; letter-spacing: .12em; color: var(--soft); }
+.hintbox { margin-top: 10px; padding: 10px 12px; background: #FDF6E3; border: 1.5px dashed var(--orange); border-radius: 6px; font-size: 13.5px; line-height: 1.6; }
+.hintbox b { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--orange); display: block; margin-bottom: 3px; }
+.help-row button { font-size: 12px; min-height: 44px; }
+
+.scorebar {
+  display: flex; gap: 16px; flex-wrap: wrap; font-family: var(--mono); font-size: 12.5px;
+  padding: 9px 14px; border-top: 1.5px solid var(--ink); background: var(--panel); margin-top: 14px;
+}
+.scorebar b { color: var(--blue); }
+.scorebar .right { margin-left: auto; color: var(--soft); }
+.result-banner { text-align: center; padding: 20px 14px; }
+.result-banner .big { font-family: var(--mono); font-size: 42px; font-weight: 800; }
+.result-banner .big.pass { color: var(--good-bd); }
+.result-banner .big.fail { color: var(--orange); }
+.result-banner p { color: var(--soft); font-size: 14px; margin: 8px 0 14px; line-height: 1.5; }
+
+/* skill tree */
+.world { margin-bottom: 18px; }
+.world > h2 {
+  font-family: var(--mono); font-size: 12px; letter-spacing: .14em; color: var(--ink);
+  border-bottom: 2px solid var(--ink); padding-bottom: 6px; margin-bottom: 10px;
+  display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap;
+}
+.world > h2 .tag { font-size: 10.5px; color: var(--soft); letter-spacing: .04em; font-weight: 400; }
+.world > h2 .done { color: var(--good-bd); }
+.lvl-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.lvl-card { border: 1.5px solid var(--ink); background: #fff; display: flex; flex-direction: column; }
+.lvl-card.locked { opacity: .55; background: var(--panel); }
+.lvl-card .top {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 12px; border-bottom: 1px solid var(--line);
+  font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;
+}
+.lvl-card .top .n { color: var(--blue); font-weight: 700; }
+.lvl-card .top .st { color: var(--soft); }
+.lvl-card .top .st.pass { color: var(--good-bd); font-weight: 700; }
+.lvl-card .mid { display: flex; gap: 12px; padding: 11px 12px; align-items: center; flex: 1; }
+.lvl-card h3 { font-size: 14.5px; line-height: 1.3; }
+.lvl-card p { font-size: 12px; color: var(--soft); line-height: 1.5; margin-top: 4px; }
+.lvl-card .ring { flex-shrink: 0; }
+.ring .track { stroke: var(--grid); }
+.ring .arc { stroke: var(--blue); }
+.ring .arc.pass { stroke: var(--good-bd); }
+.ring text { font-family: var(--mono); font-size: 13px; font-weight: 700; fill: var(--ink); }
+.lvl-card .bottom { padding: 9px 12px; border-top: 1px dashed var(--line); }
+.lvl-card .bottom .btn, .lvl-card .bottom button { width: 100%; display: block; text-align: center; text-decoration: none; line-height: 1.6; }
+.lvl-card .lock-note { font-family: var(--mono); font-size: 11px; color: var(--soft); text-align: center; padding: 6px 0; }
+
+/* playground shells */
+.pg-split { display: grid; grid-template-columns: 1fr 340px; gap: 14px; }
+.pg-live { display: grid; gap: 12px; align-content: start; }
+.scrollbox { overflow-x: auto; border: 1.5px solid var(--line); border-radius: 5px; background: #fff; }
+.scrollbox svg { display: block; user-select: none; -webkit-user-select: none; }
+.hint { font-size: 12px; color: var(--soft); line-height: 1.5; margin-top: 8px; font-style: italic; }
+.callout { border-left: 4px solid var(--blue); background: #FAF8F1; padding: 10px 14px; margin: 12px 0; font-size: 14px; line-height: 1.6; }
+.callout.warn { border-left-color: var(--orange); }
+.worked { font-family: var(--mono); font-size: 14.5px; line-height: 2; background: #FAF8F1; border: 1.5px dashed var(--line); padding: 12px 14px; border-radius: 5px; overflow-x: auto; }
+.worked .num { color: var(--blue); font-weight: 700; }
+.worked .res { color: var(--orange); font-weight: 700; }
+
+/* place-value block columns (Level 1 playground) */
+.pv-cols { display: grid; grid-template-columns: 1fr 1fr 1fr 26px 1fr 1fr 1fr; gap: 8px; }
+.pv-col { border: 1.5px solid var(--line); border-radius: 6px; background: #fff; padding: 8px 6px; text-align: center; }
+.pv-col.point { border: none; background: none; display: flex; align-items: flex-end; justify-content: center; font-size: 34px; font-weight: 800; padding-bottom: 18px; }
+.pv-col .seat { font-family: var(--mono); font-size: 9.5px; letter-spacing: .06em; color: var(--soft); text-transform: uppercase; }
+.pv-col .digit { font-family: var(--mono); font-size: 30px; font-weight: 800; color: var(--blue); margin: 2px 0; }
+.pv-col .blocks { display: flex; flex-direction: column-reverse; align-items: center; gap: 2px; min-height: 92px; justify-content: flex-start; margin: 4px 0; }
+.pv-col .blocks i { display: block; width: 26px; height: 8px; background: var(--blue); border-radius: 2px; }
+.pv-col.frac .blocks i { background: var(--orange); }
+.pv-col button { min-height: 44px; width: 100%; padding: 6px 0; font-size: 15px; }
+.pv-col .bs { display: grid; gap: 4px; }
+
+/* prose in explainers */
+.prose { font-size: 15px; line-height: 1.7; }
+.prose p { margin-bottom: 10px; }
+.prose b { color: var(--blue); }
+.prose .term { color: var(--orange); font-weight: 700; }
+
+/* tables */
+table.ref { border-collapse: collapse; font-family: var(--mono); font-size: 13px; width: 100%; }
+table.ref th, table.ref td { border: 1px solid var(--line); padding: 7px 10px; text-align: right; }
+table.ref th { background: var(--panel); text-align: right; font-size: 11px; letter-spacing: .06em; }
+table.ref td:first-child, table.ref th:first-child { text-align: left; }
+
+/* overlay (Daily 10) */
+.overlay {
+  position: fixed; inset: 0; background: rgba(34, 32, 28, .55);
+  display: flex; align-items: flex-start; justify-content: center;
+  padding: 20px 12px; z-index: 50; overflow-y: auto;
+}
+.overlay .panel { background: var(--paper); border: 2px solid var(--ink); max-width: 640px; width: 100%; }
+
+@media (max-width: 760px) {
+  .pg-split { grid-template-columns: 1fr; }
+  .dro .val { font-size: 28px; }
+  .pv-cols { grid-template-columns: 1fr 1fr 1fr 18px 1fr 1fr 1fr; gap: 4px; }
+  .pv-col .blocks i { width: 18px; }
+  .pv-col .digit { font-size: 22px; }
+}
+@media (max-width: 420px) {
+  .tabs { grid-template-columns: repeat(2, 1fr); }
+  header.bar h1 { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <div class="eyebrow">From zero to reading blueprints · 29 levels · 5 worlds</div>
+    <h1>Shop Math <span class="b">School</span></h1>
+    <p class="sub">A complete course, taught like a game: explainer → playground → 10-round game →
+      boss at 90% to unlock the next level. Every number on every screen shows its math moving live.
+      Progress lives in this browser tab only; close the tab and it resets.</p>
+  </header>
+
+  <div class="rankbar" id="rankbar" role="status"></div>
+
+  <div class="card">
+    <h2>Spaced review</h2>
+    <div class="body">
+      <div class="btnrow">
+        <button class="accent" id="dailyBtn">DAILY 10 — mixed review from everything you've beaten</button>
+      </div>
+      <p class="hint" id="dailyHint"></p>
+    </div>
+  </div>
+
+  <div id="tree"></div>
+</div>
+
+<div class="overlay" id="dailyOverlay" style="display:none" role="dialog" aria-modal="true" aria-label="Daily 10">
+  <div class="panel">
+    <div class="card" style="margin:0;border:none">
+      <h2 class="with-close">Daily 10 — spaced review <button id="dailyClose">CLOSE ✕</button></h2>
+      <div class="body" id="dailyBody"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/* Shop Math School — the shared engine.
+   State lives in window.name only (survives navigation and reload in this tab,
+   dies with the tab — scores are memory-only by design). No storage APIs. */
+(function () {
+  "use strict";
+
+  /* ---------------- the course map ---------------- */
+  var WORLDS = [
+    { n: 1, name: 'NUMBER BASICS', tag: 'assume you know nothing — build it all' },
+    { n: 2, name: 'MEASUREMENT', tag: 'rulers, calipers, mics, thousandths' },
+    { n: 3, name: 'ALGEBRA & FORMULAS', tag: 'the shop formulas, plug in and rearrange' },
+    { n: 4, name: 'GEOMETRY & TRIG', tag: 'the geometry the mill runs on' },
+    { n: 5, name: 'BLUEPRINTS & GD&T', tag: 'read the part\'s instruction manual' },
+  ];
+  var LEVELS = [
+    { id: 'l1',  n: 1,  w: 1, title: 'Counting & Place Value', file: 'levels/l01-place-value.html', built: true,
+      desc: 'Ones, tens, hundreds — then tenths, hundredths, thousandths. Every digit has a seat.' },
+    { id: 'l2',  n: 2,  w: 1, title: 'Add & Subtract', file: 'levels/l02-add-subtract.html', built: false,
+      desc: 'Carrying and borrowing you can watch happen. Decimals line up on the point.' },
+    { id: 'l3',  n: 3,  w: 1, title: 'Times Tables & Multiply', file: 'levels/l03-multiply.html', built: false,
+      desc: 'Tables 2–12 as a speed game, then multi-digit multiply as area boxes.' },
+    { id: 'l4',  n: 4,  w: 1, title: 'Division from Zero', file: 'levels/l04-division.html', built: false,
+      desc: 'Division as sharing, then long division digit by digit — 3÷8 becomes 0.375 in front of you.' },
+    { id: 'l5',  n: 5,  w: 1, title: 'Fractions', file: 'levels/l05-fractions.html', built: false,
+      desc: 'What a fraction IS, equivalents, adding halves through sixteenths. Pie and ruler side by side.' },
+    { id: 'l6',  n: 6,  w: 1, title: 'Fractions ↔ Decimals', file: 'levels/l06-frac-decimals.html', built: false,
+      desc: 'Every 64th, with the machinist landmarks: .125, .250, .375, .500, .625, .750, .875.' },
+    { id: 'l7',  n: 7,  w: 1, title: 'Negative Numbers', file: 'levels/l07-negatives.html', built: false,
+      desc: 'The number line, why left/down is minus, adding signed numbers. Predict the crane.' },
+    { id: 'l8',  n: 8,  w: 1, title: 'Percents & Ratios', file: 'levels/l08-percents.html', built: false,
+      desc: 'Percent as per-hundred, finding 10% fast, scaling a feed by a ratio.' },
+    { id: 'l9',  n: 9,  w: 2, title: 'Reading a Ruler', file: 'levels/l09-ruler.html', built: false,
+      desc: 'Inches to 1/16 and 1/32 on a zoomable ruler. Find 2-5/16 against the clock.' },
+    { id: 'l10', n: 10, w: 2, title: 'Thousandths Thinking', file: 'levels/l10-thousandths.html', built: false,
+      desc: 'A thou (.001), a shop tenth (.0001), saying sizes out loud — "three seventy-five".' },
+    { id: 'l11', n: 11, w: 2, title: 'Calipers', file: 'levels/l11-calipers.html', built: false,
+      desc: 'Read digital and dial caliper simulations to .001.' },
+    { id: 'l12', n: 12, w: 2, title: 'Micrometers', file: 'levels/l12-micrometers.html', built: false,
+      desc: 'Barrel + thimble to .0001, vernier tenths included.' },
+    { id: 'l13', n: 13, w: 2, title: 'Metric ↔ Inch', file: 'levels/l13-metric.html', built: false,
+      desc: 'mm to inches (÷25.4) and back, and when each shows up.' },
+    { id: 'l14', n: 14, w: 3, title: 'Using a Formula', file: 'levels/l14-formulas.html', built: false,
+      desc: 'What a variable is. Plug numbers into a recipe, solve for the one unknown.' },
+    { id: 'l15', n: 15, w: 3, title: 'Rearranging', file: 'levels/l15-rearranging.html', built: false,
+      desc: 'Move one thing across the equals sign. Solve for the red letter.' },
+    { id: 'l16', n: 16, w: 3, title: 'RPM & Cutting Speed', file: 'levels/l16-rpm.html', built: false,
+      desc: 'RPM = SFM × 3.82 ÷ D with a spindle that visibly spins. Capped at 4200.' },
+    { id: 'l17', n: 17, w: 3, title: 'Feed Rate', file: 'levels/l17-feed.html', built: false,
+      desc: 'IPM = RPM × flutes × chip load, live, with the starter table.' },
+    { id: 'l18', n: 18, w: 3, title: 'Depth & Passes', file: 'levels/l18-depth.html', built: false,
+      desc: 'Depth ÷ per-pass, peck drilling, stepover — watch the passes draw themselves.' },
+    { id: 'l19', n: 19, w: 4, title: 'Shapes & Angles', file: 'levels/l19-angles.html', built: false,
+      desc: 'Degrees, right angles, complementary/supplementary, triangles sum to 180.' },
+    { id: 'l20', n: 20, w: 4, title: 'Perimeter, Area, Circles', file: 'levels/l20-area-circles.html', built: false,
+      desc: 'Rectangle and circle area, circumference = πD — where the 3.82 comes from.' },
+    { id: 'l21', n: 21, w: 4, title: 'Pythagoras', file: 'levels/l21-pythagoras.html', built: false,
+      desc: 'a² + b² = c². Drag the corners, watch the equation live.' },
+    { id: 'l22', n: 22, w: 4, title: 'Right-Triangle Trig', file: 'levels/l22-trig.html', built: false,
+      desc: 'SOH-CAH-TOA with a unit-circle animation. Angle + distance → X and Y.' },
+    { id: 'l23', n: 23, w: 4, title: 'Bolt-Hole Circles', file: 'levels/l23-bolt-circles.html', built: false,
+      desc: 'X = Xc + R·cos θ, Y = Yc + R·sin θ. Place the holes before the machine does.' },
+    { id: 'l24', n: 24, w: 5, title: 'Blueprint Basics', file: 'levels/l24-blueprint-basics.html', built: false,
+      desc: 'Title block, views, line types, scale — what each line on the page means.' },
+    { id: 'l25', n: 25, w: 5, title: 'Dimensions & Callouts', file: 'levels/l25-dimensions.html', built: false,
+      desc: 'Dimension lines, Ø vs R, hole callouts, THRU vs depth.' },
+    { id: 'l26', n: 26, w: 5, title: 'Tolerances', file: 'levels/l26-tolerances.html', built: false,
+      desc: 'Nominal ± tolerance, limits, MAX and MIN material. Accept / rework / scrap.' },
+    { id: 'l27', n: 27, w: 5, title: 'Intro to GD&T', file: 'levels/l27-gdt-intro.html', built: false,
+      desc: 'Feature control frames, datums, and the big symbols — each with a pass part and a fail part.' },
+    { id: 'l28', n: 28, w: 5, title: 'Position Tolerance Deep-Dive', file: 'levels/l28-position.html', built: false,
+      desc: 'True position, round zones vs square, bonus tolerance at MMC kept simple.' },
+    { id: 'l29', n: 29, w: 5, title: 'FINAL BOSS: Read a Real Print', file: 'levels/l29-final-print.html', built: false,
+      desc: 'A complete blueprint — views, holes, a bolt circle, tolerances, GD&T. Pass it: Toolmaker.' },
+  ];
+  var RANKS = ['Apprentice', 'Operator', 'Setup', 'Machinist', 'Toolmaker'];
+
+  /* ---------------- state (window.name) ---------------- */
+  function loadState() {
+    try {
+      var s = JSON.parse(window.name || '');
+      if (s && s.__sms === 1 && s.lv) return s;
+    } catch (e) { /* fresh tab */ }
+    return { __sms: 1, lv: {} };
+  }
+  var state = loadState();
+  function save() { window.name = JSON.stringify(state); }
+  function rec(id) {
+    if (!state.lv[id]) state.lv[id] = { passed: false, best: 0, attempts: 0, confidence: 0, bestStreak: 0, points: 0 };
+    if (state.lv[id].bestStreak === undefined) state.lv[id].bestStreak = 0;
+    if (state.lv[id].points === undefined) state.lv[id].points = 0;
+    return state.lv[id];
+  }
+  function recordBoss(id, pct) {
+    var r = rec(id);
+    r.attempts += 1;
+    if (pct > r.best) r.best = pct;
+    if (pct >= 90) r.passed = true;
+    r.confidence = Math.max(r.confidence, pct);
+    save();
+  }
+  function recordGame(id, points, streak) {
+    var r = rec(id);
+    if (points > r.points) r.points = points;
+    if (streak > r.bestStreak) r.bestStreak = streak;
+    save();
+  }
+  function nudge(id, ok) {
+    var r = rec(id);
+    r.confidence = Math.max(0, Math.min(100, r.confidence + (ok ? 1 : -2)));
+    save();
+  }
+  function levelIndex(id) {
+    for (var i = 0; i < LEVELS.length; i++) if (LEVELS[i].id === id) return i;
+    return -1;
+  }
+  function isUnlocked(id) {
+    var i = levelIndex(id);
+    if (i <= 0) return true;
+    return rec(LEVELS[i - 1].id).passed;
+  }
+  function worldComplete(w) {
+    for (var i = 0; i < LEVELS.length; i++) {
+      if (LEVELS[i].w === w && !rec(LEVELS[i].id).passed) return false;
+    }
+    return true;
+  }
+  function rankInfo() {
+    var done = 0;
+    for (var w = 1; w <= 5; w++) { if (worldComplete(w)) done++; else break; }
+    var idx = done >= 5 ? 4 : Math.min(done, 3);
+    var passedCount = 0;
+    for (var i = 0; i < LEVELS.length; i++) if (rec(LEVELS[i].id).passed) passedCount++;
+    return { rank: RANKS[idx], idx: idx, worldsDone: done, passed: passedCount,
+      next: idx < 4 ? RANKS[idx + 1] : null };
+  }
+
+  /* ---------------- small helpers ---------------- */
+  function fmt(v, places) { return Number(v).toFixed(places === undefined ? 3 : places); }
+  function fmtExact(v, min) {
+    var s = String(Math.round(v * 1e6) / 1e6);
+    if (min) {
+      var dp = (s.split('.')[1] || '').length;
+      if (dp < min) s = Number(v).toFixed(min);
+    }
+    return s;
+  }
+  function parseNum(raw) {
+    if (raw === undefined || raw === null) return NaN;
+    raw = String(raw).trim().replace(/["\s,]/g, '').replace(/−/g, '-');
+    if (raw === '') return NaN;
+    var m = raw.match(/^(-?\d+)\s*\/\s*(\d+)$/);
+    if (m) return Number(m[1]) / Number(m[2]);
+    return parseFloat(raw);
+  }
+  function shuffle(a) {
+    a = a.slice();
+    for (var i = a.length - 1; i > 0; i--) {
+      var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function pick(a) { return a[Math.floor(Math.random() * a.length)]; }
+  function esc(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+
+  /* number words — used for the plain-English meaning lines */
+  function intWords(n) {
+    n = Math.round(Math.abs(n));
+    var ones = ['zero','one','two','three','four','five','six','seven','eight','nine','ten',
+      'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];
+    var tens = ['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];
+    if (n < 20) return ones[n];
+    if (n < 100) return tens[Math.floor(n / 10)] + (n % 10 ? '-' + ones[n % 10] : '');
+    if (n < 1000) return ones[Math.floor(n / 100)] + ' hundred' + (n % 100 ? ' ' + intWords(n % 100) : '');
+    return intWords(Math.floor(n / 1000)) + ' thousand' + (n % 1000 ? ' ' + intWords(n % 1000) : '');
+  }
+  /* say a decimal the place-value way: 357.25 -> "three hundred fifty-seven and twenty-five hundredths" */
+  function placeWords(v, decPlaces) {
+    var neg = v < 0; v = Math.abs(v);
+    var s = decPlaces === undefined ? String(v) : v.toFixed(decPlaces);
+    var parts = s.split('.');
+    var ip = parseInt(parts[0], 10) || 0;
+    var dp = parts[1] || '';
+    if (decPlaces === undefined) dp = dp.replace(/0+$/, '');
+    var out = intWords(ip);
+    if (dp && dp.length && parseInt(dp, 10) > 0) {
+      var names = { 1: 'tenth', 2: 'hundredth', 3: 'thousandth' };
+      var unit = names[dp.length] || 'part';
+      var dn = parseInt(dp, 10);
+      var frag = intWords(dn) + ' ' + unit + (dn === 1 ? '' : 's');
+      out = ip === 0 ? frag : out + ' and ' + frag;
+    }
+    return (neg ? 'minus ' : '') + out;
+  }
+
+  /* ---------------- DRO panel ---------------- */
+  function dro(el, axisLabel) {
+    el.classList.add('dro');
+    el.innerHTML = '<div class="row"><span class="ax">' + esc(axisLabel || '') +
+      '</span><span class="val"></span></div><div class="meaning"></div>';
+    var val = el.querySelector('.val'), mean = el.querySelector('.meaning');
+    return { set: function (v, meaningHTML) { val.textContent = v; mean.innerHTML = meaningHTML || ''; } };
+  }
+
+  /* ---------------- the game runner ----------------
+     runGame(container, {mode:'game'|'boss'|'daily', questions, title, passPct,
+                         levelId, onFinish, onAnswer})
+     Question contract: {q (HTML), type:'num'|'mc', a, tol, choices, explain,
+       hint, steps, diagnose(v)->{label,your,right}|string|null, unit, from, kind}
+     Scoring: +10 first-try correct, +5 bonus while streak >= 3. Streaks and best
+     streak show live. Wrong answers diagnose the mistake and (game/daily only)
+     offer TRY IT AGAIN — retries teach but never score. */
+  function runGame(container, opts) {
+    var qs = opts.questions;
+    var isBoss = opts.mode === 'boss';
+    var i = 0, correct = 0, points = 0, streak = 0, bestStreak = 0;
+
+    qs.forEach(function (q) {
+      if (q.type === 'mc') q.order = shuffle(q.choices.map(function (_, k) { return k; }));
+    });
+
+    function scorebarHTML() {
+      return '<div class="scorebar"><span>POINTS <b>' + points + '</b></span>' +
+        '<span>STREAK <b>' + streak + '</b>' + (streak >= 3 ? ' 🔥' : '') + '</span>' +
+        '<span>BEST <b>' + bestStreak + '</b></span>' +
+        '<span class="right">' + correct + ' / ' + i + ' right</span></div>';
+    }
+
+    function render() {
+      if (i >= qs.length) return renderEnd();
+      var q = qs[i];
+      var h = '<div class="q-progress">' + esc(opts.title || (isBoss ? 'BOSS' : 'GAME')) +
+        ' — ROUND ' + (i + 1) + ' / ' + qs.length +
+        (q.from ? ' · from ' + esc(q.from) : '') + '</div>' +
+        '<div class="q-text">' + q.q + '</div>';
+      if (q.type === 'mc') {
+        h += '<div class="choices">' + q.order.map(function (ci, k) {
+          return '<button data-k="' + k + '">' + String.fromCharCode(65 + k) + ' · ' + q.choices[ci] + '</button>';
+        }).join('') + '</div>';
+      } else {
+        h += '<div class="answer-row"><input type="text" inputmode="decimal" autocomplete="off" ' +
+          'placeholder="' + esc(q.unit ? 'answer in ' + q.unit : 'type your answer') + '" aria-label="answer">' +
+          '<button class="primary" data-go>CHECK</button></div>';
+      }
+      if (!isBoss) {
+        h += '<div class="btnrow help-row" style="margin-top:10px">' +
+          (q.hint ? '<button data-hint>💡 WHERE DO I START?</button>' : '') +
+          '</div><div class="hint-slot"></div>';
+      }
+      h += '<div class="fb-slot"></div>';
+      if (!isBoss) h += scorebarHTML();
+      container.innerHTML = h;
+
+      if (q.type === 'mc') {
+        container.querySelectorAll('.choices button').forEach(function (b) {
+          b.addEventListener('click', function () { answerMC(q, Number(b.dataset.k), b); });
+        });
+        container.querySelector('.choices button').focus();
+      } else {
+        var input = container.querySelector('input');
+        var go = function () { answerNum(q, input.value); };
+        container.querySelector('[data-go]').addEventListener('click', go);
+        input.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });
+        input.focus();
+      }
+      var hb = container.querySelector('[data-hint]');
+      if (hb) hb.addEventListener('click', function () {
+        container.querySelector('.hint-slot').innerHTML =
+          '<div class="hintbox"><b>WHERE TO START</b> ' + q.hint + '</div>';
+        hb.disabled = true;
+      });
+    }
+
+    function answerMC(q, k, btn) {
+      var chosen = q.order[k];
+      var ok = chosen === q.a;
+      btn.style.background = ok ? 'var(--good-bd)' : 'var(--orange)';
+      btn.style.color = '#fff';
+      var diag = (!ok && q.diagnose) ? q.diagnose(chosen) : null;
+      finish(q, ok, String(q.choices[chosen]).replace(/<[^>]*>/g, ''), diag);
+    }
+    function answerNum(q, raw) {
+      var v = parseNum(raw);
+      if (isNaN(v)) {
+        container.querySelector('.fb-slot').innerHTML =
+          '<div class="feedback bad"><b>Type a number.</b> Decimals like 0.375 work; use a leading − for negatives.</div>';
+        return;
+      }
+      var ok = Math.abs(v - q.a) <= (q.tol === undefined ? 0.0005 : q.tol);
+      var diag = (!ok && q.diagnose) ? q.diagnose(v) : null;
+      finish(q, ok, fmtExact(v), diag);
+    }
+
+    function finish(q, ok, shown, diag) {
+      var first = !q._attempted;
+      q._attempted = true;
+      if (first) {
+        i += 1;
+        if (ok) {
+          correct += 1;
+          streak += 1;
+          if (streak > bestStreak) bestStreak = streak;
+          var gain = 10 + (streak >= 3 ? 5 : 0);
+          points += gain;
+          q._gain = gain;
+        } else {
+          streak = 0;
+        }
+        if (opts.onAnswer) opts.onAnswer(q, ok);
+      }
+      showFeedback(q, ok, shown, diag, !first);
+    }
+
+    function showFeedback(q, ok, shown, diag, wasRetry) {
+      container.querySelectorAll('.choices button, .answer-row input, .answer-row button, [data-hint]')
+        .forEach(function (el) { el.disabled = true; });
+      var slot = container.querySelector('.fb-slot');
+      var h;
+      if (ok) {
+        h = '<div class="feedback good"><b>' + (wasRetry ? 'Got it on the retry — that counts where it matters.' :
+          'Nailed it.' + (q._gain ? ' <span class="pts">+' + q._gain + (q._gain > 10 ? ' 🔥 streak bonus' : '') + '</span>' : '')) + '</b>' +
+          (q.explain || '') + '</div>';
+      } else {
+        var diagHtml = '';
+        if (diag) {
+          if (typeof diag === 'string') diagHtml = '<span class="diag">' + diag + '</span>';
+          else diagHtml = '<span class="diag">' + esc(diag.label) + '.' +
+            '<span class="pathrow wrong">Where your number probably came from: <span class="path">' + diag.your + '</span></span>' +
+            '<span class="pathrow right">The right path: <span class="path">' + diag.right + '</span></span></span>';
+        }
+        h = '<div class="feedback bad"><b>Not this time. You answered ' + esc(shown) + '.</b>' +
+          (q.explain || '') + diagHtml +
+          (q.steps ? '<span class="steps"><b>THE WHOLE PATH</b>' + q.steps + '</span>' : '') +
+          '</div>';
+      }
+      h += '<div class="btnrow" style="margin-top:10px">' +
+        (!ok && !isBoss && !wasRetry ? '<button data-retry>TRY IT AGAIN</button>' : '') +
+        '<button class="primary" data-next>' + (i >= qs.length ? 'FINISH' : 'NEXT ROUND →') + '</button></div>';
+      slot.innerHTML = h;
+      var bar = container.querySelector('.scorebar');
+      if (bar) bar.outerHTML = scorebarHTML();
+      var rb = slot.querySelector('[data-retry]');
+      if (rb) rb.addEventListener('click', function () {
+        container.querySelectorAll('.choices button, .answer-row input, .answer-row button')
+          .forEach(function (el) {
+            el.disabled = false;
+            el.style.background = ''; el.style.color = '';
+          });
+        var input = container.querySelector('.answer-row input');
+        if (input) { input.value = ''; input.focus(); }
+        slot.innerHTML = '';
+      });
+      slot.querySelector('[data-next]').addEventListener('click', render);
+      slot.querySelector('[data-next]').focus();
+    }
+
+    function renderEnd() {
+      var pct = Math.round(correct / qs.length * 100);
+      var passPct = opts.passPct || 90;
+      var passed = pct >= passPct;
+      var h = '<div class="result-banner">' +
+        '<div class="big ' + (isBoss ? (passed ? 'pass' : 'fail') : 'pass') + '">' + correct + ' / ' + qs.length + '</div>' +
+        (isBoss
+          ? '<p>' + (passed ? 'BOSS DOWN — ' + pct + '%. The next level is yours.' :
+              pct + '%. The boss wants ' + passPct + '%. Replay the game, then come back — bosses fall on the second try all the time.') + '</p>'
+          : opts.mode === 'daily'
+            ? '<p>' + points + ' points · best streak ' + bestStreak + '. Review done — same time tomorrow.</p>'
+            : '<p>' + points + ' points · best streak ' + bestStreak +
+              '. The boss round is where it counts — hit it when this feels easy.</p>') +
+        '</div>';
+      container.innerHTML = h;
+      if (opts.levelId && !isBoss) recordGame(opts.levelId, points, bestStreak);
+      if (opts.onFinish) opts.onFinish(pct, points, bestStreak);
+    }
+
+    render();
+  }
+
+  /* ---------------- Daily 10 banks ---------------- */
+  var BANKS = {};
+
+  BANKS.l1 = function () {
+    var kind = pick(['digitWorth', 'digitWorth', 'assemble', 'compare']);
+    if (kind === 'digitWorth') {
+      var seats = [[100, 'hundreds'], [10, 'tens'], [1, 'ones'], [0.1, 'tenths'], [0.01, 'hundredths']];
+      var si = Math.floor(Math.random() * seats.length);
+      var d = 1 + Math.floor(Math.random() * 9);
+      var digits = [1 + Math.floor(Math.random() * 9), Math.floor(Math.random() * 10),
+        Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10)];
+      digits[si] = d;
+      for (var k2 = 0; k2 < 5; k2++) if (k2 !== si && digits[k2] === d) digits[k2] = (d + 1 + k2) % 10;
+      var num = digits[0] * 100 + digits[1] * 10 + digits[2] + digits[3] * 0.1 + digits[4] * 0.01;
+      var numStr = digits[0] + '' + digits[1] + '' + digits[2] + '.' + digits[3] + '' + digits[4];
+      var a = Math.round(d * seats[si][0] * 100) / 100;
+      return { type: 'num', a: a, tol: 0.0005, from: 'Level 1',
+        q: 'In <span class="num">' + numStr + '</span>, what is the <span class="num">' + d + '</span> actually worth?',
+        explain: 'The ' + d + ' sits in the ' + seats[si][1] + ' seat: ' + d + ' × ' + seats[si][0] +
+          ' = <span class="num">' + fmtExact(a) + '</span>.',
+        hint: 'Find which SEAT the digit sits in (count from the decimal point). The seat is a multiplier: digit × seat value.',
+        steps: '1 · Locate the digit\'s seat: ' + seats[si][1] + '<br>' +
+          '2 · Worth = digit × seat = <span class="num">' + d + '</span> × <span class="num">' + seats[si][0] +
+          '</span> = <span class="res">' + fmtExact(a) + '</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - d) < 0.0005 && seats[si][0] !== 1) return { label: 'Face value only',
+            your: 'you read the digit ' + d + ' by itself — but its seat multiplies it',
+            right: d + ' × ' + seats[si][0] + ' = ' + fmtExact(a) };
+          if (Math.abs(v - a * 10) < 0.005 || Math.abs(v - a / 10) < 0.005) return { label: 'One seat over',
+            your: 'right digit, neighboring seat: ' + fmtExact(v),
+            right: 'the ' + d + ' is in the ' + seats[si][1] + ' seat → ' + fmtExact(a) };
+          return { label: 'Seat slip',
+            your: fmtExact(v) + ' is not digit × seat',
+            right: d + ' × ' + seats[si][0] + ' = ' + fmtExact(a) };
+        } };
+    }
+    if (kind === 'assemble') {
+      var h2 = 1 + Math.floor(Math.random() * 9), t2 = Math.floor(Math.random() * 10),
+        o2 = Math.floor(Math.random() * 10), te2 = Math.floor(Math.random() * 10);
+      var a2 = Math.round((h2 * 100 + t2 * 10 + o2 + te2 * 0.1) * 10) / 10;
+      return { type: 'num', a: a2, tol: 0.0005, from: 'Level 1',
+        q: '<span class="num">' + h2 + '</span> hundreds + <span class="num">' + t2 + '</span> tens + ' +
+          '<span class="num">' + o2 + '</span> ones + <span class="num">' + te2 + '</span> tenths = ?',
+        explain: h2 + '×100 + ' + t2 + '×10 + ' + o2 + '×1 + ' + te2 + '×0.1 = <span class="num">' + fmtExact(a2) + '</span>.',
+        hint: 'Give every count its seat and add: hundreds ×100, tens ×10, ones ×1, tenths ×0.1. Zeros still hold their seat.',
+        steps: '1 · ' + h2 + '×100 = ' + h2 * 100 + ' · ' + t2 + '×10 = ' + t2 * 10 + ' · ' + o2 + '×1 = ' + o2 +
+          ' · ' + te2 + '×0.1 = ' + fmtExact(te2 * 0.1) + '<br>2 · Add: <span class="res">' + fmtExact(a2) + '</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - (h2 * 100 + t2 * 10 + o2 + te2 * 0.01)) < 0.0005 && te2 !== 0) return { label: 'Tenths landed in the hundredths seat',
+            your: fmtExact(v) + ' put the ' + te2 + ' two seats right of the point',
+            right: te2 + ' TENTHS = ' + te2 + ' × 0.1 = ' + fmtExact(te2 * 0.1) };
+          if (Math.abs(v - parseFloat('' + h2 + t2 + o2 + te2)) < 0.5) return { label: 'Digits glued together',
+            your: 'you strung the counts into ' + h2 + '' + t2 + '' + o2 + '' + te2 + ' — the decimal point vanished',
+            right: 'the tenths live RIGHT of the point: ' + fmtExact(a2) };
+          return { label: 'Seat slip',
+            your: fmtExact(v) + ' is not the sum of digit × seat',
+            right: h2 + '×100 + ' + t2 + '×10 + ' + o2 + ' + ' + te2 + '×0.1 = ' + fmtExact(a2) };
+        } };
+    }
+    var pairs = [['0.5', '0.375'], ['0.25', '0.3'], ['0.75', '0.8'], ['0.625', '0.7'], ['0.4', '0.125'], ['0.05', '0.2']];
+    var p2 = pick(pairs);
+    var bigger = parseFloat(p2[0]) > parseFloat(p2[1]) ? 0 : 1;
+    return { type: 'mc', a: bigger, choices: [p2[0], p2[1]], from: 'Level 1',
+      q: 'Which number is <b>larger</b>?',
+      explain: 'Pad to the same length and compare seat by seat: ' +
+        p2[0] + ' vs ' + p2[1] + ' → <span class="num">' + p2[bigger] + '</span> wins. More digits does NOT mean bigger.',
+      hint: 'Give both numbers the same number of decimal places by padding zeros (0.5 → 0.500). Then compare left to right, seat by seat.',
+      steps: '1 · Pad: ' + Number(p2[0]).toFixed(3) + ' vs ' + Number(p2[1]).toFixed(3) + '<br>' +
+        '2 · Compare the tenths seat first, then hundredths<br>' +
+        '3 · <span class="res">' + p2[bigger] + '</span> is larger',
+      diagnose: function () {
+        return { label: 'Longer looked larger',
+          your: 'the number with more digits FEELS bigger — but extra decimal places are smaller and smaller pieces',
+          right: 'pad and compare seats: ' + Number(p2[0]).toFixed(3) + ' vs ' + Number(p2[1]).toFixed(3) + ' → ' + p2[bigger] };
+      } };
+  };
+
+  function daily10Questions() {
+    var eligible = LEVELS.filter(function (l) { return l.built && rec(l.id).passed && BANKS[l.id]; });
+    if (!eligible.length) {
+      eligible = LEVELS.filter(function (l) { return l.built && isUnlocked(l.id) && BANKS[l.id]; });
+    }
+    if (!eligible.length) return [];
+    var qs = [];
+    for (var k = 0; k < 10; k++) {
+      var l = eligible[k % eligible.length];
+      var q = BANKS[l.id]();
+      q.levelId = l.id;
+      qs.push(q);
+    }
+    return shuffle(qs);
+  }
+
+  /* ---------------- level page chrome ---------------- */
+  function levelPage(id, parts) {
+    var lvl = LEVELS[levelIndex(id)];
+    var root = document.getElementById('sms-root');
+    var TABS = [['1', 'EXPLAINER'], ['2', 'PLAYGROUND'], ['3', 'GAME'], ['4', 'BOSS']];
+    root.innerHTML =
+      '<div class="tabs">' + TABS.map(function (t, k) {
+        return '<button data-tab="' + k + '" class="' + (k === 0 ? 'on' : '') + '">' +
+          '<span class="step-n">PART ' + t[0] + '</span>' + t[1] + '</button>';
+      }).join('') + '</div>' +
+      '<div id="tab-panes"></div>';
+    var panes = root.querySelector('#tab-panes');
+    var current = -1;
+
+    function open(k) {
+      if (k === current) return;
+      current = k;
+      root.querySelectorAll('.tabs button').forEach(function (b, j) {
+        b.classList.toggle('on', j === k);
+      });
+      panes.innerHTML = '';
+      if (k === 0) { panes.innerHTML = parts.explainer; }
+      if (k === 1) { parts.playground(panes); }
+      if (k === 2) {
+        var c = document.createElement('div');
+        c.className = 'card';
+        c.innerHTML = '<h2>Game — 10 rounds · points and streaks · mistakes get named</h2><div class="body"></div>';
+        panes.appendChild(c);
+        runGame(c.querySelector('.body'), {
+          mode: 'game', title: 'GAME', levelId: id, questions: parts.gameQs(),
+        });
+      }
+      if (k === 3) {
+        var c2 = document.createElement('div');
+        c2.className = 'card';
+        c2.innerHTML = '<h2>Boss round — 90% unlocks the next level · no hints, no retries</h2><div class="body"></div>';
+        panes.appendChild(c2);
+        runGame(c2.querySelector('.body'), {
+          mode: 'boss', title: 'BOSS', questions: parts.bossQs(), passPct: 90,
+          onFinish: function (pct) {
+            recordBoss(id, pct);
+            var r = rec(id);
+            var next = LEVELS[levelIndex(id) + 1];
+            var extra = document.createElement('div');
+            extra.className = 'callout' + (pct >= 90 ? '' : ' warn');
+            extra.innerHTML = pct >= 90
+              ? '<b>Level ' + lvl.n + ' beaten.</b> ' +
+                (next ? (next.built ? 'Level ' + next.n + ' — ' + esc(next.title) + ' — is unlocked on the skill tree.'
+                                    : 'Level ' + next.n + ' is unlocked. It gets built next — go say the word.')
+                      : 'That was the last level. Toolmaker.') +
+                ' Best: ' + r.best + '%. <a href="../index.html">Back to the skill tree →</a>'
+              : 'Best so far: ' + r.best + '%. Scores only go up — replay the game, then hit the boss again. ' +
+                '<a href="../index.html">Skill tree →</a>';
+            c2.querySelector('.body').appendChild(extra);
+          },
+        });
+      }
+    }
+    root.querySelectorAll('.tabs button').forEach(function (b) {
+      b.addEventListener('click', function () { open(Number(b.dataset.tab)); });
+    });
+    open(0);
+    return { open: open };
+  }
+
+  /* ---------------- export ---------------- */
+  window.SMS = {
+    WORLDS: WORLDS, LEVELS: LEVELS, RANKS: RANKS, BANKS: BANKS,
+    state: state, save: save, rec: rec,
+    recordBoss: recordBoss, recordGame: recordGame, nudge: nudge,
+    isUnlocked: isUnlocked, worldComplete: worldComplete, rankInfo: rankInfo,
+    fmt: fmt, fmtExact: fmtExact, parseNum: parseNum,
+    shuffle: shuffle, pick: pick, esc: esc,
+    intWords: intWords, placeWords: placeWords,
+    dro: dro, runGame: runGame, daily10Questions: daily10Questions,
+    levelPage: levelPage,
+  };
+})();
+
+</script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  function ring(pct) {
+    var r = 24, c = 2 * Math.PI * r, off = c * (1 - pct / 100);
+    return '<svg class="ring" width="62" height="62" viewBox="0 0 62 62" aria-label="confidence ' + pct + '%">' +
+      '<circle class="track" cx="31" cy="31" r="' + r + '" fill="none" stroke-width="6"/>' +
+      '<circle class="arc' + (pct >= 90 ? ' pass' : '') + '" cx="31" cy="31" r="' + r + '" fill="none" stroke-width="6" ' +
+      'stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" ' +
+      'stroke-linecap="butt" transform="rotate(-90 31 31)"/>' +
+      '<text x="31" y="36" text-anchor="middle">' + pct + '%</text></svg>';
+  }
+
+  function drawRank() {
+    var ri = S.rankInfo();
+    var ladder = S.RANKS.map(function (r, k) {
+      return k === ri.idx ? '<b>' + r.toUpperCase() + '</b>' : r;
+    }).join(' → ');
+    document.getElementById('rankbar').innerHTML =
+      '<span class="rk">RANK: ' + ri.rank.toUpperCase() + '</span>' +
+      '<span class="ladder">' + ladder + '</span>' +
+      '<span class="note">' + ri.passed + ' of 29 levels beaten' +
+      (ri.next ? ' · finish World ' + (ri.worldsDone + 1) + ' to make ' + ri.next : ' · the whole trade, beaten') + '</span>';
+  }
+
+  function drawTree() {
+    var tree = document.getElementById('tree');
+    tree.innerHTML = S.WORLDS.map(function (w) {
+      var levels = S.LEVELS.filter(function (l) { return l.w === w.n; });
+      var done = S.worldComplete(w.n);
+      var cards = levels.map(function (l) {
+        var r = S.rec(l.id);
+        var unlocked = S.isUnlocked(l.id);
+        var status = r.passed ? 'BEATEN ✓ ' + r.best + '%'
+          : unlocked ? (r.attempts ? 'BEST ' + r.best + '%' : 'READY')
+          : 'LOCKED';
+        var bottom;
+        if (!unlocked) {
+          bottom = '<div class="lock-note">beat Level ' + (l.n - 1) + ' to unlock</div>';
+        } else if (!l.built) {
+          bottom = '<div class="lock-note">unlocked — this level gets built next; say the word</div>';
+        } else {
+          bottom = '<a class="btn ' + (r.passed ? '' : 'primary') + '" href="' + l.file + '">' +
+            (r.passed ? 'REPLAY' : r.attempts ? 'CONTINUE' : 'START') + '</a>';
+        }
+        return '<div class="lvl-card' + (unlocked ? '' : ' locked') + '">' +
+          '<div class="top"><span class="n">LEVEL ' + String(l.n).padStart(2, '0') + '</span>' +
+          '<span class="st' + (r.passed ? ' pass' : '') + '">' + status + '</span></div>' +
+          '<div class="mid">' + ring(Math.round(r.confidence)) +
+          '<div><h3>' + l.title + '</h3><p>' + l.desc + '</p></div></div>' +
+          '<div class="bottom">' + bottom + '</div></div>';
+      }).join('');
+      return '<div class="world"><h2><span>WORLD ' + w.n + ' — ' + w.name +
+        (done ? ' <span class="done">✓ COMPLETE</span>' : '') + '</span>' +
+        '<span class="tag">' + w.tag + '</span></h2>' +
+        '<div class="lvl-grid">' + cards + '</div></div>';
+    }).join('');
+
+    var pool = S.LEVELS.filter(function (l) { return l.built && S.rec(l.id).passed && S.BANKS[l.id]; });
+    document.getElementById('dailyHint').textContent = pool.length
+      ? 'Pulls from: ' + pool.map(function (l) { return 'Level ' + l.n; }).join(', ') +
+        '. Right answers nudge confidence up 1%, misses pull it down 2%.'
+      : 'Beat Level 1\'s boss first — then Daily 10 keeps everything you\'ve learned warm.';
+  }
+
+  var overlay = document.getElementById('dailyOverlay');
+  document.getElementById('dailyBtn').addEventListener('click', function () {
+    var qs = S.daily10Questions();
+    if (!qs.length) return;
+    overlay.style.display = 'flex';
+    S.runGame(document.getElementById('dailyBody'), {
+      mode: 'daily', title: 'DAILY 10', questions: qs,
+      onAnswer: function (q, ok) { if (q.levelId) S.nudge(q.levelId, ok); },
+      onFinish: function () { drawTree(); drawRank(); },
+    });
+  });
+  document.getElementById('dailyClose').addEventListener('click', function () {
+    overlay.style.display = 'none';
+    drawTree(); drawRank();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && overlay.style.display === 'flex') {
+      overlay.style.display = 'none';
+      drawTree(); drawRank();
+    }
+  });
+
+  drawRank();
+  drawTree();
+})();
+</script>
+
+<script>
+(function () {
+  var DOCS = {
+"levels/l01-place-value.html": "\u003c!DOCTYPE html>\n\u003chtml lang=\"en\">\n\u003chead>\n\u003cmeta charset=\"UTF-8\">\n\u003cmeta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">\n\u003ctitle>Level 1 · Counting &amp; Place Value\u003c/title>\n\u003cstyle>\n/* Shop Math School — shop-print look, shared by the skill tree and every level. */\n:root {\n  --paper: #F2EFE6;\n  --grid: #E2DECF;\n  --panel: #E9E5D8;\n  --ink: #22201C;\n  --soft: #5C574C;\n  --blue: #1F5FA8;\n  --orange: #E4572E;\n  --green: #58F08A;\n  --dro-bg: #0E1B13;\n  --dro-dim: #3E6B4E;\n  --good-bg: #E4F7EC;\n  --good-bd: #37C871;\n  --bad-bg: #FBE6DF;\n  --line: #CBC6B6;\n  --mono: ui-monospace, \"SF Mono\", \"Cascadia Mono\", Consolas, Menlo, monospace;\n  --sans: -apple-system, BlinkMacSystemFont, \"Segoe UI\", system-ui, Arial, sans-serif;\n}\n* { box-sizing: border-box; margin: 0; padding: 0; }\nhtml { -webkit-text-size-adjust: 100%; }\nbody {\n  font-family: var(--sans); color: var(--ink); background: var(--paper);\n  background-image:\n    linear-gradient(var(--grid) 1px, transparent 1px),\n    linear-gradient(90deg, var(--grid) 1px, transparent 1px);\n  background-size: 26px 26px;\n  min-height: 100vh;\n  padding: 14px 12px 60px;\n}\n.wrap { max-width: 980px; margin: 0 auto; }\n\n/* header */\nheader.bar {\n  border: 2px solid var(--ink); background: var(--paper);\n  box-shadow: 0 0 0 4px var(--paper), 0 0 0 5px var(--ink);\n  padding: 14px 16px; margin-bottom: 16px;\n}\nheader.bar .hub-link {\n  float: right; font-family: var(--mono); font-size: 12px; color: var(--blue);\n  text-decoration: underline; display: inline-flex; align-items: center;\n  min-height: 44px; padding: 0 8px; margin: -8px -8px 0 4px;\n}\n.eyebrow {\n  font-family: var(--mono); font-size: 10px; letter-spacing: .16em;\n  color: var(--soft); text-transform: uppercase;\n}\nheader.bar h1 { font-size: 21px; font-weight: 800; letter-spacing: -.01em; margin-top: 4px; }\nheader.bar h1 .b { color: var(--blue); }\nheader.bar .sub { font-size: 13px; color: var(--soft); margin-top: 6px; line-height: 1.5; }\n\n/* rank banner */\n.rankbar {\n  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;\n  border: 1.5px solid var(--ink); background: var(--dro-bg); color: var(--green);\n  font-family: var(--mono); padding: 10px 14px; margin-bottom: 14px;\n}\n.rankbar .rk { font-size: 18px; font-weight: 800; letter-spacing: .06em; }\n.rankbar .ladder { font-size: 11px; color: var(--dro-dim); }\n.rankbar .ladder b { color: var(--green); }\n.rankbar .note { font-size: 11.5px; color: #9fd8ae; font-family: var(--sans); }\n\n/* cards */\n.card { border: 1.5px solid var(--ink); background: #fff; margin-bottom: 14px; }\n.card > h2 {\n  font-family: var(--mono); font-size: 10px; letter-spacing: .14em;\n  text-transform: uppercase; color: var(--soft);\n  padding: 9px 14px; border-bottom: 1.5px solid var(--ink); background: var(--panel);\n}\n.card .body { padding: 14px; }\n.card > h2.with-close { display: flex; align-items: center; justify-content: space-between; gap: 10px; }\n.card > h2.with-close button { min-height: 44px; padding: 6px 14px; flex-shrink: 0; }\n\n/* DRO readout */\n.dro { background: var(--dro-bg); border-radius: 6px; padding: 14px 16px; font-family: var(--mono); }\n.dro .row { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }\n.dro .ax { color: var(--dro-dim); font-size: 14px; font-weight: 700; letter-spacing: .08em; }\n.dro .val { font-size: 34px; font-weight: 700; letter-spacing: .02em; color: var(--green); overflow-wrap: anywhere; }\n.dro .meaning { color: #9fd8ae; font-size: 12.5px; line-height: 1.5; margin-top: 8px; font-family: var(--sans); }\n\n/* live equation panel */\n.eq {\n  font-family: var(--mono); font-size: 16px; line-height: 1.8;\n  padding: 10px 12px; background: #FAF8F1; border: 1.5px dashed var(--line); border-radius: 5px;\n  overflow-x: auto;\n}\n.eq .lbl {\n  display: block; font-size: 10px; letter-spacing: .12em; text-transform: uppercase;\n  color: var(--soft); margin-bottom: 4px;\n}\n.eq .num { color: var(--blue); font-weight: 700; }\n.eq .res { color: var(--orange); font-weight: 700; }\n.eq .dim { color: var(--soft); }\n\n/* buttons — big tap targets everywhere */\nbutton, .btn {\n  font-family: var(--mono); font-size: 13px; font-weight: 700; letter-spacing: .04em;\n  color: var(--ink); background: #FAF8F1;\n  border: 1.5px solid var(--ink); border-radius: 5px;\n  min-height: 46px; padding: 10px 16px; cursor: pointer;\n  box-shadow: 0 2px 0 var(--ink);\n  user-select: none; -webkit-user-select: none; touch-action: manipulation;\n}\nbutton:active, .btn:active { transform: translateY(2px); box-shadow: 0 0 0 var(--ink); }\nbutton:focus-visible, .btn:focus-visible, a:focus-visible, input:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }\nbutton.primary { color: #fff; background: var(--blue); border-color: var(--blue); box-shadow: 0 2px 0 #12365f; }\nbutton.primary:active { box-shadow: 0 0 0 #12365f; }\nbutton.accent { color: #fff; background: var(--orange); border-color: var(--orange); box-shadow: 0 2px 0 #93331a; }\nbutton.accent:active { box-shadow: 0 0 0 #93331a; }\nbutton.on { background: var(--blue); color: #fff; border-color: var(--blue); box-shadow: 0 2px 0 #12365f; }\nbutton:disabled { opacity: .45; cursor: default; }\n.btnrow { display: flex; gap: 8px; flex-wrap: wrap; }\n\n/* the four-part tabs */\n.tabs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 14px; }\n.tabs button { font-size: 11px; padding: 10px 4px; }\n.tabs button .step-n { display: block; font-size: 9px; letter-spacing: .12em; color: inherit; opacity: .7; }\n\n/* inputs */\ninput[type=\"text\"], input[type=\"number\"] {\n  font-family: var(--mono); font-size: 20px; font-weight: 700;\n  min-height: 50px; padding: 8px 12px; width: 100%;\n  border: 1.5px solid var(--ink); border-radius: 5px;\n  background: var(--dro-bg); color: var(--green);\n}\ninput[type=\"range\"] { width: 100%; accent-color: var(--blue); min-height: 44px; }\n.slider-row { display: grid; grid-template-columns: 110px 1fr 90px; gap: 10px; align-items: center; margin: 8px 0; }\n.slider-row .name { font-family: var(--mono); font-size: 12px; font-weight: 700; }\n.slider-row .out { font-family: var(--mono); font-size: 14px; font-weight: 700; color: var(--blue); text-align: right; }\n\n/* game / boss */\n.q-progress { font-family: var(--mono); font-size: 12px; color: var(--soft); margin-bottom: 8px; }\n.q-text { font-size: 17px; line-height: 1.55; margin-bottom: 12px; }\n.q-text .num { font-family: var(--mono); color: var(--blue); font-weight: 700; }\n.choices { display: grid; gap: 8px; }\n.choices button { text-align: left; font-family: var(--mono); font-size: 15px; padding: 12px 14px; }\n.answer-row { display: flex; gap: 8px; align-items: stretch; }\n.answer-row input { flex: 1; }\n.feedback { font-size: 14px; line-height: 1.6; padding: 12px 14px; border-radius: 6px; margin-top: 12px; }\n.feedback.good { background: var(--good-bg); border: 1.5px solid var(--good-bd); }\n.feedback.bad  { background: var(--bad-bg);  border: 1.5px solid var(--orange); }\n.feedback b { display: block; margin-bottom: 4px; }\n.feedback .pts { color: var(--good-bd); font-family: var(--mono); }\n.feedback .num { font-family: var(--mono); color: var(--blue); font-weight: 700; }\n.feedback .diag { display: block; margin-top: 6px; padding-top: 6px; border-top: 1px dashed var(--line); font-weight: 600; }\n.feedback .res { font-family: var(--mono); color: var(--orange); font-weight: 700; }\n.feedback .pathrow { display: block; font-weight: 400; font-size: 13.5px; margin-top: 5px; }\n.feedback .pathrow .path { font-family: var(--mono); font-weight: 700; }\n.feedback .pathrow.wrong .path { color: var(--orange); }\n.feedback .pathrow.right .path { color: var(--blue); }\n.feedback .steps { display: block; margin-top: 8px; padding: 8px 10px; background: #FAF8F1; border: 1px dashed var(--line); border-radius: 5px; font-family: var(--mono); font-size: 13.5px; line-height: 1.9; }\n.feedback .steps b { font-size: 10px; letter-spacing: .12em; color: var(--soft); }\n.hintbox { margin-top: 10px; padding: 10px 12px; background: #FDF6E3; border: 1.5px dashed var(--orange); border-radius: 6px; font-size: 13.5px; line-height: 1.6; }\n.hintbox b { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--orange); display: block; margin-bottom: 3px; }\n.help-row button { font-size: 12px; min-height: 44px; }\n\n.scorebar {\n  display: flex; gap: 16px; flex-wrap: wrap; font-family: var(--mono); font-size: 12.5px;\n  padding: 9px 14px; border-top: 1.5px solid var(--ink); background: var(--panel); margin-top: 14px;\n}\n.scorebar b { color: var(--blue); }\n.scorebar .right { margin-left: auto; color: var(--soft); }\n.result-banner { text-align: center; padding: 20px 14px; }\n.result-banner .big { font-family: var(--mono); font-size: 42px; font-weight: 800; }\n.result-banner .big.pass { color: var(--good-bd); }\n.result-banner .big.fail { color: var(--orange); }\n.result-banner p { color: var(--soft); font-size: 14px; margin: 8px 0 14px; line-height: 1.5; }\n\n/* skill tree */\n.world { margin-bottom: 18px; }\n.world > h2 {\n  font-family: var(--mono); font-size: 12px; letter-spacing: .14em; color: var(--ink);\n  border-bottom: 2px solid var(--ink); padding-bottom: 6px; margin-bottom: 10px;\n  display: flex; justify-content: space-between; align-items: baseline; gap: 10px; flex-wrap: wrap;\n}\n.world > h2 .tag { font-size: 10.5px; color: var(--soft); letter-spacing: .04em; font-weight: 400; }\n.world > h2 .done { color: var(--good-bd); }\n.lvl-grid { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }\n.lvl-card { border: 1.5px solid var(--ink); background: #fff; display: flex; flex-direction: column; }\n.lvl-card.locked { opacity: .55; background: var(--panel); }\n.lvl-card .top {\n  display: flex; justify-content: space-between; align-items: center;\n  padding: 7px 12px; border-bottom: 1px solid var(--line);\n  font-family: var(--mono); font-size: 10.5px; letter-spacing: .1em;\n}\n.lvl-card .top .n { color: var(--blue); font-weight: 700; }\n.lvl-card .top .st { color: var(--soft); }\n.lvl-card .top .st.pass { color: var(--good-bd); font-weight: 700; }\n.lvl-card .mid { display: flex; gap: 12px; padding: 11px 12px; align-items: center; flex: 1; }\n.lvl-card h3 { font-size: 14.5px; line-height: 1.3; }\n.lvl-card p { font-size: 12px; color: var(--soft); line-height: 1.5; margin-top: 4px; }\n.lvl-card .ring { flex-shrink: 0; }\n.ring .track { stroke: var(--grid); }\n.ring .arc { stroke: var(--blue); }\n.ring .arc.pass { stroke: var(--good-bd); }\n.ring text { font-family: var(--mono); font-size: 13px; font-weight: 700; fill: var(--ink); }\n.lvl-card .bottom { padding: 9px 12px; border-top: 1px dashed var(--line); }\n.lvl-card .bottom .btn, .lvl-card .bottom button { width: 100%; display: block; text-align: center; text-decoration: none; line-height: 1.6; }\n.lvl-card .lock-note { font-family: var(--mono); font-size: 11px; color: var(--soft); text-align: center; padding: 6px 0; }\n\n/* playground shells */\n.pg-split { display: grid; grid-template-columns: 1fr 340px; gap: 14px; }\n.pg-live { display: grid; gap: 12px; align-content: start; }\n.scrollbox { overflow-x: auto; border: 1.5px solid var(--line); border-radius: 5px; background: #fff; }\n.scrollbox svg { display: block; user-select: none; -webkit-user-select: none; }\n.hint { font-size: 12px; color: var(--soft); line-height: 1.5; margin-top: 8px; font-style: italic; }\n.callout { border-left: 4px solid var(--blue); background: #FAF8F1; padding: 10px 14px; margin: 12px 0; font-size: 14px; line-height: 1.6; }\n.callout.warn { border-left-color: var(--orange); }\n.worked { font-family: var(--mono); font-size: 14.5px; line-height: 2; background: #FAF8F1; border: 1.5px dashed var(--line); padding: 12px 14px; border-radius: 5px; overflow-x: auto; }\n.worked .num { color: var(--blue); font-weight: 700; }\n.worked .res { color: var(--orange); font-weight: 700; }\n\n/* place-value block columns (Level 1 playground) */\n.pv-cols { display: grid; grid-template-columns: 1fr 1fr 1fr 26px 1fr 1fr 1fr; gap: 8px; }\n.pv-col { border: 1.5px solid var(--line); border-radius: 6px; background: #fff; padding: 8px 6px; text-align: center; }\n.pv-col.point { border: none; background: none; display: flex; align-items: flex-end; justify-content: center; font-size: 34px; font-weight: 800; padding-bottom: 18px; }\n.pv-col .seat { font-family: var(--mono); font-size: 9.5px; letter-spacing: .06em; color: var(--soft); text-transform: uppercase; }\n.pv-col .digit { font-family: var(--mono); font-size: 30px; font-weight: 800; color: var(--blue); margin: 2px 0; }\n.pv-col .blocks { display: flex; flex-direction: column-reverse; align-items: center; gap: 2px; min-height: 92px; justify-content: flex-start; margin: 4px 0; }\n.pv-col .blocks i { display: block; width: 26px; height: 8px; background: var(--blue); border-radius: 2px; }\n.pv-col.frac .blocks i { background: var(--orange); }\n.pv-col button { min-height: 44px; width: 100%; padding: 6px 0; font-size: 15px; }\n.pv-col .bs { display: grid; gap: 4px; }\n\n/* prose in explainers */\n.prose { font-size: 15px; line-height: 1.7; }\n.prose p { margin-bottom: 10px; }\n.prose b { color: var(--blue); }\n.prose .term { color: var(--orange); font-weight: 700; }\n\n/* tables */\ntable.ref { border-collapse: collapse; font-family: var(--mono); font-size: 13px; width: 100%; }\ntable.ref th, table.ref td { border: 1px solid var(--line); padding: 7px 10px; text-align: right; }\ntable.ref th { background: var(--panel); text-align: right; font-size: 11px; letter-spacing: .06em; }\ntable.ref td:first-child, table.ref th:first-child { text-align: left; }\n\n/* overlay (Daily 10) */\n.overlay {\n  position: fixed; inset: 0; background: rgba(34, 32, 28, .55);\n  display: flex; align-items: flex-start; justify-content: center;\n  padding: 20px 12px; z-index: 50; overflow-y: auto;\n}\n.overlay .panel { background: var(--paper); border: 2px solid var(--ink); max-width: 640px; width: 100%; }\n\n@media (max-width: 760px) {\n  .pg-split { grid-template-columns: 1fr; }\n  .dro .val { font-size: 28px; }\n  .pv-cols { grid-template-columns: 1fr 1fr 1fr 18px 1fr 1fr 1fr; gap: 4px; }\n  .pv-col .blocks i { width: 18px; }\n  .pv-col .digit { font-size: 22px; }\n}\n@media (max-width: 420px) {\n  .tabs { grid-template-columns: repeat(2, 1fr); }\n  header.bar h1 { font-size: 18px; }\n}\n@media (prefers-reduced-motion: reduce) {\n  * { animation: none !important; transition: none !important; }\n}\n\n\u003c/style>\n\u003c/head>\n\u003cbody>\n\u003cdiv class=\"wrap\">\n  \u003cheader class=\"bar\">\n    \u003ca class=\"hub-link\" href=\"../index.html\">← SKILL TREE\u003c/a>\n    \u003cdiv class=\"eyebrow\">Level 01 · World 1 · Shop Math School\u003c/div>\n    \u003ch1>Counting &amp; \u003cspan class=\"b\">Place Value\u003c/span>\u003c/h1>\n    \u003cp class=\"sub\">Every digit has a seat, and the seat is a multiplier. Nail this one idea and\n      decimals stop being scary — they're just seats to the right of the point.\u003c/p>\n  \u003c/header>\n  \u003cdiv id=\"sms-root\">\u003c/div>\n\u003c/div>\n\n\u003cscript>\n/* Shop Math School — the shared engine.\n   State lives in window.name only (survives navigation and reload in this tab,\n   dies with the tab — scores are memory-only by design). No storage APIs. */\n(function () {\n  \"use strict\";\n\n  /* ---------------- the course map ---------------- */\n  var WORLDS = [\n    { n: 1, name: 'NUMBER BASICS', tag: 'assume you know nothing — build it all' },\n    { n: 2, name: 'MEASUREMENT', tag: 'rulers, calipers, mics, thousandths' },\n    { n: 3, name: 'ALGEBRA & FORMULAS', tag: 'the shop formulas, plug in and rearrange' },\n    { n: 4, name: 'GEOMETRY & TRIG', tag: 'the geometry the mill runs on' },\n    { n: 5, name: 'BLUEPRINTS & GD&T', tag: 'read the part\\'s instruction manual' },\n  ];\n  var LEVELS = [\n    { id: 'l1',  n: 1,  w: 1, title: 'Counting & Place Value', file: 'levels/l01-place-value.html', built: true,\n      desc: 'Ones, tens, hundreds — then tenths, hundredths, thousandths. Every digit has a seat.' },\n    { id: 'l2',  n: 2,  w: 1, title: 'Add & Subtract', file: 'levels/l02-add-subtract.html', built: false,\n      desc: 'Carrying and borrowing you can watch happen. Decimals line up on the point.' },\n    { id: 'l3',  n: 3,  w: 1, title: 'Times Tables & Multiply', file: 'levels/l03-multiply.html', built: false,\n      desc: 'Tables 2–12 as a speed game, then multi-digit multiply as area boxes.' },\n    { id: 'l4',  n: 4,  w: 1, title: 'Division from Zero', file: 'levels/l04-division.html', built: false,\n      desc: 'Division as sharing, then long division digit by digit — 3÷8 becomes 0.375 in front of you.' },\n    { id: 'l5',  n: 5,  w: 1, title: 'Fractions', file: 'levels/l05-fractions.html', built: false,\n      desc: 'What a fraction IS, equivalents, adding halves through sixteenths. Pie and ruler side by side.' },\n    { id: 'l6',  n: 6,  w: 1, title: 'Fractions ↔ Decimals', file: 'levels/l06-frac-decimals.html', built: false,\n      desc: 'Every 64th, with the machinist landmarks: .125, .250, .375, .500, .625, .750, .875.' },\n    { id: 'l7',  n: 7,  w: 1, title: 'Negative Numbers', file: 'levels/l07-negatives.html', built: false,\n      desc: 'The number line, why left/down is minus, adding signed numbers. Predict the crane.' },\n    { id: 'l8',  n: 8,  w: 1, title: 'Percents & Ratios', file: 'levels/l08-percents.html', built: false,\n      desc: 'Percent as per-hundred, finding 10% fast, scaling a feed by a ratio.' },\n    { id: 'l9',  n: 9,  w: 2, title: 'Reading a Ruler', file: 'levels/l09-ruler.html', built: false,\n      desc: 'Inches to 1/16 and 1/32 on a zoomable ruler. Find 2-5/16 against the clock.' },\n    { id: 'l10', n: 10, w: 2, title: 'Thousandths Thinking', file: 'levels/l10-thousandths.html', built: false,\n      desc: 'A thou (.001), a shop tenth (.0001), saying sizes out loud — \"three seventy-five\".' },\n    { id: 'l11', n: 11, w: 2, title: 'Calipers', file: 'levels/l11-calipers.html', built: false,\n      desc: 'Read digital and dial caliper simulations to .001.' },\n    { id: 'l12', n: 12, w: 2, title: 'Micrometers', file: 'levels/l12-micrometers.html', built: false,\n      desc: 'Barrel + thimble to .0001, vernier tenths included.' },\n    { id: 'l13', n: 13, w: 2, title: 'Metric ↔ Inch', file: 'levels/l13-metric.html', built: false,\n      desc: 'mm to inches (÷25.4) and back, and when each shows up.' },\n    { id: 'l14', n: 14, w: 3, title: 'Using a Formula', file: 'levels/l14-formulas.html', built: false,\n      desc: 'What a variable is. Plug numbers into a recipe, solve for the one unknown.' },\n    { id: 'l15', n: 15, w: 3, title: 'Rearranging', file: 'levels/l15-rearranging.html', built: false,\n      desc: 'Move one thing across the equals sign. Solve for the red letter.' },\n    { id: 'l16', n: 16, w: 3, title: 'RPM & Cutting Speed', file: 'levels/l16-rpm.html', built: false,\n      desc: 'RPM = SFM × 3.82 ÷ D with a spindle that visibly spins. Capped at 4200.' },\n    { id: 'l17', n: 17, w: 3, title: 'Feed Rate', file: 'levels/l17-feed.html', built: false,\n      desc: 'IPM = RPM × flutes × chip load, live, with the starter table.' },\n    { id: 'l18', n: 18, w: 3, title: 'Depth & Passes', file: 'levels/l18-depth.html', built: false,\n      desc: 'Depth ÷ per-pass, peck drilling, stepover — watch the passes draw themselves.' },\n    { id: 'l19', n: 19, w: 4, title: 'Shapes & Angles', file: 'levels/l19-angles.html', built: false,\n      desc: 'Degrees, right angles, complementary/supplementary, triangles sum to 180.' },\n    { id: 'l20', n: 20, w: 4, title: 'Perimeter, Area, Circles', file: 'levels/l20-area-circles.html', built: false,\n      desc: 'Rectangle and circle area, circumference = πD — where the 3.82 comes from.' },\n    { id: 'l21', n: 21, w: 4, title: 'Pythagoras', file: 'levels/l21-pythagoras.html', built: false,\n      desc: 'a² + b² = c². Drag the corners, watch the equation live.' },\n    { id: 'l22', n: 22, w: 4, title: 'Right-Triangle Trig', file: 'levels/l22-trig.html', built: false,\n      desc: 'SOH-CAH-TOA with a unit-circle animation. Angle + distance → X and Y.' },\n    { id: 'l23', n: 23, w: 4, title: 'Bolt-Hole Circles', file: 'levels/l23-bolt-circles.html', built: false,\n      desc: 'X = Xc + R·cos θ, Y = Yc + R·sin θ. Place the holes before the machine does.' },\n    { id: 'l24', n: 24, w: 5, title: 'Blueprint Basics', file: 'levels/l24-blueprint-basics.html', built: false,\n      desc: 'Title block, views, line types, scale — what each line on the page means.' },\n    { id: 'l25', n: 25, w: 5, title: 'Dimensions & Callouts', file: 'levels/l25-dimensions.html', built: false,\n      desc: 'Dimension lines, Ø vs R, hole callouts, THRU vs depth.' },\n    { id: 'l26', n: 26, w: 5, title: 'Tolerances', file: 'levels/l26-tolerances.html', built: false,\n      desc: 'Nominal ± tolerance, limits, MAX and MIN material. Accept / rework / scrap.' },\n    { id: 'l27', n: 27, w: 5, title: 'Intro to GD&T', file: 'levels/l27-gdt-intro.html', built: false,\n      desc: 'Feature control frames, datums, and the big symbols — each with a pass part and a fail part.' },\n    { id: 'l28', n: 28, w: 5, title: 'Position Tolerance Deep-Dive', file: 'levels/l28-position.html', built: false,\n      desc: 'True position, round zones vs square, bonus tolerance at MMC kept simple.' },\n    { id: 'l29', n: 29, w: 5, title: 'FINAL BOSS: Read a Real Print', file: 'levels/l29-final-print.html', built: false,\n      desc: 'A complete blueprint — views, holes, a bolt circle, tolerances, GD&T. Pass it: Toolmaker.' },\n  ];\n  var RANKS = ['Apprentice', 'Operator', 'Setup', 'Machinist', 'Toolmaker'];\n\n  /* ---------------- state (window.name) ---------------- */\n  function loadState() {\n    try {\n      var s = JSON.parse(window.name || '');\n      if (s && s.__sms === 1 && s.lv) return s;\n    } catch (e) { /* fresh tab */ }\n    return { __sms: 1, lv: {} };\n  }\n  var state = loadState();\n  function save() { window.name = JSON.stringify(state); }\n  function rec(id) {\n    if (!state.lv[id]) state.lv[id] = { passed: false, best: 0, attempts: 0, confidence: 0, bestStreak: 0, points: 0 };\n    if (state.lv[id].bestStreak === undefined) state.lv[id].bestStreak = 0;\n    if (state.lv[id].points === undefined) state.lv[id].points = 0;\n    return state.lv[id];\n  }\n  function recordBoss(id, pct) {\n    var r = rec(id);\n    r.attempts += 1;\n    if (pct > r.best) r.best = pct;\n    if (pct >= 90) r.passed = true;\n    r.confidence = Math.max(r.confidence, pct);\n    save();\n  }\n  function recordGame(id, points, streak) {\n    var r = rec(id);\n    if (points > r.points) r.points = points;\n    if (streak > r.bestStreak) r.bestStreak = streak;\n    save();\n  }\n  function nudge(id, ok) {\n    var r = rec(id);\n    r.confidence = Math.max(0, Math.min(100, r.confidence + (ok ? 1 : -2)));\n    save();\n  }\n  function levelIndex(id) {\n    for (var i = 0; i \u003c LEVELS.length; i++) if (LEVELS[i].id === id) return i;\n    return -1;\n  }\n  function isUnlocked(id) {\n    var i = levelIndex(id);\n    if (i \u003c= 0) return true;\n    return rec(LEVELS[i - 1].id).passed;\n  }\n  function worldComplete(w) {\n    for (var i = 0; i \u003c LEVELS.length; i++) {\n      if (LEVELS[i].w === w && !rec(LEVELS[i].id).passed) return false;\n    }\n    return true;\n  }\n  function rankInfo() {\n    var done = 0;\n    for (var w = 1; w \u003c= 5; w++) { if (worldComplete(w)) done++; else break; }\n    var idx = done >= 5 ? 4 : Math.min(done, 3);\n    var passedCount = 0;\n    for (var i = 0; i \u003c LEVELS.length; i++) if (rec(LEVELS[i].id).passed) passedCount++;\n    return { rank: RANKS[idx], idx: idx, worldsDone: done, passed: passedCount,\n      next: idx \u003c 4 ? RANKS[idx + 1] : null };\n  }\n\n  /* ---------------- small helpers ---------------- */\n  function fmt(v, places) { return Number(v).toFixed(places === undefined ? 3 : places); }\n  function fmtExact(v, min) {\n    var s = String(Math.round(v * 1e6) / 1e6);\n    if (min) {\n      var dp = (s.split('.')[1] || '').length;\n      if (dp \u003c min) s = Number(v).toFixed(min);\n    }\n    return s;\n  }\n  function parseNum(raw) {\n    if (raw === undefined || raw === null) return NaN;\n    raw = String(raw).trim().replace(/[\"\\s,]/g, '').replace(/−/g, '-');\n    if (raw === '') return NaN;\n    var m = raw.match(/^(-?\\d+)\\s*\\/\\s*(\\d+)$/);\n    if (m) return Number(m[1]) / Number(m[2]);\n    return parseFloat(raw);\n  }\n  function shuffle(a) {\n    a = a.slice();\n    for (var i = a.length - 1; i > 0; i--) {\n      var j = Math.floor(Math.random() * (i + 1)); var t = a[i]; a[i] = a[j]; a[j] = t;\n    }\n    return a;\n  }\n  function pick(a) { return a[Math.floor(Math.random() * a.length)]; }\n  function esc(s) {\n    return String(s).replace(/&/g, '&amp;').replace(/\u003c/g, '&lt;').replace(/>/g, '&gt;');\n  }\n\n  /* number words — used for the plain-English meaning lines */\n  function intWords(n) {\n    n = Math.round(Math.abs(n));\n    var ones = ['zero','one','two','three','four','five','six','seven','eight','nine','ten',\n      'eleven','twelve','thirteen','fourteen','fifteen','sixteen','seventeen','eighteen','nineteen'];\n    var tens = ['','','twenty','thirty','forty','fifty','sixty','seventy','eighty','ninety'];\n    if (n \u003c 20) return ones[n];\n    if (n \u003c 100) return tens[Math.floor(n / 10)] + (n % 10 ? '-' + ones[n % 10] : '');\n    if (n \u003c 1000) return ones[Math.floor(n / 100)] + ' hundred' + (n % 100 ? ' ' + intWords(n % 100) : '');\n    return intWords(Math.floor(n / 1000)) + ' thousand' + (n % 1000 ? ' ' + intWords(n % 1000) : '');\n  }\n  /* say a decimal the place-value way: 357.25 -> \"three hundred fifty-seven and twenty-five hundredths\" */\n  function placeWords(v, decPlaces) {\n    var neg = v \u003c 0; v = Math.abs(v);\n    var s = decPlaces === undefined ? String(v) : v.toFixed(decPlaces);\n    var parts = s.split('.');\n    var ip = parseInt(parts[0], 10) || 0;\n    var dp = parts[1] || '';\n    if (decPlaces === undefined) dp = dp.replace(/0+$/, '');\n    var out = intWords(ip);\n    if (dp && dp.length && parseInt(dp, 10) > 0) {\n      var names = { 1: 'tenth', 2: 'hundredth', 3: 'thousandth' };\n      var unit = names[dp.length] || 'part';\n      var dn = parseInt(dp, 10);\n      var frag = intWords(dn) + ' ' + unit + (dn === 1 ? '' : 's');\n      out = ip === 0 ? frag : out + ' and ' + frag;\n    }\n    return (neg ? 'minus ' : '') + out;\n  }\n\n  /* ---------------- DRO panel ---------------- */\n  function dro(el, axisLabel) {\n    el.classList.add('dro');\n    el.innerHTML = '\u003cdiv class=\"row\">\u003cspan class=\"ax\">' + esc(axisLabel || '') +\n      '\u003c/span>\u003cspan class=\"val\">\u003c/span>\u003c/div>\u003cdiv class=\"meaning\">\u003c/div>';\n    var val = el.querySelector('.val'), mean = el.querySelector('.meaning');\n    return { set: function (v, meaningHTML) { val.textContent = v; mean.innerHTML = meaningHTML || ''; } };\n  }\n\n  /* ---------------- the game runner ----------------\n     runGame(container, {mode:'game'|'boss'|'daily', questions, title, passPct,\n                         levelId, onFinish, onAnswer})\n     Question contract: {q (HTML), type:'num'|'mc', a, tol, choices, explain,\n       hint, steps, diagnose(v)->{label,your,right}|string|null, unit, from, kind}\n     Scoring: +10 first-try correct, +5 bonus while streak >= 3. Streaks and best\n     streak show live. Wrong answers diagnose the mistake and (game/daily only)\n     offer TRY IT AGAIN — retries teach but never score. */\n  function runGame(container, opts) {\n    var qs = opts.questions;\n    var isBoss = opts.mode === 'boss';\n    var i = 0, correct = 0, points = 0, streak = 0, bestStreak = 0;\n\n    qs.forEach(function (q) {\n      if (q.type === 'mc') q.order = shuffle(q.choices.map(function (_, k) { return k; }));\n    });\n\n    function scorebarHTML() {\n      return '\u003cdiv class=\"scorebar\">\u003cspan>POINTS \u003cb>' + points + '\u003c/b>\u003c/span>' +\n        '\u003cspan>STREAK \u003cb>' + streak + '\u003c/b>' + (streak >= 3 ? ' 🔥' : '') + '\u003c/span>' +\n        '\u003cspan>BEST \u003cb>' + bestStreak + '\u003c/b>\u003c/span>' +\n        '\u003cspan class=\"right\">' + correct + ' / ' + i + ' right\u003c/span>\u003c/div>';\n    }\n\n    function render() {\n      if (i >= qs.length) return renderEnd();\n      var q = qs[i];\n      var h = '\u003cdiv class=\"q-progress\">' + esc(opts.title || (isBoss ? 'BOSS' : 'GAME')) +\n        ' — ROUND ' + (i + 1) + ' / ' + qs.length +\n        (q.from ? ' · from ' + esc(q.from) : '') + '\u003c/div>' +\n        '\u003cdiv class=\"q-text\">' + q.q + '\u003c/div>';\n      if (q.type === 'mc') {\n        h += '\u003cdiv class=\"choices\">' + q.order.map(function (ci, k) {\n          return '\u003cbutton data-k=\"' + k + '\">' + String.fromCharCode(65 + k) + ' · ' + q.choices[ci] + '\u003c/button>';\n        }).join('') + '\u003c/div>';\n      } else {\n        h += '\u003cdiv class=\"answer-row\">\u003cinput type=\"text\" inputmode=\"decimal\" autocomplete=\"off\" ' +\n          'placeholder=\"' + esc(q.unit ? 'answer in ' + q.unit : 'type your answer') + '\" aria-label=\"answer\">' +\n          '\u003cbutton class=\"primary\" data-go>CHECK\u003c/button>\u003c/div>';\n      }\n      if (!isBoss) {\n        h += '\u003cdiv class=\"btnrow help-row\" style=\"margin-top:10px\">' +\n          (q.hint ? '\u003cbutton data-hint>💡 WHERE DO I START?\u003c/button>' : '') +\n          '\u003c/div>\u003cdiv class=\"hint-slot\">\u003c/div>';\n      }\n      h += '\u003cdiv class=\"fb-slot\">\u003c/div>';\n      if (!isBoss) h += scorebarHTML();\n      container.innerHTML = h;\n\n      if (q.type === 'mc') {\n        container.querySelectorAll('.choices button').forEach(function (b) {\n          b.addEventListener('click', function () { answerMC(q, Number(b.dataset.k), b); });\n        });\n        container.querySelector('.choices button').focus();\n      } else {\n        var input = container.querySelector('input');\n        var go = function () { answerNum(q, input.value); };\n        container.querySelector('[data-go]').addEventListener('click', go);\n        input.addEventListener('keydown', function (e) { if (e.key === 'Enter') go(); });\n        input.focus();\n      }\n      var hb = container.querySelector('[data-hint]');\n      if (hb) hb.addEventListener('click', function () {\n        container.querySelector('.hint-slot').innerHTML =\n          '\u003cdiv class=\"hintbox\">\u003cb>WHERE TO START\u003c/b> ' + q.hint + '\u003c/div>';\n        hb.disabled = true;\n      });\n    }\n\n    function answerMC(q, k, btn) {\n      var chosen = q.order[k];\n      var ok = chosen === q.a;\n      btn.style.background = ok ? 'var(--good-bd)' : 'var(--orange)';\n      btn.style.color = '#fff';\n      var diag = (!ok && q.diagnose) ? q.diagnose(chosen) : null;\n      finish(q, ok, String(q.choices[chosen]).replace(/\u003c[^>]*>/g, ''), diag);\n    }\n    function answerNum(q, raw) {\n      var v = parseNum(raw);\n      if (isNaN(v)) {\n        container.querySelector('.fb-slot').innerHTML =\n          '\u003cdiv class=\"feedback bad\">\u003cb>Type a number.\u003c/b> Decimals like 0.375 work; use a leading − for negatives.\u003c/div>';\n        return;\n      }\n      var ok = Math.abs(v - q.a) \u003c= (q.tol === undefined ? 0.0005 : q.tol);\n      var diag = (!ok && q.diagnose) ? q.diagnose(v) : null;\n      finish(q, ok, fmtExact(v), diag);\n    }\n\n    function finish(q, ok, shown, diag) {\n      var first = !q._attempted;\n      q._attempted = true;\n      if (first) {\n        i += 1;\n        if (ok) {\n          correct += 1;\n          streak += 1;\n          if (streak > bestStreak) bestStreak = streak;\n          var gain = 10 + (streak >= 3 ? 5 : 0);\n          points += gain;\n          q._gain = gain;\n        } else {\n          streak = 0;\n        }\n        if (opts.onAnswer) opts.onAnswer(q, ok);\n      }\n      showFeedback(q, ok, shown, diag, !first);\n    }\n\n    function showFeedback(q, ok, shown, diag, wasRetry) {\n      container.querySelectorAll('.choices button, .answer-row input, .answer-row button, [data-hint]')\n        .forEach(function (el) { el.disabled = true; });\n      var slot = container.querySelector('.fb-slot');\n      var h;\n      if (ok) {\n        h = '\u003cdiv class=\"feedback good\">\u003cb>' + (wasRetry ? 'Got it on the retry — that counts where it matters.' :\n          'Nailed it.' + (q._gain ? ' \u003cspan class=\"pts\">+' + q._gain + (q._gain > 10 ? ' 🔥 streak bonus' : '') + '\u003c/span>' : '')) + '\u003c/b>' +\n          (q.explain || '') + '\u003c/div>';\n      } else {\n        var diagHtml = '';\n        if (diag) {\n          if (typeof diag === 'string') diagHtml = '\u003cspan class=\"diag\">' + diag + '\u003c/span>';\n          else diagHtml = '\u003cspan class=\"diag\">' + esc(diag.label) + '.' +\n            '\u003cspan class=\"pathrow wrong\">Where your number probably came from: \u003cspan class=\"path\">' + diag.your + '\u003c/span>\u003c/span>' +\n            '\u003cspan class=\"pathrow right\">The right path: \u003cspan class=\"path\">' + diag.right + '\u003c/span>\u003c/span>\u003c/span>';\n        }\n        h = '\u003cdiv class=\"feedback bad\">\u003cb>Not this time. You answered ' + esc(shown) + '.\u003c/b>' +\n          (q.explain || '') + diagHtml +\n          (q.steps ? '\u003cspan class=\"steps\">\u003cb>THE WHOLE PATH\u003c/b>' + q.steps + '\u003c/span>' : '') +\n          '\u003c/div>';\n      }\n      h += '\u003cdiv class=\"btnrow\" style=\"margin-top:10px\">' +\n        (!ok && !isBoss && !wasRetry ? '\u003cbutton data-retry>TRY IT AGAIN\u003c/button>' : '') +\n        '\u003cbutton class=\"primary\" data-next>' + (i >= qs.length ? 'FINISH' : 'NEXT ROUND →') + '\u003c/button>\u003c/div>';\n      slot.innerHTML = h;\n      var bar = container.querySelector('.scorebar');\n      if (bar) bar.outerHTML = scorebarHTML();\n      var rb = slot.querySelector('[data-retry]');\n      if (rb) rb.addEventListener('click', function () {\n        container.querySelectorAll('.choices button, .answer-row input, .answer-row button')\n          .forEach(function (el) {\n            el.disabled = false;\n            el.style.background = ''; el.style.color = '';\n          });\n        var input = container.querySelector('.answer-row input');\n        if (input) { input.value = ''; input.focus(); }\n        slot.innerHTML = '';\n      });\n      slot.querySelector('[data-next]').addEventListener('click', render);\n      slot.querySelector('[data-next]').focus();\n    }\n\n    function renderEnd() {\n      var pct = Math.round(correct / qs.length * 100);\n      var passPct = opts.passPct || 90;\n      var passed = pct >= passPct;\n      var h = '\u003cdiv class=\"result-banner\">' +\n        '\u003cdiv class=\"big ' + (isBoss ? (passed ? 'pass' : 'fail') : 'pass') + '\">' + correct + ' / ' + qs.length + '\u003c/div>' +\n        (isBoss\n          ? '\u003cp>' + (passed ? 'BOSS DOWN — ' + pct + '%. The next level is yours.' :\n              pct + '%. The boss wants ' + passPct + '%. Replay the game, then come back — bosses fall on the second try all the time.') + '\u003c/p>'\n          : opts.mode === 'daily'\n            ? '\u003cp>' + points + ' points · best streak ' + bestStreak + '. Review done — same time tomorrow.\u003c/p>'\n            : '\u003cp>' + points + ' points · best streak ' + bestStreak +\n              '. The boss round is where it counts — hit it when this feels easy.\u003c/p>') +\n        '\u003c/div>';\n      container.innerHTML = h;\n      if (opts.levelId && !isBoss) recordGame(opts.levelId, points, bestStreak);\n      if (opts.onFinish) opts.onFinish(pct, points, bestStreak);\n    }\n\n    render();\n  }\n\n  /* ---------------- Daily 10 banks ---------------- */\n  var BANKS = {};\n\n  BANKS.l1 = function () {\n    var kind = pick(['digitWorth', 'digitWorth', 'assemble', 'compare']);\n    if (kind === 'digitWorth') {\n      var seats = [[100, 'hundreds'], [10, 'tens'], [1, 'ones'], [0.1, 'tenths'], [0.01, 'hundredths']];\n      var si = Math.floor(Math.random() * seats.length);\n      var d = 1 + Math.floor(Math.random() * 9);\n      var digits = [1 + Math.floor(Math.random() * 9), Math.floor(Math.random() * 10),\n        Math.floor(Math.random() * 10), Math.floor(Math.random() * 10), Math.floor(Math.random() * 10)];\n      digits[si] = d;\n      for (var k2 = 0; k2 \u003c 5; k2++) if (k2 !== si && digits[k2] === d) digits[k2] = (d + 1 + k2) % 10;\n      var num = digits[0] * 100 + digits[1] * 10 + digits[2] + digits[3] * 0.1 + digits[4] * 0.01;\n      var numStr = digits[0] + '' + digits[1] + '' + digits[2] + '.' + digits[3] + '' + digits[4];\n      var a = Math.round(d * seats[si][0] * 100) / 100;\n      return { type: 'num', a: a, tol: 0.0005, from: 'Level 1',\n        q: 'In \u003cspan class=\"num\">' + numStr + '\u003c/span>, what is the \u003cspan class=\"num\">' + d + '\u003c/span> actually worth?',\n        explain: 'The ' + d + ' sits in the ' + seats[si][1] + ' seat: ' + d + ' × ' + seats[si][0] +\n          ' = \u003cspan class=\"num\">' + fmtExact(a) + '\u003c/span>.',\n        hint: 'Find which SEAT the digit sits in (count from the decimal point). The seat is a multiplier: digit × seat value.',\n        steps: '1 · Locate the digit\\'s seat: ' + seats[si][1] + '\u003cbr>' +\n          '2 · Worth = digit × seat = \u003cspan class=\"num\">' + d + '\u003c/span> × \u003cspan class=\"num\">' + seats[si][0] +\n          '\u003c/span> = \u003cspan class=\"res\">' + fmtExact(a) + '\u003c/span>',\n        diagnose: function (v) {\n          if (Math.abs(v - d) \u003c 0.0005 && seats[si][0] !== 1) return { label: 'Face value only',\n            your: 'you read the digit ' + d + ' by itself — but its seat multiplies it',\n            right: d + ' × ' + seats[si][0] + ' = ' + fmtExact(a) };\n          if (Math.abs(v - a * 10) \u003c 0.005 || Math.abs(v - a / 10) \u003c 0.005) return { label: 'One seat over',\n            your: 'right digit, neighboring seat: ' + fmtExact(v),\n            right: 'the ' + d + ' is in the ' + seats[si][1] + ' seat → ' + fmtExact(a) };\n          return { label: 'Seat slip',\n            your: fmtExact(v) + ' is not digit × seat',\n            right: d + ' × ' + seats[si][0] + ' = ' + fmtExact(a) };\n        } };\n    }\n    if (kind === 'assemble') {\n      var h2 = 1 + Math.floor(Math.random() * 9), t2 = Math.floor(Math.random() * 10),\n        o2 = Math.floor(Math.random() * 10), te2 = Math.floor(Math.random() * 10);\n      var a2 = Math.round((h2 * 100 + t2 * 10 + o2 + te2 * 0.1) * 10) / 10;\n      return { type: 'num', a: a2, tol: 0.0005, from: 'Level 1',\n        q: '\u003cspan class=\"num\">' + h2 + '\u003c/span> hundreds + \u003cspan class=\"num\">' + t2 + '\u003c/span> tens + ' +\n          '\u003cspan class=\"num\">' + o2 + '\u003c/span> ones + \u003cspan class=\"num\">' + te2 + '\u003c/span> tenths = ?',\n        explain: h2 + '×100 + ' + t2 + '×10 + ' + o2 + '×1 + ' + te2 + '×0.1 = \u003cspan class=\"num\">' + fmtExact(a2) + '\u003c/span>.',\n        hint: 'Give every count its seat and add: hundreds ×100, tens ×10, ones ×1, tenths ×0.1. Zeros still hold their seat.',\n        steps: '1 · ' + h2 + '×100 = ' + h2 * 100 + ' · ' + t2 + '×10 = ' + t2 * 10 + ' · ' + o2 + '×1 = ' + o2 +\n          ' · ' + te2 + '×0.1 = ' + fmtExact(te2 * 0.1) + '\u003cbr>2 · Add: \u003cspan class=\"res\">' + fmtExact(a2) + '\u003c/span>',\n        diagnose: function (v) {\n          if (Math.abs(v - (h2 * 100 + t2 * 10 + o2 + te2 * 0.01)) \u003c 0.0005 && te2 !== 0) return { label: 'Tenths landed in the hundredths seat',\n            your: fmtExact(v) + ' put the ' + te2 + ' two seats right of the point',\n            right: te2 + ' TENTHS = ' + te2 + ' × 0.1 = ' + fmtExact(te2 * 0.1) };\n          if (Math.abs(v - parseFloat('' + h2 + t2 + o2 + te2)) \u003c 0.5) return { label: 'Digits glued together',\n            your: 'you strung the counts into ' + h2 + '' + t2 + '' + o2 + '' + te2 + ' — the decimal point vanished',\n            right: 'the tenths live RIGHT of the point: ' + fmtExact(a2) };\n          return { label: 'Seat slip',\n            your: fmtExact(v) + ' is not the sum of digit × seat',\n            right: h2 + '×100 + ' + t2 + '×10 + ' + o2 + ' + ' + te2 + '×0.1 = ' + fmtExact(a2) };\n        } };\n    }\n    var pairs = [['0.5', '0.375'], ['0.25', '0.3'], ['0.75', '0.8'], ['0.625', '0.7'], ['0.4', '0.125'], ['0.05', '0.2']];\n    var p2 = pick(pairs);\n    var bigger = parseFloat(p2[0]) > parseFloat(p2[1]) ? 0 : 1;\n    return { type: 'mc', a: bigger, choices: [p2[0], p2[1]], from: 'Level 1',\n      q: 'Which number is \u003cb>larger\u003c/b>?',\n      explain: 'Pad to the same length and compare seat by seat: ' +\n        p2[0] + ' vs ' + p2[1] + ' → \u003cspan class=\"num\">' + p2[bigger] + '\u003c/span> wins. More digits does NOT mean bigger.',\n      hint: 'Give both numbers the same number of decimal places by padding zeros (0.5 → 0.500). Then compare left to right, seat by seat.',\n      steps: '1 · Pad: ' + Number(p2[0]).toFixed(3) + ' vs ' + Number(p2[1]).toFixed(3) + '\u003cbr>' +\n        '2 · Compare the tenths seat first, then hundredths\u003cbr>' +\n        '3 · \u003cspan class=\"res\">' + p2[bigger] + '\u003c/span> is larger',\n      diagnose: function () {\n        return { label: 'Longer looked larger',\n          your: 'the number with more digits FEELS bigger — but extra decimal places are smaller and smaller pieces',\n          right: 'pad and compare seats: ' + Number(p2[0]).toFixed(3) + ' vs ' + Number(p2[1]).toFixed(3) + ' → ' + p2[bigger] };\n      } };\n  };\n\n  function daily10Questions() {\n    var eligible = LEVELS.filter(function (l) { return l.built && rec(l.id).passed && BANKS[l.id]; });\n    if (!eligible.length) {\n      eligible = LEVELS.filter(function (l) { return l.built && isUnlocked(l.id) && BANKS[l.id]; });\n    }\n    if (!eligible.length) return [];\n    var qs = [];\n    for (var k = 0; k \u003c 10; k++) {\n      var l = eligible[k % eligible.length];\n      var q = BANKS[l.id]();\n      q.levelId = l.id;\n      qs.push(q);\n    }\n    return shuffle(qs);\n  }\n\n  /* ---------------- level page chrome ---------------- */\n  function levelPage(id, parts) {\n    var lvl = LEVELS[levelIndex(id)];\n    var root = document.getElementById('sms-root');\n    var TABS = [['1', 'EXPLAINER'], ['2', 'PLAYGROUND'], ['3', 'GAME'], ['4', 'BOSS']];\n    root.innerHTML =\n      '\u003cdiv class=\"tabs\">' + TABS.map(function (t, k) {\n        return '\u003cbutton data-tab=\"' + k + '\" class=\"' + (k === 0 ? 'on' : '') + '\">' +\n          '\u003cspan class=\"step-n\">PART ' + t[0] + '\u003c/span>' + t[1] + '\u003c/button>';\n      }).join('') + '\u003c/div>' +\n      '\u003cdiv id=\"tab-panes\">\u003c/div>';\n    var panes = root.querySelector('#tab-panes');\n    var current = -1;\n\n    function open(k) {\n      if (k === current) return;\n      current = k;\n      root.querySelectorAll('.tabs button').forEach(function (b, j) {\n        b.classList.toggle('on', j === k);\n      });\n      panes.innerHTML = '';\n      if (k === 0) { panes.innerHTML = parts.explainer; }\n      if (k === 1) { parts.playground(panes); }\n      if (k === 2) {\n        var c = document.createElement('div');\n        c.className = 'card';\n        c.innerHTML = '\u003ch2>Game — 10 rounds · points and streaks · mistakes get named\u003c/h2>\u003cdiv class=\"body\">\u003c/div>';\n        panes.appendChild(c);\n        runGame(c.querySelector('.body'), {\n          mode: 'game', title: 'GAME', levelId: id, questions: parts.gameQs(),\n        });\n      }\n      if (k === 3) {\n        var c2 = document.createElement('div');\n        c2.className = 'card';\n        c2.innerHTML = '\u003ch2>Boss round — 90% unlocks the next level · no hints, no retries\u003c/h2>\u003cdiv class=\"body\">\u003c/div>';\n        panes.appendChild(c2);\n        runGame(c2.querySelector('.body'), {\n          mode: 'boss', title: 'BOSS', questions: parts.bossQs(), passPct: 90,\n          onFinish: function (pct) {\n            recordBoss(id, pct);\n            var r = rec(id);\n            var next = LEVELS[levelIndex(id) + 1];\n            var extra = document.createElement('div');\n            extra.className = 'callout' + (pct >= 90 ? '' : ' warn');\n            extra.innerHTML = pct >= 90\n              ? '\u003cb>Level ' + lvl.n + ' beaten.\u003c/b> ' +\n                (next ? (next.built ? 'Level ' + next.n + ' — ' + esc(next.title) + ' — is unlocked on the skill tree.'\n                                    : 'Level ' + next.n + ' is unlocked. It gets built next — go say the word.')\n                      : 'That was the last level. Toolmaker.') +\n                ' Best: ' + r.best + '%. \u003ca href=\"../index.html\">Back to the skill tree →\u003c/a>'\n              : 'Best so far: ' + r.best + '%. Scores only go up — replay the game, then hit the boss again. ' +\n                '\u003ca href=\"../index.html\">Skill tree →\u003c/a>';\n            c2.querySelector('.body').appendChild(extra);\n          },\n        });\n      }\n    }\n    root.querySelectorAll('.tabs button').forEach(function (b) {\n      b.addEventListener('click', function () { open(Number(b.dataset.tab)); });\n    });\n    open(0);\n    return { open: open };\n  }\n\n  /* ---------------- export ---------------- */\n  window.SMS = {\n    WORLDS: WORLDS, LEVELS: LEVELS, RANKS: RANKS, BANKS: BANKS,\n    state: state, save: save, rec: rec,\n    recordBoss: recordBoss, recordGame: recordGame, nudge: nudge,\n    isUnlocked: isUnlocked, worldComplete: worldComplete, rankInfo: rankInfo,\n    fmt: fmt, fmtExact: fmtExact, parseNum: parseNum,\n    shuffle: shuffle, pick: pick, esc: esc,\n    intWords: intWords, placeWords: placeWords,\n    dro: dro, runGame: runGame, daily10Questions: daily10Questions,\n    levelPage: levelPage,\n  };\n})();\n\n\u003c/script>\n\u003cscript>\n(function () {\n  \"use strict\";\n  var S = window.SMS;\n\n  var SEATS = [\n    { v: 100,   name: 'hundreds' },\n    { v: 10,    name: 'tens' },\n    { v: 1,     name: 'ones' },\n    { v: 0.1,   name: 'tenths' },\n    { v: 0.01,  name: 'hundredths' },\n    { v: 0.001, name: 'thousandths' }\n  ];\n  function r3(v) { return Math.round(v * 1000) / 1000; }\n  function nf(v) { return S.fmtExact(v); }\n\n  /* ============ PART 1 — EXPLAINER ============ */\n  var EXPLAINER =\n  '\u003cdiv class=\"card\">\u003ch2>60-second explainer\u003c/h2>\u003cdiv class=\"body prose\">' +\n  '\u003cp>A number is not a string of digits — it\\'s digits \u003cspan class=\"term\">sitting in seats\u003c/span>, ' +\n  'and every seat has a value. Moving one seat to the \u003cb>left\u003c/b> makes a digit worth \u003cb>10× more\u003c/b>. ' +\n  'One seat to the \u003cb>right\u003c/b>, 10× less. That\\'s the entire system:\u003c/p>' +\n  '\u003cdiv class=\"worked\">… hundreds · tens · ones \u003cspan class=\"res\">.\u003c/span> tenths · hundredths · thousandths …\u003cbr>' +\n  '… 100 · 10 · 1 \u003cspan class=\"res\">.\u003c/span> 0.1 · 0.01 · 0.001 …\u003c/div>' +\n  '\u003cp>The \u003cspan class=\"term\">decimal point\u003c/span> is just the marker between \"whole things\" and ' +\n  '\"pieces of a thing\". It never moves — the digits sit around it.\u003c/p>' +\n  '\u003cp>Work one all the way. Take \u003cb>357.25\u003c/b> apart, seat by seat:\u003c/p>' +\n  '\u003cdiv class=\"worked\">\u003cspan class=\"num\">3\u003c/span> sits in hundreds → 3 × 100 = \u003cspan class=\"num\">300\u003c/span>\u003cbr>' +\n  '\u003cspan class=\"num\">5\u003c/span> sits in tens → 5 × 10 = \u003cspan class=\"num\">50\u003c/span>\u003cbr>' +\n  '\u003cspan class=\"num\">7\u003c/span> sits in ones → 7 × 1 = \u003cspan class=\"num\">7\u003c/span>\u003cbr>' +\n  '\u003cspan class=\"num\">2\u003c/span> sits in tenths → 2 × 0.1 = \u003cspan class=\"num\">0.2\u003c/span>\u003cbr>' +\n  '\u003cspan class=\"num\">5\u003c/span> sits in hundredths → 5 × 0.01 = \u003cspan class=\"num\">0.05\u003c/span>\u003cbr>' +\n  '300 + 50 + 7 + 0.2 + 0.05 = \u003cspan class=\"res\">357.25\u003c/span>\u003c/div>' +\n  '\u003cp>Notice the two 5s: \u003cb>same digit, different seats, different worth\u003c/b> — one is fifty, ' +\n  'the other is five hundredths. The seat does the work, not the digit.\u003c/p>' +\n  '\u003cp>\u003cspan class=\"term\">Zeros hold seats.\u003c/span> In 503.07 the zeros aren\\'t decoration — kick them ' +\n  'out and you get 53.7, a completely different number. A zero says \"this seat is empty, but the ' +\n  'seat still exists.\"\u003c/p>' +\n  '\u003cp>\u003cspan class=\"term\">Comparing decimals:\u003c/span> more digits does NOT mean bigger. 0.5 beats 0.375. ' +\n  'Pad to the same length (0.500 vs 0.375) and compare seat by seat from the left — the tenths seat ' +\n  'decides it: 5 beats 3, done.\u003c/p>' +\n  '\u003cp>One shop note for later: machinists say \"a tenth\" to mean 0.0001\" — a tenth \u003ci>of a thou\u003c/i>, ' +\n  'not the tenths seat you just learned. World 2 sorts that out; for now, tenths = 0.1. ' +\n  'Now open the \u003cb>Playground\u003c/b> and build some numbers with your own hands.\u003c/p>' +\n  '\u003c/div>\u003c/div>';\n\n  /* ============ PART 2 — PLAYGROUND ============ */\n  function playground(panes) {\n    var card = document.createElement('div');\n    card.className = 'card';\n    card.innerHTML =\n      '\u003ch2>Playground — build a number from place-value blocks\u003c/h2>\u003cdiv class=\"body\">' +\n      '\u003cdiv class=\"pv-cols\" id=\"pvCols\">\u003c/div>' +\n      '\u003cp class=\"hint\">▲ and ▼ change each seat, 0 through 9. Blue seats are whole things, orange seats ' +\n      'are pieces. Watch the equation and the readout assemble the number live.\u003c/p>' +\n      '\u003cdiv class=\"pg-split\" style=\"margin-top:12px\">' +\n      '\u003cdiv class=\"eq\" id=\"eqPanel\">\u003cspan class=\"lbl\">The math, live\u003c/span>\u003cspan id=\"eqBody\">\u003c/span>\u003c/div>' +\n      '\u003cdiv class=\"pg-live\">\u003cdiv id=\"droBox\">\u003c/div>' +\n      '\u003cdiv class=\"btnrow\">\u003cbutton id=\"zeroBtn\">ALL ZEROS\u003c/button>\u003cbutton id=\"exampleBtn\">THE 357.25 EXAMPLE\u003c/button>\u003c/div>' +\n      '\u003c/div>\u003c/div>\u003c/div>';\n    panes.appendChild(card);\n\n    var digits = [3, 5, 7, 2, 5, 0];\n    var cols = card.querySelector('#pvCols');\n    var droCtl = S.dro(card.querySelector('#droBox'), 'NUM');\n    var eqBody = card.querySelector('#eqBody');\n\n    function value() {\n      var v = 0;\n      for (var i = 0; i \u003c 6; i++) v += digits[i] * SEATS[i].v;\n      return r3(v);\n    }\n    function build() {\n      var h = '';\n      for (var i = 0; i \u003c 6; i++) {\n        if (i === 3) h += '\u003cdiv class=\"pv-col point\" aria-hidden=\"true\">.\u003c/div>';\n        var frac = i >= 3;\n        h += '\u003cdiv class=\"pv-col' + (frac ? ' frac' : '') + '\">' +\n          '\u003cdiv class=\"seat\">' + SEATS[i].name + '\u003c/div>' +\n          '\u003cdiv class=\"digit\" data-d=\"' + i + '\">' + digits[i] + '\u003c/div>' +\n          '\u003cdiv class=\"blocks\" data-b=\"' + i + '\">\u003c/div>' +\n          '\u003cdiv class=\"bs\">\u003cbutton data-up=\"' + i + '\" aria-label=\"more ' + SEATS[i].name + '\">▲\u003c/button>' +\n          '\u003cbutton data-dn=\"' + i + '\" aria-label=\"fewer ' + SEATS[i].name + '\">▼\u003c/button>\u003c/div>\u003c/div>';\n      }\n      cols.innerHTML = h;\n      cols.querySelectorAll('[data-up]').forEach(function (b) {\n        b.addEventListener('click', function () {\n          var i2 = Number(b.getAttribute('data-up'));\n          digits[i2] = (digits[i2] + 1) % 10;\n          update();\n        });\n      });\n      cols.querySelectorAll('[data-dn]').forEach(function (b) {\n        b.addEventListener('click', function () {\n          var i2 = Number(b.getAttribute('data-dn'));\n          digits[i2] = (digits[i2] + 9) % 10;\n          update();\n        });\n      });\n      update();\n    }\n    function update() {\n      var v = value();\n      for (var i = 0; i \u003c 6; i++) {\n        cols.querySelector('[data-d=\"' + i + '\"]').textContent = digits[i];\n        var bl = cols.querySelector('[data-b=\"' + i + '\"]');\n        var bh = '';\n        for (var k = 0; k \u003c digits[i]; k++) bh += '\u003ci>\u003c/i>';\n        bl.innerHTML = bh;\n      }\n      var terms = [], sums = [];\n      for (var j = 0; j \u003c 6; j++) {\n        if (digits[j] === 0) continue;\n        terms.push('\u003cspan class=\"num\">' + digits[j] + '\u003c/span>×' + SEATS[j].v);\n        sums.push(nf(r3(digits[j] * SEATS[j].v)));\n      }\n      eqBody.innerHTML = (terms.length\n        ? terms.join(' + ') + '\u003cbr>= ' + sums.join(' + ') + '\u003cbr>= \u003cspan class=\"res\">' + v.toFixed(3) + '\u003c/span>'\n        : 'every seat is empty\u003cbr>= \u003cspan class=\"res\">0.000\u003c/span>');\n      droCtl.set(v.toFixed(3), 'Said out loud: \u003cb>' + S.placeWords(v) + '\u003c/b>' +\n        (digits[0] || digits[1] || digits[2] ? '' : ' — nothing left of the point, only pieces') + '.');\n    }\n    card.querySelector('#zeroBtn').addEventListener('click', function () {\n      digits = [0, 0, 0, 0, 0, 0]; build();\n    });\n    card.querySelector('#exampleBtn').addEventListener('click', function () {\n      digits = [3, 5, 7, 2, 5, 0]; build();\n    });\n    build();\n    window.__l1 = {\n      set: function (d) { digits = d.slice(); build(); },\n      info: function () { return { digits: digits.slice(), value: value() }; }\n    };\n  }\n\n  /* ============ question generators (game + boss) ============ */\n  function rnd(n) { return Math.floor(Math.random() * n); }\n\n  function buildNumber(hard) {\n    /* digits for [hundreds, tens, ones, tenths, hundredths, (thousandths in hard)] */\n    var d = [1 + rnd(9), rnd(10), rnd(10), rnd(10), rnd(10), hard ? rnd(10) : 0];\n    return d;\n  }\n  function numStr(d, hard) {\n    return '' + d[0] + d[1] + d[2] + '.' + d[3] + d[4] + (hard ? '' + d[5] : '');\n  }\n  function numVal(d) {\n    return r3(d[0] * 100 + d[1] * 10 + d[2] + d[3] * 0.1 + d[4] * 0.01 + d[5] * 0.001);\n  }\n\n  function genDigitWorth(hard) {\n    var seatMax = hard ? 6 : 5;\n    var d, si, dig, tries;\n    for (tries = 0; tries \u003c 40; tries++) {\n      d = buildNumber(hard);\n      si = rnd(seatMax);\n      dig = d[si];\n      if (dig === 0) continue;\n      var unique = true;\n      for (var k = 0; k \u003c seatMax; k++) if (k !== si && d[k] === dig) unique = false;\n      if (unique) break;\n    }\n    if (dig === 0) { d[si] = dig = 7; for (var k2 = 0; k2 \u003c seatMax; k2++) if (k2 !== si && d[k2] === 7) d[k2] = 3; }\n    var a = r3(dig * SEATS[si].v);\n    var ns = numStr(d, hard);\n    return { type: 'num', a: a, tol: 0.0005,\n      q: 'In \u003cspan class=\"num\">' + ns + '\u003c/span>, what is the \u003cspan class=\"num\">' + dig + '\u003c/span> actually worth?',\n      explain: 'The ' + dig + ' sits in the \u003cb>' + SEATS[si].name + '\u003c/b> seat: ' + dig + ' × ' + SEATS[si].v +\n        ' = \u003cspan class=\"num\">' + nf(a) + '\u003c/span>.',\n      hint: 'First find which SEAT the ' + dig + ' sits in — count seats from the decimal point. Then the seat multiplies: digit × seat value.',\n      steps: '1 · Count from the point: the ' + dig + ' is in the \u003cspan class=\"num\">' + SEATS[si].name + '\u003c/span> seat\u003cbr>' +\n        '2 · Worth = digit × seat = \u003cspan class=\"num\">' + dig + '\u003c/span> × \u003cspan class=\"num\">' + SEATS[si].v + '\u003c/span>\u003cbr>' +\n        '3 · = \u003cspan class=\"res\">' + nf(a) + '\u003c/span>',\n      diagnose: function (v) {\n        if (Math.abs(v - dig) \u003c 0.0005 && SEATS[si].v !== 1) return { label: 'Face value only',\n          your: 'you read the digit ' + dig + ' by itself — but a digit is worth nothing without its seat',\n          right: dig + ' × ' + SEATS[si].v + ' = ' + nf(a) };\n        if (Math.abs(v - a * 10) \u003c 0.0055 * SEATS[si].v * 10 + 0.0005) return { label: 'One seat too far LEFT',\n          your: nf(v) + ' would be right if the ' + dig + ' sat one seat left (' + (si > 0 ? SEATS[si - 1].name : '?') + ')',\n          right: 'it sits in the ' + SEATS[si].name + ': ' + dig + ' × ' + SEATS[si].v + ' = ' + nf(a) };\n        if (Math.abs(v - a / 10) \u003c 0.0055 * SEATS[si].v / 10 + 0.0005) return { label: 'One seat too far RIGHT',\n          your: nf(v) + ' would be right one seat right (' + (si \u003c 5 ? SEATS[si + 1].name : '?') + ')',\n          right: 'it sits in the ' + SEATS[si].name + ': ' + dig + ' × ' + SEATS[si].v + ' = ' + nf(a) };\n        return { label: 'Seat slip',\n          your: nf(v) + ' is not digit × seat',\n          right: dig + ' × ' + SEATS[si].v + ' = ' + nf(a) };\n      } };\n  }\n\n  function genWhichDigit(hard) {\n    var d = buildNumber(hard);\n    var seatMax = hard ? 6 : 5;\n    var si = rnd(seatMax);\n    var ns = numStr(d, hard);\n    var a = d[si];\n    return { type: 'num', a: a, tol: 0.4,\n      q: 'Which digit sits in the \u003cb>' + SEATS[si].name + '\u003c/b> seat of \u003cspan class=\"num\">' + ns + '\u003c/span>?',\n      explain: 'Counting from the point, the ' + SEATS[si].name + ' seat holds \u003cspan class=\"num\">' + a + '\u003c/span>.',\n      hint: 'Find the decimal point first. Whole-number seats count LEFT from it (ones, tens, hundreds); piece seats count RIGHT (tenths, hundredths, thousandths).',\n      steps: '1 · Find the point in ' + ns + '\u003cbr>' +\n        '2 · ' + (SEATS[si].v >= 1 ? 'Count LEFT: ones, tens, hundreds…' : 'Count RIGHT: tenths, hundredths, thousandths…') +\n        ' to the ' + SEATS[si].name + ' seat\u003cbr>' +\n        '3 · That seat holds \u003cspan class=\"res\">' + a + '\u003c/span>',\n      diagnose: function (v) {\n        if (si > 0 && Math.abs(v - d[si - 1]) \u003c 0.4) return { label: 'One seat to the left',\n          your: d[si - 1] + ' sits in the ' + SEATS[si - 1].name + ' seat — one seat over from what was asked',\n          right: 'the ' + SEATS[si].name + ' seat holds ' + a };\n        if (si \u003c seatMax - 1 && Math.abs(v - d[si + 1]) \u003c 0.4) return { label: 'One seat to the right',\n          your: d[si + 1] + ' sits in the ' + SEATS[si + 1].name + ' seat — one seat over from what was asked',\n          right: 'the ' + SEATS[si].name + ' seat holds ' + a };\n        return { label: 'Seat miscount',\n          your: v + ' is not in the ' + SEATS[si].name + ' seat of ' + ns,\n          right: 'count from the point → ' + a };\n      } };\n  }\n\n  function genAssemble(hard) {\n    var counts = [1 + rnd(9), rnd(10), rnd(10), rnd(10)];\n    if (hard || Math.random() \u003c 0.4) counts[1 + rnd(2)] = 0;   /* force a held zero */\n    var useHundredths = hard || Math.random() \u003c 0.5;\n    var seatIdx = useHundredths ? 4 : 3;\n    var a = r3(counts[0] * 100 + counts[1] * 10 + counts[2] + counts[3] * SEATS[seatIdx].v);\n    var parts = '\u003cspan class=\"num\">' + counts[0] + '\u003c/span> hundreds + \u003cspan class=\"num\">' + counts[1] +\n      '\u003c/span> tens + \u003cspan class=\"num\">' + counts[2] + '\u003c/span> ones + \u003cspan class=\"num\">' + counts[3] +\n      '\u003c/span> ' + SEATS[seatIdx].name;\n    var wrongSeat = r3(counts[0] * 100 + counts[1] * 10 + counts[2] + counts[3] * (useHundredths ? 0.1 : 0.01));\n    var glued = parseFloat('' + counts[0] + counts[1] + counts[2] + counts[3]);\n    return { type: 'num', a: a, tol: 0.0005,\n      q: parts + ' = ?',\n      explain: counts[0] + '×100 + ' + counts[1] + '×10 + ' + counts[2] + '×1 + ' + counts[3] + '×' +\n        SEATS[seatIdx].v + ' = \u003cspan class=\"num\">' + nf(a) + '\u003c/span>.',\n      hint: 'Give every count its seat and add them up: hundreds ×100, tens ×10, ones ×1, ' + SEATS[seatIdx].name +\n        ' ×' + SEATS[seatIdx].v + '. A zero count still holds its seat open.',\n      steps: '1 · ' + counts[0] + '×100 = ' + counts[0] * 100 + ' · ' + counts[1] + '×10 = ' + counts[1] * 10 +\n        ' · ' + counts[2] + '×1 = ' + counts[2] + ' · ' + counts[3] + '×' + SEATS[seatIdx].v + ' = ' + nf(r3(counts[3] * SEATS[seatIdx].v)) + '\u003cbr>' +\n        '2 · Add them: \u003cspan class=\"res\">' + nf(a) + '\u003c/span>',\n      diagnose: function (v) {\n        if (counts[3] !== 0 && Math.abs(v - wrongSeat) \u003c 0.0005) return { label: 'Piece landed in the wrong seat',\n          your: nf(v) + ' treats the ' + counts[3] + ' as ' + (useHundredths ? 'tenths' : 'hundredths') +\n            ' — the question said ' + SEATS[seatIdx].name,\n          right: counts[3] + ' ' + SEATS[seatIdx].name + ' = ' + counts[3] + ' × ' + SEATS[seatIdx].v + ' = ' + nf(r3(counts[3] * SEATS[seatIdx].v)) };\n        if (Math.abs(v - glued) \u003c 0.5) return { label: 'Digits glued together',\n          your: 'you strung the counts into ' + glued + ' — the decimal point vanished and the pieces became whole numbers',\n          right: 'the ' + counts[3] + ' ' + SEATS[seatIdx].name + ' live RIGHT of the point: ' + nf(a) };\n        var noZero = parseFloat(String(counts[0]) + (counts[1] || '') + (counts[2] || ''));\n        if ((counts[1] === 0 || counts[2] === 0) && Math.abs(v - noZero) \u003c 0.5 && Math.abs(noZero - a) > 0.5) return { label: 'Dropped a held zero',\n          your: 'a zero count got skipped — but the seat still exists, and every digit after it shifted',\n          right: 'zeros hold seats: ' + nf(a) };\n        return { label: 'Seat slip',\n          your: nf(v) + ' is not the sum of count × seat',\n          right: counts[0] + '×100 + ' + counts[1] + '×10 + ' + counts[2] + ' + ' + counts[3] + '×' + SEATS[seatIdx].v + ' = ' + nf(a) };\n      } };\n  }\n\n  function genCompare(hard) {\n    var pairs = hard\n      ? [['0.375', '0.4'], ['0.625', '0.7'], ['0.05', '0.049'], ['1.05', '1.5'], ['0.301', '0.31'], ['0.099', '0.1']]\n      : [['0.5', '0.375'], ['0.25', '0.3'], ['0.75', '0.8'], ['0.4', '0.125'], ['0.05', '0.2'], ['0.9', '0.125']];\n    var p = S.pick(pairs);\n    var bigger = parseFloat(p[0]) > parseFloat(p[1]) ? 0 : 1;\n    var pad = Math.max((p[0].split('.')[1] || '').length, (p[1].split('.')[1] || '').length);\n    return { type: 'mc', a: bigger, choices: [p[0], p[1]],\n      q: 'Which number is \u003cb>larger\u003c/b>?',\n      explain: 'Pad both to ' + pad + ' places and compare seat by seat: ' + Number(p[0]).toFixed(pad) + ' vs ' +\n        Number(p[1]).toFixed(pad) + ' → \u003cspan class=\"num\">' + p[bigger] + '\u003c/span>. More digits ≠ bigger.',\n      hint: 'Pad the shorter one with zeros until both have the same number of decimal places. Then compare left to right, one seat at a time — the first seat that differs decides it.',\n      steps: '1 · Pad: \u003cspan class=\"num\">' + Number(p[0]).toFixed(pad) + '\u003c/span> vs \u003cspan class=\"num\">' + Number(p[1]).toFixed(pad) + '\u003c/span>\u003cbr>' +\n        '2 · Compare seats left to right until they differ\u003cbr>' +\n        '3 · \u003cspan class=\"res\">' + p[bigger] + '\u003c/span> is larger',\n      diagnose: function () {\n        return { label: 'Longer looked larger',\n          your: 'the number with more digits FEELS bigger — but seats to the right hold smaller and smaller pieces',\n          right: 'pad and compare: ' + Number(p[0]).toFixed(pad) + ' vs ' + Number(p[1]).toFixed(pad) + ' → ' + p[bigger] };\n      } };\n  }\n\n  function genExpand(hard) {\n    var d = [1 + rnd(9), 0, 1 + rnd(9), hard ? 1 + rnd(9) : 0];   /* tens, ones(0), tenths, thousandths */\n    var v = r3(d[0] * 10 + d[1] + d[2] * 0.1 + d[3] * 0.001);\n    var ns = (d[0] * 10 + d[1]) + '.' + d[2] + (hard ? '0' + d[3] : '');\n    function term(dig, seat) { return dig + '×' + seat; }\n    var right = [term(d[0], 10), term(d[2], '0.1')];\n    if (hard) right.push(term(d[3], '0.001'));\n    var t1 = [term(d[0], 10), term(d[2], '0.01')];\n    if (hard) t1.push(term(d[3], '0.001'));\n    var t2 = [term(d[0], 100), term(d[2], '0.1')];\n    if (hard) t2.push(term(d[3], '0.001'));\n    var choices = [right.join(' + '), t1.join(' + '), t2.join(' + ')];\n    return { type: 'mc', a: 0, choices: choices,\n      q: 'Which is \u003cspan class=\"num\">' + ns + '\u003c/span> taken apart correctly?',\n      explain: 'The ' + d[0] + ' sits in tens, the ' + d[2] + ' in tenths' + (hard ? ', the ' + d[3] + ' in thousandths (the 0 holds the hundredths seat)' : '') +\n        ': \u003cspan class=\"num\">' + right.join(' + ') + '\u003c/span>.',\n      hint: 'Walk the digits one seat at a time from the decimal point, and watch the held zeros — an empty seat shifts everything after it.',\n      steps: '1 · ' + d[0] + ' is left of the point in the tens seat → ' + term(d[0], 10) + '\u003cbr>' +\n        '2 · First seat right of the point: ' + d[2] + ' tenths → ' + term(d[2], '0.1') + '\u003cbr>' +\n        (hard ? '3 · The 0 holds hundredths; the ' + d[3] + ' lands in thousandths → ' + term(d[3], '0.001') + '\u003cbr>' : '') +\n        (hard ? '4' : '3') + ' · \u003cspan class=\"res\">' + right.join(' + ') + '\u003c/span>',\n      diagnose: function (chosen) {\n        if (chosen === 1) return { label: 'Tenths read as hundredths',\n          your: 'that expansion puts the ' + d[2] + ' two seats right of the point — it sits in the FIRST seat, tenths',\n          right: d[2] + '×0.1, not ' + d[2] + '×0.01' };\n        return { label: 'Tens read as hundreds',\n          your: 'that expansion makes the ' + d[0] + ' worth ' + d[0] * 100 + ' — it sits ONE seat left of the point',\n          right: d[0] + '×10, not ' + d[0] + '×100' };\n      } };\n  }\n\n  function genWriteIt(hard) {\n    var d = hard\n      ? [1 + rnd(9), rnd(2) === 0 ? 0 : rnd(10), rnd(10), 0, 1 + rnd(9), 0]\n      : [0, 1 + rnd(9), rnd(10), 1 + rnd(9), 0, 0];\n    if (!hard) d[1] = 1 + rnd(9);\n    var v = numVal(d);\n    var words = S.placeWords(v);\n    return { type: 'num', a: v, tol: 0.0005,\n      q: 'Write this as a number: \u003cb>“' + words + '”\u003c/b>',\n      explain: '“' + words + '” = \u003cspan class=\"num\">' + nf(v) + '\u003c/span>.',\n      hint: 'Whole part first, then the piece: \"…and N somethingths\" tells you the LAST seat the piece reaches. Pad with held zeros so it lands there.',\n      steps: '1 · Whole part: \u003cspan class=\"num\">' + Math.floor(v) + '\u003c/span>\u003cbr>' +\n        '2 · The piece names its last seat — count that many places right of the point\u003cbr>' +\n        '3 · \u003cspan class=\"res\">' + nf(v) + '\u003c/span>',\n      diagnose: function (u) {\n        if (Math.abs(u - v) \u003c 0.0005) return null;\n        if (Math.abs(u * 10 - v) \u003c 0.0005 || Math.abs(u / 10 - v) \u003c 0.0005) return { label: 'Piece off by one seat',\n          your: nf(u) + ' puts the piece one seat off — \"hundredths\" must END in the hundredths seat',\n          right: nf(v) };\n        return { label: 'Words-to-seats slip',\n          your: nf(u) + ' does not match “' + words + '”',\n          right: nf(v) };\n      } };\n  }\n\n  var GENS = { digitWorth: genDigitWorth, whichDigit: genWhichDigit, assemble: genAssemble,\n    compare: genCompare, expand: genExpand, writeIt: genWriteIt };\n  var HARD = false;\n  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 1'; return q; }\n\n  function makeSet(kinds, hard) {\n    HARD = !!hard;\n    var used = {}, out = [];\n    for (var i = 0; i \u003c kinds.length; i++) {\n      var q = gen(kinds[i]);\n      for (var t = 0; t \u003c 8; t++) {\n        var key = String(q.q).replace(/\u003c[^>]*>/g, '');\n        if (!used[key]) break;\n        q = gen(kinds[i]);\n      }\n      used[String(q.q).replace(/\u003c[^>]*>/g, '')] = true;\n      out.push(q);\n    }\n    HARD = false;\n    return S.shuffle(out);\n  }\n  function gameQs() {\n    return makeSet(['digitWorth', 'digitWorth', 'whichDigit', 'whichDigit', 'assemble', 'assemble',\n      'compare', 'compare', 'expand', 'writeIt'], false);\n  }\n  function bossQs() {\n    return makeSet(['digitWorth', 'digitWorth', 'whichDigit', 'assemble', 'assemble',\n      'compare', 'compare', 'expand', 'writeIt', 'writeIt'], true);\n  }\n\n  S.levelPage('l1', {\n    explainer: EXPLAINER,\n    playground: playground,\n    gameQs: gameQs,\n    bossQs: bossQs,\n  });\n})();\n\u003c/script>\n\n\u003cscript>\ndocument.addEventListener('click', function (e) {\n  var a = e.target.closest ? e.target.closest('a') : null;\n  if (a && /index\\.html$/.test(a.getAttribute('href') || '')) {\n    e.preventDefault(); location.reload();\n  }\n}, true);\n\u003c/script>\n\u003c/body>\n\u003c/html>\n"
+  };
+  document.addEventListener('click', function (e) {
+    var a = e.target.closest ? e.target.closest('a') : null;
+    if (!a) return;
+    var href = a.getAttribute('href') || '';
+    if (href.indexOf('levels/') === 0) {
+      e.preventDefault();
+      var doc = DOCS[href];
+      if (doc) { document.open(); document.write(doc); document.close(); }
+    }
+  }, true);
+})();
+</script>
+</body>
+</html>

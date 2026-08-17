@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level 1 · Counting &amp; Place Value</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← SKILL TREE</a>
+    <div class="eyebrow">Level 01 · World 1 · Shop Math School</div>
+    <h1>Counting &amp; <span class="b">Place Value</span></h1>
+    <p class="sub">Every digit has a seat, and the seat is a multiplier. Nail this one idea and
+      decimals stop being scary — they're just seats to the right of the point.</p>
+  </header>
+  <div id="sms-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  var SEATS = [
+    { v: 100,   name: 'hundreds' },
+    { v: 10,    name: 'tens' },
+    { v: 1,     name: 'ones' },
+    { v: 0.1,   name: 'tenths' },
+    { v: 0.01,  name: 'hundredths' },
+    { v: 0.001, name: 'thousandths' }
+  ];
+  function r3(v) { return Math.round(v * 1000) / 1000; }
+  function nf(v) { return S.fmtExact(v); }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>A number is not a string of digits — it\'s digits <span class="term">sitting in seats</span>, ' +
+  'and every seat has a value. Moving one seat to the <b>left</b> makes a digit worth <b>10× more</b>. ' +
+  'One seat to the <b>right</b>, 10× less. That\'s the entire system:</p>' +
+  '<div class="worked">… hundreds · tens · ones <span class="res">.</span> tenths · hundredths · thousandths …<br>' +
+  '… 100 · 10 · 1 <span class="res">.</span> 0.1 · 0.01 · 0.001 …</div>' +
+  '<p>The <span class="term">decimal point</span> is just the marker between "whole things" and ' +
+  '"pieces of a thing". It never moves — the digits sit around it.</p>' +
+  '<p>Work one all the way. Take <b>357.25</b> apart, seat by seat:</p>' +
+  '<div class="worked"><span class="num">3</span> sits in hundreds → 3 × 100 = <span class="num">300</span><br>' +
+  '<span class="num">5</span> sits in tens → 5 × 10 = <span class="num">50</span><br>' +
+  '<span class="num">7</span> sits in ones → 7 × 1 = <span class="num">7</span><br>' +
+  '<span class="num">2</span> sits in tenths → 2 × 0.1 = <span class="num">0.2</span><br>' +
+  '<span class="num">5</span> sits in hundredths → 5 × 0.01 = <span class="num">0.05</span><br>' +
+  '300 + 50 + 7 + 0.2 + 0.05 = <span class="res">357.25</span></div>' +
+  '<p>Notice the two 5s: <b>same digit, different seats, different worth</b> — one is fifty, ' +
+  'the other is five hundredths. The seat does the work, not the digit.</p>' +
+  '<p><span class="term">Zeros hold seats.</span> In 503.07 the zeros aren\'t decoration — kick them ' +
+  'out and you get 53.7, a completely different number. A zero says "this seat is empty, but the ' +
+  'seat still exists."</p>' +
+  '<p><span class="term">Comparing decimals:</span> more digits does NOT mean bigger. 0.5 beats 0.375. ' +
+  'Pad to the same length (0.500 vs 0.375) and compare seat by seat from the left — the tenths seat ' +
+  'decides it: 5 beats 3, done.</p>' +
+  '<p>One shop note for later: machinists say "a tenth" to mean 0.0001" — a tenth <i>of a thou</i>, ' +
+  'not the tenths seat you just learned. World 2 sorts that out; for now, tenths = 0.1. ' +
+  'Now open the <b>Playground</b> and build some numbers with your own hands.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — build a number from place-value blocks</h2><div class="body">' +
+      '<div class="pv-cols" id="pvCols"></div>' +
+      '<p class="hint">▲ and ▼ change each seat, 0 through 9. Blue seats are whole things, orange seats ' +
+      'are pieces. Watch the equation and the readout assemble the number live.</p>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div>' +
+      '<div class="btnrow"><button id="zeroBtn">ALL ZEROS</button><button id="exampleBtn">THE 357.25 EXAMPLE</button></div>' +
+      '</div></div></div>';
+    panes.appendChild(card);
+
+    var digits = [3, 5, 7, 2, 5, 0];
+    var cols = card.querySelector('#pvCols');
+    var droCtl = S.dro(card.querySelector('#droBox'), 'NUM');
+    var eqBody = card.querySelector('#eqBody');
+
+    function value() {
+      var v = 0;
+      for (var i = 0; i < 6; i++) v += digits[i] * SEATS[i].v;
+      return r3(v);
+    }
+    function build() {
+      var h = '';
+      for (var i = 0; i < 6; i++) {
+        if (i === 3) h += '<div class="pv-col point" aria-hidden="true">.</div>';
+        var frac = i >= 3;
+        h += '<div class="pv-col' + (frac ? ' frac' : '') + '">' +
+          '<div class="seat">' + SEATS[i].name + '</div>' +
+          '<div class="digit" data-d="' + i + '">' + digits[i] + '</div>' +
+          '<div class="blocks" data-b="' + i + '"></div>' +
+          '<div class="bs"><button data-up="' + i + '" aria-label="more ' + SEATS[i].name + '">▲</button>' +
+          '<button data-dn="' + i + '" aria-label="fewer ' + SEATS[i].name + '">▼</button></div></div>';
+      }
+      cols.innerHTML = h;
+      cols.querySelectorAll('[data-up]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var i2 = Number(b.getAttribute('data-up'));
+          digits[i2] = (digits[i2] + 1) % 10;
+          update();
+        });
+      });
+      cols.querySelectorAll('[data-dn]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var i2 = Number(b.getAttribute('data-dn'));
+          digits[i2] = (digits[i2] + 9) % 10;
+          update();
+        });
+      });
+      update();
+    }
+    function update() {
+      var v = value();
+      for (var i = 0; i < 6; i++) {
+        cols.querySelector('[data-d="' + i + '"]').textContent = digits[i];
+        var bl = cols.querySelector('[data-b="' + i + '"]');
+        var bh = '';
+        for (var k = 0; k < digits[i]; k++) bh += '<i></i>';
+        bl.innerHTML = bh;
+      }
+      var terms = [], sums = [];
+      for (var j = 0; j < 6; j++) {
+        if (digits[j] === 0) continue;
+        terms.push('<span class="num">' + digits[j] + '</span>×' + SEATS[j].v);
+        sums.push(nf(r3(digits[j] * SEATS[j].v)));
+      }
+      eqBody.innerHTML = (terms.length
+        ? terms.join(' + ') + '<br>= ' + sums.join(' + ') + '<br>= <span class="res">' + v.toFixed(3) + '</span>'
+        : 'every seat is empty<br>= <span class="res">0.000</span>');
+      droCtl.set(v.toFixed(3), 'Said out loud: <b>' + S.placeWords(v) + '</b>' +
+        (digits[0] || digits[1] || digits[2] ? '' : ' — nothing left of the point, only pieces') + '.');
+    }
+    card.querySelector('#zeroBtn').addEventListener('click', function () {
+      digits = [0, 0, 0, 0, 0, 0]; build();
+    });
+    card.querySelector('#exampleBtn').addEventListener('click', function () {
+      digits = [3, 5, 7, 2, 5, 0]; build();
+    });
+    build();
+    window.__l1 = {
+      set: function (d) { digits = d.slice(); build(); },
+      info: function () { return { digits: digits.slice(), value: value() }; }
+    };
+  }
+
+  /* ============ question generators (game + boss) ============ */
+  function rnd(n) { return Math.floor(Math.random() * n); }
+
+  function buildNumber(hard) {
+    /* digits for [hundreds, tens, ones, tenths, hundredths, (thousandths in hard)] */
+    var d = [1 + rnd(9), rnd(10), rnd(10), rnd(10), rnd(10), hard ? rnd(10) : 0];
+    return d;
+  }
+  function numStr(d, hard) {
+    return '' + d[0] + d[1] + d[2] + '.' + d[3] + d[4] + (hard ? '' + d[5] : '');
+  }
+  function numVal(d) {
+    return r3(d[0] * 100 + d[1] * 10 + d[2] + d[3] * 0.1 + d[4] * 0.01 + d[5] * 0.001);
+  }
+
+  function genDigitWorth(hard) {
+    var seatMax = hard ? 6 : 5;
+    var d, si, dig, tries;
+    for (tries = 0; tries < 40; tries++) {
+      d = buildNumber(hard);
+      si = rnd(seatMax);
+      dig = d[si];
+      if (dig === 0) continue;
+      var unique = true;
+      for (var k = 0; k < seatMax; k++) if (k !== si && d[k] === dig) unique = false;
+      if (unique) break;
+    }
+    if (dig === 0) { d[si] = dig = 7; for (var k2 = 0; k2 < seatMax; k2++) if (k2 !== si && d[k2] === 7) d[k2] = 3; }
+    var a = r3(dig * SEATS[si].v);
+    var ns = numStr(d, hard);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'In <span class="num">' + ns + '</span>, what is the <span class="num">' + dig + '</span> actually worth?',
+      explain: 'The ' + dig + ' sits in the <b>' + SEATS[si].name + '</b> seat: ' + dig + ' × ' + SEATS[si].v +
+        ' = <span class="num">' + nf(a) + '</span>.',
+      hint: 'First find which SEAT the ' + dig + ' sits in — count seats from the decimal point. Then the seat multiplies: digit × seat value.',
+      steps: '1 · Count from the point: the ' + dig + ' is in the <span class="num">' + SEATS[si].name + '</span> seat<br>' +
+        '2 · Worth = digit × seat = <span class="num">' + dig + '</span> × <span class="num">' + SEATS[si].v + '</span><br>' +
+        '3 · = <span class="res">' + nf(a) + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - dig) < 0.0005 && SEATS[si].v !== 1) return { label: 'Face value only',
+          your: 'you read the digit ' + dig + ' by itself — but a digit is worth nothing without its seat',
+          right: dig + ' × ' + SEATS[si].v + ' = ' + nf(a) };
+        if (Math.abs(v - a * 10) < 0.0055 * SEATS[si].v * 10 + 0.0005) return { label: 'One seat too far LEFT',
+          your: nf(v) + ' would be right if the ' + dig + ' sat one seat left (' + (si > 0 ? SEATS[si - 1].name : '?') + ')',
+          right: 'it sits in the ' + SEATS[si].name + ': ' + dig + ' × ' + SEATS[si].v + ' = ' + nf(a) };
+        if (Math.abs(v - a / 10) < 0.0055 * SEATS[si].v / 10 + 0.0005) return { label: 'One seat too far RIGHT',
+          your: nf(v) + ' would be right one seat right (' + (si < 5 ? SEATS[si + 1].name : '?') + ')',
+          right: 'it sits in the ' + SEATS[si].name + ': ' + dig + ' × ' + SEATS[si].v + ' = ' + nf(a) };
+        return { label: 'Seat slip',
+          your: nf(v) + ' is not digit × seat',
+          right: dig + ' × ' + SEATS[si].v + ' = ' + nf(a) };
+      } };
+  }
+
+  function genWhichDigit(hard) {
+    var d = buildNumber(hard);
+    var seatMax = hard ? 6 : 5;
+    var si = rnd(seatMax);
+    var ns = numStr(d, hard);
+    var a = d[si];
+    return { type: 'num', a: a, tol: 0.4,
+      q: 'Which digit sits in the <b>' + SEATS[si].name + '</b> seat of <span class="num">' + ns + '</span>?',
+      explain: 'Counting from the point, the ' + SEATS[si].name + ' seat holds <span class="num">' + a + '</span>.',
+      hint: 'Find the decimal point first. Whole-number seats count LEFT from it (ones, tens, hundreds); piece seats count RIGHT (tenths, hundredths, thousandths).',
+      steps: '1 · Find the point in ' + ns + '<br>' +
+        '2 · ' + (SEATS[si].v >= 1 ? 'Count LEFT: ones, tens, hundreds…' : 'Count RIGHT: tenths, hundredths, thousandths…') +
+        ' to the ' + SEATS[si].name + ' seat<br>' +
+        '3 · That seat holds <span class="res">' + a + '</span>',
+      diagnose: function (v) {
+        if (si > 0 && Math.abs(v - d[si - 1]) < 0.4) return { label: 'One seat to the left',
+          your: d[si - 1] + ' sits in the ' + SEATS[si - 1].name + ' seat — one seat over from what was asked',
+          right: 'the ' + SEATS[si].name + ' seat holds ' + a };
+        if (si < seatMax - 1 && Math.abs(v - d[si + 1]) < 0.4) return { label: 'One seat to the right',
+          your: d[si + 1] + ' sits in the ' + SEATS[si + 1].name + ' seat — one seat over from what was asked',
+          right: 'the ' + SEATS[si].name + ' seat holds ' + a };
+        return { label: 'Seat miscount',
+          your: v + ' is not in the ' + SEATS[si].name + ' seat of ' + ns,
+          right: 'count from the point → ' + a };
+      } };
+  }
+
+  function genAssemble(hard) {
+    var counts = [1 + rnd(9), rnd(10), rnd(10), rnd(10)];
+    if (hard || Math.random() < 0.4) counts[1 + rnd(2)] = 0;   /* force a held zero */
+    var useHundredths = hard || Math.random() < 0.5;
+    var seatIdx = useHundredths ? 4 : 3;
+    var a = r3(counts[0] * 100 + counts[1] * 10 + counts[2] + counts[3] * SEATS[seatIdx].v);
+    var parts = '<span class="num">' + counts[0] + '</span> hundreds + <span class="num">' + counts[1] +
+      '</span> tens + <span class="num">' + counts[2] + '</span> ones + <span class="num">' + counts[3] +
+      '</span> ' + SEATS[seatIdx].name;
+    var wrongSeat = r3(counts[0] * 100 + counts[1] * 10 + counts[2] + counts[3] * (useHundredths ? 0.1 : 0.01));
+    var glued = parseFloat('' + counts[0] + counts[1] + counts[2] + counts[3]);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: parts + ' = ?',
+      explain: counts[0] + '×100 + ' + counts[1] + '×10 + ' + counts[2] + '×1 + ' + counts[3] + '×' +
+        SEATS[seatIdx].v + ' = <span class="num">' + nf(a) + '</span>.',
+      hint: 'Give every count its seat and add them up: hundreds ×100, tens ×10, ones ×1, ' + SEATS[seatIdx].name +
+        ' ×' + SEATS[seatIdx].v + '. A zero count still holds its seat open.',
+      steps: '1 · ' + counts[0] + '×100 = ' + counts[0] * 100 + ' · ' + counts[1] + '×10 = ' + counts[1] * 10 +
+        ' · ' + counts[2] + '×1 = ' + counts[2] + ' · ' + counts[3] + '×' + SEATS[seatIdx].v + ' = ' + nf(r3(counts[3] * SEATS[seatIdx].v)) + '<br>' +
+        '2 · Add them: <span class="res">' + nf(a) + '</span>',
+      diagnose: function (v) {
+        if (counts[3] !== 0 && Math.abs(v - wrongSeat) < 0.0005) return { label: 'Piece landed in the wrong seat',
+          your: nf(v) + ' treats the ' + counts[3] + ' as ' + (useHundredths ? 'tenths' : 'hundredths') +
+            ' — the question said ' + SEATS[seatIdx].name,
+          right: counts[3] + ' ' + SEATS[seatIdx].name + ' = ' + counts[3] + ' × ' + SEATS[seatIdx].v + ' = ' + nf(r3(counts[3] * SEATS[seatIdx].v)) };
+        if (Math.abs(v - glued) < 0.5) return { label: 'Digits glued together',
+          your: 'you strung the counts into ' + glued + ' — the decimal point vanished and the pieces became whole numbers',
+          right: 'the ' + counts[3] + ' ' + SEATS[seatIdx].name + ' live RIGHT of the point: ' + nf(a) };
+        var noZero = parseFloat(String(counts[0]) + (counts[1] || '') + (counts[2] || ''));
+        if ((counts[1] === 0 || counts[2] === 0) && Math.abs(v - noZero) < 0.5 && Math.abs(noZero - a) > 0.5) return { label: 'Dropped a held zero',
+          your: 'a zero count got skipped — but the seat still exists, and every digit after it shifted',
+          right: 'zeros hold seats: ' + nf(a) };
+        return { label: 'Seat slip',
+          your: nf(v) + ' is not the sum of count × seat',
+          right: counts[0] + '×100 + ' + counts[1] + '×10 + ' + counts[2] + ' + ' + counts[3] + '×' + SEATS[seatIdx].v + ' = ' + nf(a) };
+      } };
+  }
+
+  function genCompare(hard) {
+    var pairs = hard
+      ? [['0.375', '0.4'], ['0.625', '0.7'], ['0.05', '0.049'], ['1.05', '1.5'], ['0.301', '0.31'], ['0.099', '0.1']]
+      : [['0.5', '0.375'], ['0.25', '0.3'], ['0.75', '0.8'], ['0.4', '0.125'], ['0.05', '0.2'], ['0.9', '0.125']];
+    var p = S.pick(pairs);
+    var bigger = parseFloat(p[0]) > parseFloat(p[1]) ? 0 : 1;
+    var pad = Math.max((p[0].split('.')[1] || '').length, (p[1].split('.')[1] || '').length);
+    return { type: 'mc', a: bigger, choices: [p[0], p[1]],
+      q: 'Which number is <b>larger</b>?',
+      explain: 'Pad both to ' + pad + ' places and compare seat by seat: ' + Number(p[0]).toFixed(pad) + ' vs ' +
+        Number(p[1]).toFixed(pad) + ' → <span class="num">' + p[bigger] + '</span>. More digits ≠ bigger.',
+      hint: 'Pad the shorter one with zeros until both have the same number of decimal places. Then compare left to right, one seat at a time — the first seat that differs decides it.',
+      steps: '1 · Pad: <span class="num">' + Number(p[0]).toFixed(pad) + '</span> vs <span class="num">' + Number(p[1]).toFixed(pad) + '</span><br>' +
+        '2 · Compare seats left to right until they differ<br>' +
+        '3 · <span class="res">' + p[bigger] + '</span> is larger',
+      diagnose: function () {
+        return { label: 'Longer looked larger',
+          your: 'the number with more digits FEELS bigger — but seats to the right hold smaller and smaller pieces',
+          right: 'pad and compare: ' + Number(p[0]).toFixed(pad) + ' vs ' + Number(p[1]).toFixed(pad) + ' → ' + p[bigger] };
+      } };
+  }
+
+  function genExpand(hard) {
+    var d = [1 + rnd(9), 0, 1 + rnd(9), hard ? 1 + rnd(9) : 0];   /* tens, ones(0), tenths, thousandths */
+    var v = r3(d[0] * 10 + d[1] + d[2] * 0.1 + d[3] * 0.001);
+    var ns = (d[0] * 10 + d[1]) + '.' + d[2] + (hard ? '0' + d[3] : '');
+    function term(dig, seat) { return dig + '×' + seat; }
+    var right = [term(d[0], 10), term(d[2], '0.1')];
+    if (hard) right.push(term(d[3], '0.001'));
+    var t1 = [term(d[0], 10), term(d[2], '0.01')];
+    if (hard) t1.push(term(d[3], '0.001'));
+    var t2 = [term(d[0], 100), term(d[2], '0.1')];
+    if (hard) t2.push(term(d[3], '0.001'));
+    var choices = [right.join(' + '), t1.join(' + '), t2.join(' + ')];
+    return { type: 'mc', a: 0, choices: choices,
+      q: 'Which is <span class="num">' + ns + '</span> taken apart correctly?',
+      explain: 'The ' + d[0] + ' sits in tens, the ' + d[2] + ' in tenths' + (hard ? ', the ' + d[3] + ' in thousandths (the 0 holds the hundredths seat)' : '') +
+        ': <span class="num">' + right.join(' + ') + '</span>.',
+      hint: 'Walk the digits one seat at a time from the decimal point, and watch the held zeros — an empty seat shifts everything after it.',
+      steps: '1 · ' + d[0] + ' is left of the point in the tens seat → ' + term(d[0], 10) + '<br>' +
+        '2 · First seat right of the point: ' + d[2] + ' tenths → ' + term(d[2], '0.1') + '<br>' +
+        (hard ? '3 · The 0 holds hundredths; the ' + d[3] + ' lands in thousandths → ' + term(d[3], '0.001') + '<br>' : '') +
+        (hard ? '4' : '3') + ' · <span class="res">' + right.join(' + ') + '</span>',
+      diagnose: function (chosen) {
+        if (chosen === 1) return { label: 'Tenths read as hundredths',
+          your: 'that expansion puts the ' + d[2] + ' two seats right of the point — it sits in the FIRST seat, tenths',
+          right: d[2] + '×0.1, not ' + d[2] + '×0.01' };
+        return { label: 'Tens read as hundreds',
+          your: 'that expansion makes the ' + d[0] + ' worth ' + d[0] * 100 + ' — it sits ONE seat left of the point',
+          right: d[0] + '×10, not ' + d[0] + '×100' };
+      } };
+  }
+
+  function genWriteIt(hard) {
+    var d = hard
+      ? [1 + rnd(9), rnd(2) === 0 ? 0 : rnd(10), rnd(10), 0, 1 + rnd(9), 0]
+      : [0, 1 + rnd(9), rnd(10), 1 + rnd(9), 0, 0];
+    if (!hard) d[1] = 1 + rnd(9);
+    var v = numVal(d);
+    var words = S.placeWords(v);
+    return { type: 'num', a: v, tol: 0.0005,
+      q: 'Write this as a number: <b>“' + words + '”</b>',
+      explain: '“' + words + '” = <span class="num">' + nf(v) + '</span>.',
+      hint: 'Whole part first, then the piece: "…and N somethingths" tells you the LAST seat the piece reaches. Pad with held zeros so it lands there.',
+      steps: '1 · Whole part: <span class="num">' + Math.floor(v) + '</span><br>' +
+        '2 · The piece names its last seat — count that many places right of the point<br>' +
+        '3 · <span class="res">' + nf(v) + '</span>',
+      diagnose: function (u) {
+        if (Math.abs(u - v) < 0.0005) return null;
+        if (Math.abs(u * 10 - v) < 0.0005 || Math.abs(u / 10 - v) < 0.0005) return { label: 'Piece off by one seat',
+          your: nf(u) + ' puts the piece one seat off — "hundredths" must END in the hundredths seat',
+          right: nf(v) };
+        return { label: 'Words-to-seats slip',
+          your: nf(u) + ' does not match “' + words + '”',
+          right: nf(v) };
+      } };
+  }
+
+  var GENS = { digitWorth: genDigitWorth, whichDigit: genWhichDigit, assemble: genAssemble,
+    compare: genCompare, expand: genExpand, writeIt: genWriteIt };
+  var HARD = false;
+  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 1'; return q; }
+
+  function makeSet(kinds, hard) {
+    HARD = !!hard;
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    HARD = false;
+    return S.shuffle(out);
+  }
+  function gameQs() {
+    return makeSet(['digitWorth', 'digitWorth', 'whichDigit', 'whichDigit', 'assemble', 'assemble',
+      'compare', 'compare', 'expand', 'writeIt'], false);
+  }
+  function bossQs() {
+    return makeSet(['digitWorth', 'digitWorth', 'whichDigit', 'assemble', 'assemble',
+      'compare', 'compare', 'expand', 'writeIt', 'writeIt'], true);
+  }
+
+  S.levelPage('l1', {
+    explainer: EXPLAINER,
+    playground: playground,
+    gameQs: gameQs,
+    bossQs: bossQs,
+  });
+})();
+</script>
+</body>
+</html>

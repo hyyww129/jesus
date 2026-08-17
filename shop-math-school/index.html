@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shop Math School</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <div class="eyebrow">From zero to reading blueprints · 29 levels · 5 worlds</div>
+    <h1>Shop Math <span class="b">School</span></h1>
+    <p class="sub">A complete course, taught like a game: explainer → playground → 10-round game →
+      boss at 90% to unlock the next level. Every number on every screen shows its math moving live.
+      Progress lives in this browser tab only; close the tab and it resets.</p>
+  </header>
+
+  <div class="rankbar" id="rankbar" role="status"></div>
+
+  <div class="card">
+    <h2>Spaced review</h2>
+    <div class="body">
+      <div class="btnrow">
+        <button class="accent" id="dailyBtn">DAILY 10 — mixed review from everything you've beaten</button>
+      </div>
+      <p class="hint" id="dailyHint"></p>
+    </div>
+  </div>
+
+  <div id="tree"></div>
+</div>
+
+<div class="overlay" id="dailyOverlay" style="display:none" role="dialog" aria-modal="true" aria-label="Daily 10">
+  <div class="panel">
+    <div class="card" style="margin:0;border:none">
+      <h2 class="with-close">Daily 10 — spaced review <button id="dailyClose">CLOSE ✕</button></h2>
+      <div class="body" id="dailyBody"></div>
+    </div>
+  </div>
+</div>
+
+<script src="shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  function ring(pct) {
+    var r = 24, c = 2 * Math.PI * r, off = c * (1 - pct / 100);
+    return '<svg class="ring" width="62" height="62" viewBox="0 0 62 62" aria-label="confidence ' + pct + '%">' +
+      '<circle class="track" cx="31" cy="31" r="' + r + '" fill="none" stroke-width="6"/>' +
+      '<circle class="arc' + (pct >= 90 ? ' pass' : '') + '" cx="31" cy="31" r="' + r + '" fill="none" stroke-width="6" ' +
+      'stroke-dasharray="' + c.toFixed(1) + '" stroke-dashoffset="' + off.toFixed(1) + '" ' +
+      'stroke-linecap="butt" transform="rotate(-90 31 31)"/>' +
+      '<text x="31" y="36" text-anchor="middle">' + pct + '%</text></svg>';
+  }
+
+  function drawRank() {
+    var ri = S.rankInfo();
+    var ladder = S.RANKS.map(function (r, k) {
+      return k === ri.idx ? '<b>' + r.toUpperCase() + '</b>' : r;
+    }).join(' → ');
+    document.getElementById('rankbar').innerHTML =
+      '<span class="rk">RANK: ' + ri.rank.toUpperCase() + '</span>' +
+      '<span class="ladder">' + ladder + '</span>' +
+      '<span class="note">' + ri.passed + ' of 29 levels beaten' +
+      (ri.next ? ' · finish World ' + (ri.worldsDone + 1) + ' to make ' + ri.next : ' · the whole trade, beaten') + '</span>';
+  }
+
+  function drawTree() {
+    var tree = document.getElementById('tree');
+    tree.innerHTML = S.WORLDS.map(function (w) {
+      var levels = S.LEVELS.filter(function (l) { return l.w === w.n; });
+      var done = S.worldComplete(w.n);
+      var cards = levels.map(function (l) {
+        var r = S.rec(l.id);
+        var unlocked = S.isUnlocked(l.id);
+        var status = r.passed ? 'BEATEN ✓ ' + r.best + '%'
+          : unlocked ? (r.attempts ? 'BEST ' + r.best + '%' : 'READY')
+          : 'LOCKED';
+        var bottom;
+        if (!unlocked) {
+          bottom = '<div class="lock-note">beat Level ' + (l.n - 1) + ' to unlock</div>';
+        } else if (!l.built) {
+          bottom = '<div class="lock-note">unlocked — this level gets built next; say the word</div>';
+        } else {
+          bottom = '<a class="btn ' + (r.passed ? '' : 'primary') + '" href="' + l.file + '">' +
+            (r.passed ? 'REPLAY' : r.attempts ? 'CONTINUE' : 'START') + '</a>';
+        }
+        return '<div class="lvl-card' + (unlocked ? '' : ' locked') + '">' +
+          '<div class="top"><span class="n">LEVEL ' + String(l.n).padStart(2, '0') + '</span>' +
+          '<span class="st' + (r.passed ? ' pass' : '') + '">' + status + '</span></div>' +
+          '<div class="mid">' + ring(Math.round(r.confidence)) +
+          '<div><h3>' + l.title + '</h3><p>' + l.desc + '</p></div></div>' +
+          '<div class="bottom">' + bottom + '</div></div>';
+      }).join('');
+      return '<div class="world"><h2><span>WORLD ' + w.n + ' — ' + w.name +
+        (done ? ' <span class="done">✓ COMPLETE</span>' : '') + '</span>' +
+        '<span class="tag">' + w.tag + '</span></h2>' +
+        '<div class="lvl-grid">' + cards + '</div></div>';
+    }).join('');
+
+    var pool = S.LEVELS.filter(function (l) { return l.built && S.rec(l.id).passed && S.BANKS[l.id]; });
+    document.getElementById('dailyHint').textContent = pool.length
+      ? 'Pulls from: ' + pool.map(function (l) { return 'Level ' + l.n; }).join(', ') +
+        '. Right answers nudge confidence up 1%, misses pull it down 2%.'
+      : 'Beat Level 1\'s boss first — then Daily 10 keeps everything you\'ve learned warm.';
+  }
+
+  var overlay = document.getElementById('dailyOverlay');
+  document.getElementById('dailyBtn').addEventListener('click', function () {
+    var qs = S.daily10Questions();
+    if (!qs.length) return;
+    overlay.style.display = 'flex';
+    S.runGame(document.getElementById('dailyBody'), {
+      mode: 'daily', title: 'DAILY 10', questions: qs,
+      onAnswer: function (q, ok) { if (q.levelId) S.nudge(q.levelId, ok); },
+      onFinish: function () { drawTree(); drawRank(); },
+    });
+  });
+  document.getElementById('dailyClose').addEventListener('click', function () {
+    overlay.style.display = 'none';
+    drawTree(); drawRank();
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && overlay.style.display === 'flex') {
+      overlay.style.display = 'none';
+      drawTree(); drawRank();
+    }
+  });
+
+  drawRank();
+  drawTree();
+})();
+</script>
+</body>
+</html>
