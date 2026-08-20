@@ -15,13 +15,13 @@
   var LEVELS = [
     { id: 'l1',  n: 1,  w: 1, title: 'Counting & Place Value', file: 'levels/l01-place-value.html', built: true,
       desc: 'Ones, tens, hundreds — then tenths, hundredths, thousandths. Every digit has a seat.' },
-    { id: 'l2',  n: 2,  w: 1, title: 'Add & Subtract', file: 'levels/l02-add-subtract.html', built: false,
+    { id: 'l2',  n: 2,  w: 1, title: 'Add & Subtract', file: 'levels/l02-add-subtract.html', built: true,
       desc: 'Carrying and borrowing you can watch happen. Decimals line up on the point.' },
-    { id: 'l3',  n: 3,  w: 1, title: 'Times Tables & Multiply', file: 'levels/l03-multiply.html', built: false,
+    { id: 'l3',  n: 3,  w: 1, title: 'Times Tables & Multiply', file: 'levels/l03-multiply.html', built: true,
       desc: 'Tables 2–12 as a speed game, then multi-digit multiply as area boxes.' },
-    { id: 'l4',  n: 4,  w: 1, title: 'Division from Zero', file: 'levels/l04-division.html', built: false,
+    { id: 'l4',  n: 4,  w: 1, title: 'Division from Zero', file: 'levels/l04-division.html', built: true,
       desc: 'Division as sharing, then long division digit by digit — 3÷8 becomes 0.375 in front of you.' },
-    { id: 'l5',  n: 5,  w: 1, title: 'Fractions', file: 'levels/l05-fractions.html', built: false,
+    { id: 'l5',  n: 5,  w: 1, title: 'Fractions', file: 'levels/l05-fractions.html', built: true,
       desc: 'What a fraction IS, equivalents, adding halves through sixteenths. Pie and ruler side by side.' },
     { id: 'l6',  n: 6,  w: 1, title: 'Fractions ↔ Decimals', file: 'levels/l06-frac-decimals.html', built: false,
       desc: 'Every 64th, with the machinist landmarks: .125, .250, .375, .500, .625, .750, .875.' },
@@ -451,6 +451,364 @@
         return { label: 'Longer looked larger',
           your: 'the number with more digits FEELS bigger — but extra decimal places are smaller and smaller pieces',
           right: 'pad and compare seats: ' + Number(p2[0]).toFixed(3) + ' vs ' + Number(p2[1]).toFixed(3) + ' → ' + p2[bigger] };
+      } };
+  };
+
+  BANKS.l2 = function () {
+    var kind = pick(['addCarry', 'addCarry', 'subBorrow', 'addDec']);
+    function rnd(n) { return Math.floor(Math.random() * n); }
+    if (kind === 'addCarry') {
+      var a = 0, b = 0, t, good = false;
+      for (t = 0; t < 200 && !good; t++) {
+        a = 12 + rnd(76); b = 12 + rnd(76);
+        good = a % 10 + b % 10 >= 10 && Math.floor(a / 10) + Math.floor(b / 10) + 1 <= 9;
+      }
+      if (!good) { a = 47; b = 38; }
+      var ans = a + b, oSum = a % 10 + b % 10;
+      var noCarry = ans - 10;
+      var glue = parseInt(String(Math.floor(a / 10) + Math.floor(b / 10)) + String(oSum), 10);
+      return { type: 'num', a: ans, tol: 0.4, from: 'Level 2',
+        q: 'Add: <span class="num">' + a + '</span> + <span class="num">' + b + '</span> = ?',
+        explain: 'The ones make ' + oSum + ' — the 1 in front is a ten, so it carries one seat left: <span class="num">' + ans + '</span>.',
+        hint: 'Stack them, ones over ones, and work right to left. A column that reaches 10 keeps its ones digit and sends a small 1 to the next column left.',
+        steps: '1 · Ones: <span class="num">' + a % 10 + '</span> + <span class="num">' + b % 10 + '</span> = ' + oSum + ' → write ' + (oSum % 10) + ', carry 1<br>' +
+          '2 · Tens: <span class="num">' + Math.floor(a / 10) + '</span> + <span class="num">' + Math.floor(b / 10) + '</span> + 1 carried = ' + (Math.floor(a / 10) + Math.floor(b / 10) + 1) + '<br>' +
+          '3 · Answer: <span class="res">' + ans + '</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - glue) < 0.4 && glue !== ans) return { label: 'The carry got written down instead of carried',
+            your: 'the whole ' + oSum + ' went into the answer, gluing digits into ' + glue,
+            right: 'write only the ' + (oSum % 10) + ', carry the 1 into the tens → ' + ans };
+          if (Math.abs(v - noCarry) < 0.4) return { label: 'Forgot the carry',
+            your: 'your answer is exactly 10 short — the carried 1 (a whole ten) vanished',
+            right: 'carry the 1 from ' + (a % 10) + '+' + (b % 10) + '=' + oSum + ' into the tens: ' + ans };
+          if (Math.abs(v - Math.abs(a - b)) < 0.4) return { label: 'Subtracted instead of added',
+            your: 'you found the gap between ' + a + ' and ' + b + ', not the total',
+            right: a + ' + ' + b + ' = ' + ans };
+          return { label: 'Column slip',
+            your: fmtExact(v) + ' doesn\'t come from adding seat to seat',
+            right: 'ones then tens, carrying the 1: ' + a + ' + ' + b + ' = ' + ans };
+        } };
+    }
+    if (kind === 'subBorrow') {
+      var a2 = 0, b2 = 0, t2, good2 = false;
+      for (t2 = 0; t2 < 300 && !good2; t2++) {
+        a2 = 30 + rnd(69); b2 = 12 + rnd(70);
+        good2 = b2 < a2 && a2 % 10 < b2 % 10;
+      }
+      if (!good2) { a2 = 62; b2 = 27; }
+      var ans2 = a2 - b2;
+      var flip = Math.abs(a2 % 10 - b2 % 10) + Math.abs(Math.floor(a2 / 10) - Math.floor(b2 / 10)) * 10;
+      var oa = a2 % 10, ob = b2 % 10, ta = Math.floor(a2 / 10), tb = Math.floor(b2 / 10);
+      return { type: 'num', a: ans2, tol: 0.4, from: 'Level 2',
+        q: 'Take away: <span class="num">' + a2 + '</span> − <span class="num">' + b2 + '</span> = ?',
+        explain: oa + ' can\'t give ' + ob + ', so a ten changes seats — borrow, then subtract: <span class="num">' + ans2 + '</span>.',
+        hint: 'Stack them, bigger on top. When a top digit is smaller than the one under it, borrow 10 from the seat to its left — and drop that seat by 1.',
+        steps: '1 · Ones: <span class="num">' + oa + '</span> can\'t give <span class="num">' + ob + '</span> → borrow: ' + (oa + 10) + ' − ' + ob + ' = ' + (oa + 10 - ob) + '<br>' +
+          '2 · Tens: the ' + ta + ' lent 1 → ' + (ta - 1) + '; ' + (ta - 1) + ' − ' + tb + ' = ' + (ta - 1 - tb) + '<br>' +
+          '3 · Answer: <span class="res">' + ans2 + '</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - flip) < 0.4 && flip !== ans2) return { label: 'Columns flipped instead of borrowed',
+            your: 'each column took small from big whichever row it sat in — ' + oa + ' short of ' + ob + ' became ' + Math.abs(oa - ob) + ' with no borrow, landing on ' + flip,
+            right: 'the TOP row is being cut: borrow 10, then ' + a2 + ' − ' + b2 + ' = ' + ans2 };
+          if (Math.abs(v - (a2 + b2)) < 0.4) return { label: 'Added instead of subtracted',
+            your: a2 + ' + ' + b2 + ' = ' + (a2 + b2) + ' grows the pile — this one takes away',
+            right: a2 + ' − ' + b2 + ' = ' + ans2 };
+          if (Math.round(v - ans2) === 10) return { label: 'Borrowed but never paid it back',
+            your: 'the ones took their 10, but the tens seat never went down by 1 — the answer ran 10 high',
+            right: 'every borrow costs the lender 1: ' + a2 + ' − ' + b2 + ' = ' + ans2 };
+          return { label: 'Column slip',
+            your: fmtExact(v) + ' doesn\'t come from working the columns right to left',
+            right: 'borrow where a column runs short: ' + a2 + ' − ' + b2 + ' = ' + ans2 };
+        } };
+    }
+    var ah = (1 + rnd(8)) * 100 + (1 + rnd(9)) * 10;
+    var bh = rnd(2) * 100 + pick([25, 75, 5, 45, 15, 35, 65, 85]);
+    var ans3 = (ah + bh) / 100;
+    var as = fmtExact(ah / 100), bs = fmtExact(bh / 100);
+    var pa = (ah / 100).toFixed(2), pb = (bh / 100).toFixed(2);
+    var ga = parseInt(as.replace('.', ''), 10), gb = parseInt(bs.replace('.', ''), 10), glue3 = ga + gb;
+    return { type: 'num', a: ans3, tol: 0.0005, from: 'Level 2',
+      q: 'Stack two shims: <span class="num">' + as + '</span> + <span class="num">' + bs + '</span> = ? (inches)',
+      explain: 'The POINT lines up, not the right edge — pad with zeros: ' + pa + ' + ' + pb + ' = <span class="num">' + fmtExact(ans3) + '</span>.',
+      hint: 'Stack them so the decimal POINTS sit in one column, pad the short one with zeros, then add like whole numbers. The point drops straight down.',
+      steps: '1 · Points line up — pad: <span class="num">' + pa + '</span> + <span class="num">' + pb + '</span><br>' +
+        '2 · Think in hundredths: ' + ah + ' + ' + bh + ' = ' + (ah + bh) + ' hundredths<br>' +
+        '3 · The point drops straight down: <span class="res">' + fmtExact(ans3) + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - glue3) < 0.005 || Math.abs(v - glue3 / 10) < 0.005 || Math.abs(v - glue3 / 100) < 0.005) return { label: 'Right edges lined up',
+          your: 'stacked flush right the digits read ' + ga + ' + ' + gb + ' = ' + glue3 + ' — but those digits sat in different seats',
+          right: 'points in one column, pad with zeros: ' + pa + ' + ' + pb + ' = ' + fmtExact(ans3) };
+        if (Math.abs(v - Math.abs(ah - bh) / 100) < 0.005) return { label: 'Subtracted instead of added',
+          your: 'you found the gap (' + fmtExact(Math.abs(ah - bh) / 100) + '), not the stack height',
+          right: pa + ' + ' + pb + ' = ' + fmtExact(ans3) };
+        if (Math.abs(v - ans3 * 10) < 0.005 || Math.abs(v - ans3 / 10) < 0.005) return { label: 'The point slipped a seat',
+          your: fmtExact(v) + ' is the right digits with the decimal point one seat off',
+          right: 'the point never moves: ' + pa + ' + ' + pb + ' = ' + fmtExact(ans3) };
+        return { label: 'Column slip',
+          your: fmtExact(v) + ' doesn\'t come from adding the padded columns',
+          right: pa + ' + ' + pb + ' = ' + fmtExact(ans3) };
+      } };
+  };
+  BANKS.l3 = function () {
+      var kind = pick(['tableFact', 'tableFact', 'areaMultiply', 'howManyFit']);
+      function rnd(n) { return Math.floor(Math.random() * n); }
+      if (kind === 'tableFact') {
+        var a = 3 + rnd(10), b = pick([4, 5, 6, 7, 8, 9, 11, 12]);
+        var p = a * b;
+        var list = [];
+        for (var k = 1; k <= b; k++) list.push(a * k);
+        return { type: 'num', a: p, tol: 0.4, from: 'Level 3',
+          q: 'Times table: <span class="num">' + a + '</span> × <span class="num">' + b + '</span> = ?',
+          explain: a + ' × ' + b + ' means ' + a + ' rows of ' + b + ' — <span class="num">' + p + '</span>.',
+          hint: 'Build it from a row you own: ×10 slides the seat, ×9 is ×10 minus one row, ×11 is ×10 plus one row, ×5 is half of ×10, ×4 is double twice.',
+          steps: '1 · Skip-count by <span class="num">' + a + '</span>, ' + b + ' steps: ' + list.join(', ') + '<br>' +
+            '2 · Step ' + b + ' lands on <span class="res">' + p + '</span>',
+          diagnose: function (v) {
+            if (Math.abs(v - (a + b)) < 0.4) return { label: 'Added instead of multiplied',
+              your: a + ' + ' + b + ' = ' + (a + b) + ' — that is one row plus one column, not ' + a + ' rows of ' + b,
+              right: a + ' × ' + b + ' = ' + p };
+            if (Math.abs(v - a * (b + 1)) < 0.4 || Math.abs(v - a * (b - 1)) < 0.4 ||
+                Math.abs(v - (a + 1) * b) < 0.4 || Math.abs(v - (a - 1) * b) < 0.4) return { label: 'Neighbor fact',
+              your: fmtExact(v) + ' sits one row or one column over from ' + a + ' × ' + b,
+              right: a + ' × ' + b + ' = ' + p };
+            return { label: 'Table slip',
+              your: fmtExact(v) + ' is not on the ' + a + ' row — anchor on ' + a + ' × 10 = ' + (a * 10) + ' and step from there',
+              right: a + ' × ' + b + ' = ' + p };
+          } };
+      }
+      if (kind === 'areaMultiply') {
+        var t = 1 + rnd(8), o = 1 + rnd(9), b2 = 2 + rnd(8);
+        var a2 = t * 10 + o, p1 = t * 10 * b2, p2 = o * b2, pr = a2 * b2;
+        return { type: 'num', a: pr, tol: 0.4, from: 'Level 3',
+          q: 'Cut it into boxes: <span class="num">' + a2 + '</span> × <span class="num">' + b2 + '</span> = ?',
+          explain: '(' + (t * 10) + ' × ' + b2 + ') + (' + o + ' × ' + b2 + ') = ' + p1 + ' + ' + p2 + ' = <span class="num">' + pr + '</span>.',
+          hint: 'Split ' + a2 + ' at the seats: ' + (t * 10) + ' and ' + o + '. Multiply EACH piece by ' + b2 + ', then add the two boxes.',
+          steps: '1 · Split: ' + a2 + ' = ' + (t * 10) + ' + ' + o + '<br>' +
+            '2 · <span class="num">' + (t * 10) + '</span> × ' + b2 + ' = ' + p1 + ' · <span class="num">' + o + '</span> × ' + b2 + ' = ' + p2 + '<br>' +
+            '3 · ' + p1 + ' + ' + p2 + ' = <span class="res">' + pr + '</span>',
+          diagnose: function (v) {
+            if (Math.abs(v - (a2 + b2)) < 0.4) return { label: 'Added instead of multiplied',
+              your: a2 + ' + ' + b2 + ' = ' + (a2 + b2) + ' — that is one of each, not ' + b2 + ' rows of ' + a2,
+              right: p1 + ' + ' + p2 + ' = ' + pr };
+            if (Math.abs(v - p1) < 0.4 || Math.abs(v - p2) < 0.4) return { label: 'Dropped a box',
+              your: fmtExact(v) + ' is only one of the two boxes — the other piece never got multiplied',
+              right: p1 + ' + ' + p2 + ' = ' + pr };
+            if (Math.abs(v - pr * 10) < 0.4 || Math.abs(v - pr / 10) < 0.05) return { label: 'Magnitude slip',
+              your: fmtExact(v) + ' is the right digits at the wrong size — a zero slipped in or out',
+              right: p1 + ' + ' + p2 + ' = ' + pr };
+            return { label: 'Box slip',
+              your: fmtExact(v) + ' is not (tens × ' + b2 + ') + (ones × ' + b2 + ')',
+              right: p1 + ' + ' + p2 + ' = ' + pr };
+          } };
+      }
+      var pp = 3 + rnd(8), fit = 5 + rnd(8), rem = 1 + rnd(pp - 1);
+      var L = fit * pp + rem;
+      return { type: 'num', a: fit, tol: 0.4, from: 'Level 3',
+        q: 'A bar of stock is <span class="num">' + L + '</span> inches long. Each part needs <span class="num">' + pp + '</span> inches. How many whole parts fit?',
+        explain: fit + ' parts × ' + pp + ' = ' + (fit * pp) + ' inches used — ' + rem + ' inch' + (rem > 1 ? 'es' : '') + ' left over, not enough for another part.',
+        hint: 'Count by ' + pp + ' up the bar and stop BEFORE you pass ' + L + '. A part you cannot finish does not count.',
+        steps: '1 · ' + fit + ' × ' + pp + ' = ' + (fit * pp) + ' fits inside ' + L + '<br>' +
+          '2 · ' + (fit + 1) + ' × ' + pp + ' = ' + ((fit + 1) * pp) + ' is past the end of the bar<br>' +
+          '3 · <span class="res">' + fit + '</span> whole parts, ' + rem + ' in left over',
+        diagnose: function (v) {
+          if (Math.abs(v - (fit + 1)) < 0.4) return { label: 'Rounded up — you cannot ship part of a part',
+            your: 'part ' + (fit + 1) + ' would need ' + ((fit + 1) * pp) + ' inches and the bar has ' + L,
+            right: fit + ' whole parts; the ' + rem + ' leftover inch' + (rem > 1 ? 'es' : '') + ' are scrap' };
+          if (Math.abs(v - (L - pp)) < 0.4) return { label: 'Subtracted the part once',
+            your: L + ' − ' + pp + ' = ' + (L - pp) + ' removes ONE part — the question asks how many times ' + pp + ' fits',
+            right: 'count by ' + pp + ' → ' + fit + ' parts' };
+          return { label: 'Fit slip',
+            your: 'check it: ' + fmtExact(v) + ' × ' + pp + ' = ' + (Math.round(v * pp * 100) / 100) + ' against the ' + L + '-inch bar',
+            right: fit + ' × ' + pp + ' = ' + (fit * pp) + ' with ' + rem + ' left over → ' + fit };
+        } };
+    };
+  BANKS.l4 = function () {
+    var kind = pick(['shareRem', 'nextDigit', 'frac2dec', 'frac2dec']);
+    function walk(n, d) {
+      var r = n % d, digits = [], states = [], rems = [], i, m, g;
+      for (i = 0; i < 8 && r > 0; i++) {
+        m = r * 10; g = Math.floor(m / d); r = m - g * d;
+        states.push(m); digits.push(g); rems.push(r);
+      }
+      return { digits: digits, states: states, rems: rems };
+    }
+    var FR = [[1, 2], [1, 4], [3, 4], [1, 8], [3, 8], [5, 8], [7, 8], [3, 16], [5, 16]];
+    if (kind === 'shareRem') {
+      var p = 3 + Math.floor(Math.random() * 5);
+      var s = 2 + Math.floor(Math.random() * 8);
+      var r2 = 1 + Math.floor(Math.random() * (p - 1));
+      var n2 = p * s + r2;
+      var askRem = Math.random() < 0.5;
+      return { type: 'num', a: askRem ? r2 : s, tol: 0.4, from: 'Level 4',
+        q: '<span class="num">' + n2 + '</span> parts to pack, <span class="num">' + p + '</span> boxes, every box filled the same — ' +
+          (askRem ? 'how many parts are <b>left over</b>?' : 'how many parts in each full box?'),
+        explain: 'Biggest multiple of ' + p + ' that fits under ' + n2 + ': ' + p + ' × ' + s + ' = ' + (p * s) +
+          '. Left over: ' + n2 + ' − ' + (p * s) + ' = ' + r2 + '. So ' + n2 + ' ÷ ' + p + ' = <span class="num">' + s +
+          '</span> remainder <span class="num">' + r2 + '</span>.',
+        hint: 'Walk the ' + p + 's table to the biggest multiple that still FITS under ' + n2 +
+          ' — one more must go over. That many per box; the gap up to ' + n2 + ' is the remainder.',
+        steps: '1 · Biggest fit: ' + p + '×' + s + ' = ' + (p * s) + ' (one more, ' + p + '×' + (s + 1) + ' = ' + (p * (s + 1)) +
+          ', goes over ' + n2 + ')<br>2 · Left over: ' + n2 + ' − ' + (p * s) + ' = ' + r2 + '<br>' +
+          '3 · ' + (askRem ? 'Remainder: <span class="res">' + r2 + '</span>' : 'Each full box: <span class="res">' + s + '</span>'),
+        diagnose: function (v) {
+          if (askRem && Math.abs(v - s) < 0.4) return { label: 'You gave the share, not the remainder',
+            your: s + ' is how many each box HOLDS — the question asked what would not fit',
+            right: n2 + ' − ' + p + '×' + s + ' = ' + n2 + ' − ' + (p * s) + ' = ' + r2 };
+          if (!askRem && Math.abs(v - r2) < 0.4) return { label: 'You gave the remainder, not the share',
+            your: r2 + ' is what is left OUTSIDE the boxes after filling them',
+            right: 'each full box holds ' + s + ' (' + p + '×' + s + ' = ' + (p * s) + ' fits under ' + n2 + ')' };
+          if (!askRem && Math.abs(v - (s + 1)) < 0.4) return { label: 'One too many per box',
+            your: p + '×' + (s + 1) + ' = ' + (p * (s + 1)) + ' parts needed — you only have ' + n2,
+            right: p + '×' + s + ' = ' + (p * s) + ' fits → ' + s + ' each, ' + r2 + ' left' };
+          return { label: 'Share slipped',
+            your: 'the check fails: ' + fmtExact(v) + ' does not rebuild ' + n2 + ' as boxes + remainder',
+            right: p + '×' + s + ' + ' + r2 + ' = ' + n2 + ' → share ' + s + ', remainder ' + r2 };
+        } };
+    }
+    if (kind === 'nextDigit') {
+      var f3 = pick(FR);
+      var w3 = walk(f3[0], f3[1]);
+      var ix = Math.floor(Math.random() * w3.digits.length);
+      var d3 = f3[1], m3 = w3.states[ix], g3 = w3.digits[ix], r3 = w3.rems[ix];
+      var sofar = '0.' + w3.digits.slice(0, ix).join('');
+      return { type: 'num', a: g3, tol: 0.4, from: 'Level 4',
+        q: 'Long division: you\'re turning <span class="num">' + f3[0] + '/' + d3 + '</span> into a decimal, with <span class="num">' +
+          sofar + '</span> written so far. The leftover gets a zero stuck on, making <span class="num">' + m3 +
+          '</span>. <span class="num">' + d3 + '</span> into <span class="num">' + m3 + '</span> goes what digit?',
+        explain: 'Would one more go over? ' + d3 + '×' + g3 + ' = ' + (d3 * g3) + ' fits inside ' + m3 + '; ' + d3 + '×' + (g3 + 1) +
+          ' = ' + (d3 * (g3 + 1)) + ' goes over. Digit <span class="num">' + g3 + '</span>, new leftover ' + r3 + '.',
+        hint: 'Walk the ' + d3 + 's table upward. The digit is the most times ' + d3 + ' FITS inside ' + m3 + ' — one more must go over.',
+        steps: '1 · Walk the table: ' + d3 + '×' + g3 + ' = ' + (d3 * g3) + ' ≤ ' + m3 + '<br>' +
+          '2 · One more: ' + d3 + '×' + (g3 + 1) + ' = ' + (d3 * (g3 + 1)) + ' — goes over<br>' +
+          '3 · Digit <span class="res">' + g3 + '</span>, leftover ' + m3 + ' − ' + (d3 * g3) + ' = ' + r3,
+        diagnose: function (v) {
+          if (Math.abs(v - (g3 + 1)) < 0.4) return { label: 'Digit too big',
+            your: d3 + '×' + (g3 + 1) + ' = ' + (d3 * (g3 + 1)) + ' overshoots ' + m3 + ' — the product has to FIT',
+            right: d3 + '×' + g3 + ' = ' + (d3 * g3) + ' fits → digit ' + g3 };
+          if (g3 > 0 && Math.abs(v - (g3 - 1)) < 0.4) return { label: 'Digit too small',
+            your: d3 + '×' + (g3 - 1) + ' = ' + (d3 * (g3 - 1)) + ' fits — but so does one more: ' + d3 + '×' + g3 + ' = ' + (d3 * g3),
+            right: 'push until one more would go over → ' + g3 };
+          if (Math.abs(v - r3) < 0.4 && r3 !== g3) return { label: 'That\'s the leftover, not the digit',
+            your: m3 + ' − ' + d3 + '×' + g3 + ' = ' + r3 + ' is what CARRIES to the next step',
+            right: 'the digit written in the answer is ' + g3 + '; the ' + r3 + ' carries on' };
+          return { label: 'Digit drifted',
+            your: fmtExact(v) + ' would mean ' + d3 + '×' + fmtExact(v) + ' fits in ' + m3 + ' with one more going over — it doesn\'t',
+            right: d3 + '×' + g3 + ' = ' + (d3 * g3) + ' fits → digit ' + g3 };
+        } };
+    }
+    var f4 = pick(FR);
+    var n4 = f4[0], d4 = f4[1], a4 = n4 / d4;
+    var w4 = walk(n4, d4);
+    var st = '1 · Top ÷ bottom: ' + n4 + ' ÷ ' + d4 + '. ' + d4 + ' into ' + n4 +
+      '? Doesn\'t go — write <span class="num">0</span> and bring the point';
+    var run4 = '0.';
+    for (var i4 = 0; i4 < w4.digits.length; i4++) {
+      run4 += String(w4.digits[i4]);
+      st += '<br>' + (i4 + 2) + ' · ' + d4 + ' into ' + w4.states[i4] + ' goes <span class="num">' + w4.digits[i4] +
+        '</span> — leftover ' + w4.rems[i4] + ' → ' + run4;
+    }
+    st += '<br>' + (w4.digits.length + 2) + ' · <span class="res">' + fmtExact(a4) + '</span> · check: ' +
+      fmtExact(a4) + ' × ' + d4 + ' = ' + n4 + ' ✓';
+    return { type: 'num', a: a4, tol: 0.0005, from: 'Level 4',
+      q: 'Turn <span class="num">' + n4 + '/' + d4 + '</span> into a decimal. (A fraction IS a division: top ÷ bottom.)',
+      explain: n4 + '/' + d4 + ' = ' + n4 + ' ÷ ' + d4 + ' = <span class="num">' + fmtExact(a4) + '</span>. Check by going backwards: ' +
+        fmtExact(a4) + ' × ' + d4 + ' = ' + n4 + ' ✓',
+      hint: 'Top ÷ bottom, never the other way. ' + d4 + ' won\'t go into ' + n4 + ' — write 0, bring the point, then work ' +
+        d4 + ' into ' + (n4 * 10) + '. Each leftover gets a zero stuck on and carries.',
+      steps: st,
+      diagnose: function (v) {
+        var inv = d4 / n4;
+        if (Math.abs(v - inv) < (n4 === 1 ? 0.4 : 0.02)) return { label: 'Inverted — you worked bottom ÷ top',
+          your: d4 + ' ÷ ' + n4 + ' ≈ ' + fmtExact(Math.round(inv * 100) / 100) + ' answers the upside-down question',
+          right: 'a fraction is top ÷ bottom: ' + n4 + ' ÷ ' + d4 + ' = ' + fmtExact(a4) };
+        if (Math.abs(v - a4 * 10) < 0.002 || Math.abs(v - a4 * 100) < 0.02 || Math.abs(v - a4 / 10) < 0.0005) return { label: 'Decimal slipped',
+          your: fmtExact(v) + ' has the right digits in the wrong seats — the point slid',
+          right: n4 + ' is smaller than ' + d4 + ', so the answer starts 0.: ' + fmtExact(a4) };
+        return { label: 'A digit went off the rails',
+          your: 'the check fails: ' + fmtExact(v) + ' × ' + d4 + ' does not land back on ' + n4,
+          right: 'work it digit by digit: ' + fmtExact(a4) + ' (check: ' + fmtExact(a4) + ' × ' + d4 + ' = ' + n4 + ' ✓)' };
+      } };
+  };
+  BANKS.l5 = function () {
+    var kind = pick(['addSame', 'addSame', 'equivalent', 'mixedImproper']);
+    function rnd(n) { return Math.floor(Math.random() * n); }
+    var DP = { 2: 'halves', 4: 'quarters', 8: 'eighths', 16: 'sixteenths' };
+    if (kind === 'addSame') {
+      var d = pick([4, 8, 8, 16]);
+      var a1, b1, t;
+      for (t = 0; t < 30; t++) {
+        a1 = 1 + rnd(d - 2); b1 = 1 + rnd(d - 1 - a1);
+        if ((a1 + b1) % 2 === 1) break;
+      }
+      if ((a1 + b1) % 2 !== 1) { a1 = 1; b1 = 2; }
+      var s1 = a1 + b1;
+      return { type: 'mc', a: 0, from: 'Level 5',
+        choices: [s1 + '/' + d, s1 + '/' + (2 * d), (a1 * b1) + '/' + d],
+        q: '<span class="num">' + a1 + '/' + d + '</span> + <span class="num">' + b1 + '/' + d + '</span> = ?',
+        explain: 'Same bottom = same-size pieces, so just count them: ' + a1 + ' + ' + b1 + ' = <span class="num">' + s1 + '/' + d + '</span>. The bottom stays ' + d + '.',
+        hint: 'The bottoms already match, so the pieces are the same size. Add the TOPS only — the bottom is the size of the cut, and it never adds.',
+        steps: '1 · Bottoms match (' + d + ' and ' + d + ') — the pieces are the same size<br>' +
+          '2 · Add the tops: <span class="num">' + a1 + '</span> + <span class="num">' + b1 + '</span> = ' + s1 + '<br>' +
+          '3 · Keep the bottom: <span class="res">' + s1 + '/' + d + '</span>',
+        diagnose: function (chosen) {
+          if (chosen === 1) return { label: 'Added the tops AND the bottoms — the classic',
+            your: s1 + '/' + (2 * d) + ' says the pieces got SMALLER when you put them together. The bottom is a piece size, not an amount — ' + DP[d] + ' stay ' + DP[d] + ' when you add them',
+            right: 'add the tops, keep the bottom: ' + a1 + ' + ' + b1 + ' = ' + s1 + ' → ' + s1 + '/' + d };
+          return { label: 'Multiplied the tops',
+            your: a1 + ' × ' + b1 + ' = ' + (a1 * b1) + ' — but adding fractions COUNTS pieces, it never multiplies them',
+            right: a1 + ' + ' + b1 + ' = ' + s1 + ' → ' + s1 + '/' + d };
+        } };
+    }
+    if (kind === 'equivalent') {
+      var b = pick([[1, 2], [1, 4], [3, 4], [3, 8], [5, 8]]);
+      var n0 = b[0], d0 = b[1], ks = [], kk;
+      for (kk = 2; d0 * kk <= 16; kk *= 2) ks.push(kk);
+      var k = pick(ks);
+      var up = rnd(2) === 0;
+      var fromN = up ? n0 : n0 * k, fromD = up ? d0 : d0 * k, toD = up ? d0 * k : d0;
+      var a2 = up ? n0 * k : n0;
+      return { type: 'num', a: a2, tol: 0.4, from: 'Level 5',
+        q: 'Same amount, different cut: <span class="num">' + fromN + '/' + fromD + '</span> = <span class="num">?/' + toD + '</span> — what goes on top?',
+        explain: 'The bottom went ' + fromD + ' → ' + toD + ' (' + (up ? '×' : '÷') + k + '), so the top takes the same ride: ' + fromN + ' ' + (up ? '×' : '÷') + ' ' + k + ' = <span class="num">' + a2 + '</span>. Same amount, different cuts.',
+        hint: 'Compare the bottoms first: what got multiplied or divided to turn one into the other? Then do exactly the same thing to the top — top and bottom always move together.',
+        steps: '1 · Bottom: ' + fromD + ' → ' + toD + ' — that is ' + (up ? '×' : '÷') + k + '<br>' +
+          '2 · Same to the top: <span class="num">' + fromN + '</span> ' + (up ? '×' : '÷') + ' ' + k + '<br>' +
+          '3 · = <span class="res">' + a2 + '</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - fromN) < 0.4) return { label: 'Copied the top',
+            your: 'you changed the cut but kept the top — ' + fromN + '/' + toD + ' is a different amount than ' + fromN + '/' + fromD,
+            right: 'top and bottom move together: ' + fromN + ' ' + (up ? '×' : '÷') + ' ' + k + ' = ' + a2 };
+          if (up && Math.abs(v - (fromN + toD - fromD)) < 0.4) return { label: 'Added instead of multiplied',
+            your: 'the bottom grew by ' + (toD - fromD) + ', so you added ' + (toD - fromD) + ' on top — but recutting MULTIPLIES: every old piece becomes ' + k + ' new ones',
+            right: fromN + ' × ' + k + ' = ' + a2 };
+          return { label: 'The recut changed the amount',
+            your: v + '/' + toD + ' is not the same amount as ' + fromN + '/' + fromD,
+            right: 'whatever the bottom does, the top does: ' + fromN + ' ' + (up ? '×' : '÷') + ' ' + k + ' = ' + a2 };
+        } };
+    }
+    var d3 = pick([4, 8, 8, 16]);
+    var w = 1 + rnd(2), n3 = 1 + rnd(d3 - 1);
+    var a3 = w * d3 + n3;
+    return { type: 'num', a: a3, tol: 0.4, from: 'Level 5',
+      q: 'A part measures <span class="num">' + w + ' ' + n3 + '/' + d3 + '</span> inches. How many <b>' + DP[d3] + '</b> of an inch is that in total?',
+      explain: 'A mixed number is a plus sign in disguise: each whole inch is ' + d3 + '/' + d3 + ', so ' + w + ' × ' + d3 + ' + ' + n3 + ' = <span class="num">' + a3 + '</span> ' + DP[d3] + ' — written as a fraction, ' + a3 + '/' + d3 + '.',
+      hint: 'A mixed number means whole PLUS fraction. Turn every whole into bottom-many pieces first (one whole = bottom/bottom), then add the top on.',
+      steps: '1 · Each whole inch = <span class="num">' + d3 + '</span>/' + d3 + '<br>' +
+        '2 · ' + w + ' whole' + (w > 1 ? 's' : '') + ' = ' + w + ' × ' + d3 + ' = ' + (w * d3) + ' ' + DP[d3] + '<br>' +
+        '3 · Add the top: ' + (w * d3) + ' + ' + n3 + ' = <span class="res">' + a3 + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - n3) < 0.4) return { label: 'The whole number vanished',
+          your: 'you answered just the ' + n3 + ' on top — but the ' + w + ' whole inch' + (w > 1 ? 'es' : '') + ' are ' + (w * d3) + ' more ' + DP[d3],
+          right: w + ' × ' + d3 + ' + ' + n3 + ' = ' + a3 };
+        if (Math.abs(v - n3 * d3) < 0.4) return { label: 'Multiplied instead of added',
+          your: n3 + ' × ' + d3 + ' = ' + (n3 * d3) + ' — but a mixed number means PLUS: ' + w + ' ' + n3 + '/' + d3 + ' is ' + w + ' + ' + n3 + '/' + d3 + ', nothing gets multiplied together',
+          right: w + ' × ' + d3 + ' + ' + n3 + ' = ' + a3 };
+        if (Math.abs(v - (w + n3)) < 0.4) return { label: 'Added the whole straight to the top',
+          your: w + ' + ' + n3 + ' = ' + (w + n3) + ' counts inches and ' + DP[d3] + ' as the same size piece — recut the wholes into ' + DP[d3] + ' first',
+          right: w + ' × ' + d3 + ' + ' + n3 + ' = ' + a3 };
+        return { label: 'The wholes got lost in the recut',
+          your: v + ' is not wholes × bottom + top',
+          right: w + ' × ' + d3 + ' + ' + n3 + ' = ' + a3 };
       } };
   };
 

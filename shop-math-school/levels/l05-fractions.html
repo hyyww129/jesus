@@ -1,0 +1,625 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level 5 · Fractions</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+.fr-two { display: flex; gap: 12px; flex-wrap: wrap; }
+.fr-ctl { border: 1.5px solid var(--ink); border-radius: 6px; background: var(--paper); padding: 10px 12px; flex: 1; min-width: 220px; }
+.fr-ctl .fr-name { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--blue); text-transform: uppercase; font-weight: 700; }
+.fr-ctl.snd .fr-name { color: var(--orange); }
+.fr-drow { display: flex; gap: 6px; margin-top: 8px; }
+.fr-drow button { flex: 1; min-width: 44px; padding: 8px 0; font-size: 15px; }
+.fr-nrow { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+.fr-nrow button { min-width: 54px; min-height: 46px; font-size: 20px; }
+.fr-val { font-family: var(--mono); font-size: 28px; font-weight: 800; color: var(--blue); flex: 1; text-align: center; }
+.fr-ctl.snd .fr-val { color: var(--orange); }
+.fr-sub { font-family: var(--mono); font-size: 10px; color: var(--soft); margin-top: 6px; text-align: center; }
+.fr-pies { display: flex; gap: 12px; align-items: center; justify-content: center; flex-wrap: wrap; margin-bottom: 8px; }
+.fr-plus { font-family: var(--mono); font-size: 26px; font-weight: 800; color: var(--soft); }
+.q-pic { margin-top: 10px; }
+.q-pic svg { max-width: 100%; height: auto; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← SKILL TREE</a>
+    <div class="eyebrow">Level 05 · World 1 · Shop Math School</div>
+    <h1>Fractions — <span class="b">Pieces of a Whole</span></h1>
+    <p class="sub">The bottom number says how many equal pieces the whole was cut into. The top says
+      how many you have. That one sentence is most of this level — the rest is recutting pieces
+      until they match.</p>
+  </header>
+  <div id="sms-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  var DN = { 2: ['half', 'halves'], 4: ['quarter', 'quarters'], 8: ['eighth', 'eighths'], 16: ['sixteenth', 'sixteenths'] };
+  function dnp(d) { return DN[d][1]; }
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function r2(v) { return Math.round(v * 100) / 100; }
+  function gcd(a, b) { a = Math.abs(a); b = Math.abs(b); while (b) { var t = a % b; a = b; b = t; } return a || 1; }
+  function fs(n, d) { return n + '/' + d; }
+  function mixedRedStr(S1, D) {
+    var w = Math.floor(S1 / D), r = S1 % D, g;
+    if (S1 === 0) return '0/' + D;
+    if (r === 0) return String(w);
+    g = gcd(r, D);
+    return (w ? w + ' ' : '') + (r / g) + '/' + (D / g);
+  }
+  function fw(n, d) {
+    if (!n) return 'nothing';
+    return S.intWords(n) + ' ' + (n === 1 ? DN[d][0] : DN[d][1]);
+  }
+  function sumWords(S1, D) {
+    var w = Math.floor(S1 / D), r = S1 % D, g, rw, rd, frag;
+    if (S1 === 0) return 'nothing yet';
+    if (r === 0) return w === 1 ? 'exactly one whole inch' : 'exactly ' + S.intWords(w) + ' whole inches';
+    g = gcd(r, D); rw = r / g; rd = D / g;
+    frag = S.intWords(rw) + ' ' + (rw === 1 ? DN[rd][0] : DN[rd][1]);
+    if (w === 0) return frag + ' of an inch';
+    return S.intWords(w) + ' whole inch' + (w > 1 ? 'es' : '') + ' and ' + frag;
+  }
+
+  /* ---- SVG builders (token colors only) ---- */
+  function pieSVG(n, d, size, fillc, withData) {
+    var cx = size / 2, cy = size / 2, r = size / 2 - 4, h, i, a0, a1, x0, y0, x1, y1;
+    h = '<svg viewBox="0 0 ' + size + ' ' + size + '" width="' + size + '" height="' + size +
+      '" role="img" aria-label="circle cut into ' + d + ' equal pieces, ' + n + ' shaded">';
+    for (i = 0; i < d; i++) {
+      a0 = -Math.PI / 2 + i * 2 * Math.PI / d; a1 = -Math.PI / 2 + (i + 1) * 2 * Math.PI / d;
+      x0 = cx + r * Math.cos(a0); y0 = cy + r * Math.sin(a0);
+      x1 = cx + r * Math.cos(a1); y1 = cy + r * Math.sin(a1);
+      h += '<path d="M ' + cx + ' ' + cy + ' L ' + r2(x0) + ' ' + r2(y0) + ' A ' + r + ' ' + r +
+        ' 0 0 1 ' + r2(x1) + ' ' + r2(y1) + ' Z" fill="' + (i < n ? fillc : 'var(--paper)') +
+        '" stroke="var(--ink)" stroke-width="1.5"' +
+        (withData ? ' data-cell="1" data-on="' + (i < n ? 1 : 0) + '"' : '') + '/>';
+    }
+    return h + '</svg>';
+  }
+  function qBarSVG(n, d) {
+    var W = 300, H = 48, cw = 296 / d, h, i;
+    h = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H +
+      '" role="img" aria-label="bar cut into ' + d + ' equal pieces, ' + n + ' shaded">';
+    for (i = 0; i < d; i++) {
+      h += '<rect x="' + r2(2 + i * cw) + '" y="4" width="' + r2(cw) + '" height="40" fill="' +
+        (i < n ? 'var(--blue)' : 'var(--paper)') + '" stroke="var(--ink)" stroke-width="1.5"' +
+        ' data-cell="1" data-on="' + (i < n ? 1 : 0) + '"/>';
+    }
+    return h + '</svg>';
+  }
+  function bigRuler(inches, D, segs) {
+    var W = 520, H = 78, pad = 16, top = 26, bh = 30;
+    var pxIn = (W - 2 * pad) / inches;
+    var h, x, i, sw, total, t, tx, isInch, isHalf, y0;
+    h = '<svg viewBox="0 0 ' + W + ' ' + H + '" width="100%" height="' + H +
+      '" role="img" aria-label="ruler, ' + inches + ' inch' + (inches > 1 ? 'es' : '') + ' cut into ' + dnp(D) + '">';
+    h += '<rect x="' + pad + '" y="' + top + '" width="' + r2(inches * pxIn) + '" height="' + bh +
+      '" fill="var(--paper)" stroke="var(--ink)" stroke-width="1.5"/>';
+    x = pad;
+    for (i = 0; i < segs.length; i++) {
+      sw = segs[i].n / D * pxIn;
+      if (sw > 0) {
+        h += '<rect x="' + r2(x) + '" y="' + top + '" width="' + r2(sw) + '" height="' + bh +
+          '" fill="' + segs[i].c + '" stroke="var(--ink)" stroke-width="1"/>';
+        x += sw;
+      }
+    }
+    total = inches * D;
+    for (t = 0; t <= total; t++) {
+      tx = pad + t * pxIn / D;
+      isInch = (t % D === 0); isHalf = (t % (D / 2) === 0);
+      y0 = isInch ? 8 : (isHalf ? 14 : 19);
+      h += '<line x1="' + r2(tx) + '" y1="' + y0 + '" x2="' + r2(tx) + '" y2="' + top +
+        '" stroke="var(--ink)" stroke-width="' + (isInch ? 1.5 : 1) + '"/>';
+    }
+    for (t = 0; t <= inches; t++) {
+      h += '<text x="' + r2(pad + t * pxIn) + '" y="' + (top + bh + 16) +
+        '" text-anchor="middle" font-family="ui-monospace,monospace" font-size="11" fill="var(--soft)">' + t + '</text>';
+    }
+    return h + '</svg>';
+  }
+  function exRulerSVG() {
+    var W = 520, pad = 20, cw = (W - 2 * pad) / 8, top = 34, bh = 28, h, i, fill;
+    h = '<svg viewBox="0 0 ' + W + ' 108" width="100%" height="108" role="img" ' +
+      'aria-label="one inch cut into eighths: two eighths blue, three eighths orange, five eighths total">';
+    for (i = 0; i < 8; i++) {
+      fill = i < 2 ? 'var(--blue)' : (i < 5 ? 'var(--orange)' : 'var(--paper)');
+      h += '<rect x="' + r2(pad + i * cw) + '" y="' + top + '" width="' + r2(cw) + '" height="' + bh +
+        '" fill="' + fill + '" stroke="var(--ink)" stroke-width="1.5"/>';
+    }
+    h += '<text x="' + r2(pad + cw) + '" y="' + (top - 8) + '" text-anchor="middle" ' +
+      'font-family="ui-monospace,monospace" font-size="12" font-weight="700" fill="var(--blue)">1/4 = 2/8</text>';
+    h += '<text x="' + r2(pad + 3.5 * cw) + '" y="' + (top - 8) + '" text-anchor="middle" ' +
+      'font-family="ui-monospace,monospace" font-size="12" font-weight="700" fill="var(--orange)">3/8</text>';
+    h += '<line x1="' + pad + '" y1="' + (top + bh + 8) + '" x2="' + r2(pad + 5 * cw) + '" y2="' + (top + bh + 8) +
+      '" stroke="var(--ink)" stroke-width="1.5"/>';
+    h += '<line x1="' + pad + '" y1="' + (top + bh + 3) + '" x2="' + pad + '" y2="' + (top + bh + 13) +
+      '" stroke="var(--ink)" stroke-width="1.5"/>';
+    h += '<line x1="' + r2(pad + 5 * cw) + '" y1="' + (top + bh + 3) + '" x2="' + r2(pad + 5 * cw) + '" y2="' + (top + bh + 13) +
+      '" stroke="var(--ink)" stroke-width="1.5"/>';
+    h += '<text x="' + r2(pad + 2.5 * cw) + '" y="' + (top + bh + 26) + '" text-anchor="middle" ' +
+      'font-family="ui-monospace,monospace" font-size="12" font-weight="700" fill="var(--ink)">5/8 of the inch</text>';
+    return h + '</svg>';
+  }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>A fraction is not a strange number — it\'s an <span class="term">instruction</span>: cut a whole ' +
+  'thing into equal pieces, then take some. The <span class="term">bottom number</span> says how many ' +
+  'equal pieces the whole was cut into. The <span class="term">top number</span> says how many you have. ' +
+  '<b>3/8</b> = cut the inch into 8 equal pieces, keep 3 of them.</p>' +
+  '<p>So the bottom is a <b>piece size</b>, not an amount. More cuts = smaller pieces: 1/16 is ' +
+  '<i>smaller</i> than 1/8, even though 16 is the bigger number. Machinists live on one ladder of cuts — ' +
+  '<b>halves → quarters → eighths → sixteenths</b> — each step just cuts every piece in two:</p>' +
+  '<table class="ref"><tr><th>halves</th><th>quarters</th><th>eighths</th><th>sixteenths</th></tr>' +
+  '<tr><td>1/2</td><td>2/4</td><td>4/8</td><td>8/16</td></tr>' +
+  '<tr><td>—</td><td>1/4</td><td>2/8</td><td>4/16</td></tr>' +
+  '<tr><td>—</td><td>3/4</td><td>6/8</td><td>12/16</td></tr>' +
+  '<tr><td>—</td><td>—</td><td>3/8</td><td>6/16</td></tr>' +
+  '<tr><td>—</td><td>—</td><td>5/8</td><td>10/16</td></tr></table>' +
+  '<p style="margin-top:10px">Every row is <span class="term">equivalent fractions</span> — the SAME amount, ' +
+  'different cuts. 2/4 and 1/2 cover the same distance on a ruler. The rule: <b>multiply or divide the top ' +
+  'AND the bottom by the same number</b> and the amount never changes. 1/4 → ×2 on both → 2/8. ' +
+  '4/8 → ÷4 on both → 1/2.</p>' +
+  '<p><span class="term">Adding with the same bottom:</span> same bottom means same-size pieces, so just ' +
+  'count them: 3/8 + 2/8 = <b>5/8</b>. Add the tops, KEEP the bottom. It is never 5/16 — putting pieces ' +
+  'together can\'t make them smaller.</p>' +
+  '<p><span class="term">Different bottoms:</span> you can\'t count a quarter-piece and an eighth-piece ' +
+  'together — they\'re different sizes. Recut the bigger piece first. Work one all the way:</p>' +
+  '<div class="worked">1/4 + 3/8 — the bottoms don\'t match yet<br>' +
+  'recut the quarter into eighths: <span class="num">1/4</span> = <span class="num">2/8</span> (×2 top and bottom)<br>' +
+  'now the pieces match: <span class="num">2/8</span> + <span class="num">3/8</span> = <span class="res">5/8</span><br>' +
+  exRulerSVG() + '</div>' +
+  '<p><span class="term">Mixed numbers:</span> 1 3/8 means 1 <b>plus</b> 3/8 — a whole inch and three more ' +
+  'eighths. Each whole is 8/8, so 1 3/8 = 8/8 + 3/8 = <b>11/8</b>: eleven eighth-pieces in total. ' +
+  'That trick (turn the wholes into pieces) is how you add mixed numbers later.</p>' +
+  '<p>Now open the <b>Playground</b> — cut an inch with your own hands and watch the pie and the ruler ' +
+  'agree with each other.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — a pie and a ruler, live-linked</h2><div class="body">' +
+      '<div class="btnrow"><button id="modeOne" class="on">ONE FRACTION</button>' +
+      '<button id="modeAdd">ADD TWO FRACTIONS</button></div>' +
+      '<div id="frCtls" style="margin-top:12px"></div>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div><div id="frPics"></div><p class="hint" id="frHint"></p></div>' +
+      '<div class="pg-live">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div id="droBox"></div></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var st = { mode: 'one', d: 8, n: 5, ad: 4, an: 1, bd: 8, bn: 3 };
+    var ctls = card.querySelector('#frCtls');
+    var pics = card.querySelector('#frPics');
+    var hintEl = card.querySelector('#frHint');
+    var eqBody = card.querySelector('#eqBody');
+    var droCtl = S.dro(card.querySelector('#droBox'), 'FRACTION');
+    var lastDro = '';
+
+    function pget(p) {
+      if (st.mode === 'one') return { d: st.d, n: st.n };
+      return p === 'b' ? { d: st.bd, n: st.bn } : { d: st.ad, n: st.an };
+    }
+    function pset(p, d, n) {
+      if (st.mode === 'one') { st.d = d; st.n = n; return; }
+      if (p === 'b') { st.bd = d; st.bn = n; } else { st.ad = d; st.an = n; }
+    }
+    function clamp(v, lo, hi) { return Math.max(lo, Math.min(hi, Math.round(v))); }
+
+    function fracCtl(p, label, snd) {
+      var pr = pget(p), h, dv, i, opts = [2, 4, 8, 16];
+      h = '<div class="fr-ctl' + (snd ? ' snd' : '') + '"><div class="fr-name">' + label + '</div>' +
+        '<div class="fr-drow">';
+      for (i = 0; i < opts.length; i++) {
+        dv = opts[i];
+        h += '<button data-dp="' + p + ':' + dv + '" class="' + (dv === pr.d ? 'on' : '') +
+          '" aria-label="cut into ' + dnp(dv) + '">' + dv + '</button>';
+      }
+      h += '</div><div class="fr-nrow">' +
+        '<button data-nd="' + p + '" aria-label="one piece fewer">−</button>' +
+        '<div class="fr-val" data-fv="' + p + '" tabindex="0" role="spinbutton" aria-label="pieces taken" ' +
+        'aria-valuemin="0" aria-valuemax="' + pr.d + '" aria-valuenow="' + pr.n + '">' + pr.n + '/' + pr.d + '</div>' +
+        '<button data-nu="' + p + '" aria-label="one piece more">+</button>' +
+        '</div><div class="fr-sub">bottom = the cut · top = pieces taken · arrow keys work too</div></div>';
+      return h;
+    }
+
+    function setD(p, nd) {
+      var pr = pget(p), nn;
+      nn = pr.n * nd / pr.d;                       /* keep the same amount when the recut is exact */
+      if (nn !== Math.floor(nn)) nn = Math.round(nn);
+      pset(p, nd, clamp(nn, 0, nd));
+      buildCtls();
+      update();
+    }
+    function inc(p, delta) {
+      var pr = pget(p);
+      pset(p, pr.d, clamp(pr.n + delta, 0, pr.d));
+      update();
+    }
+
+    function buildCtls() {
+      var h;
+      if (st.mode === 'one') h = '<div class="fr-two">' + fracCtl('o', 'The fraction', false) + '</div>';
+      else h = '<div class="fr-two">' + fracCtl('a', 'First fraction (blue)', false) +
+        fracCtl('b', 'Second fraction (orange)', true) + '</div>';
+      ctls.innerHTML = h;
+      ctls.querySelectorAll('[data-dp]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          var parts = b.getAttribute('data-dp').split(':');
+          setD(parts[0], Number(parts[1]));
+        });
+      });
+      ctls.querySelectorAll('[data-nu]').forEach(function (b) {
+        b.addEventListener('click', function () { inc(b.getAttribute('data-nu'), 1); });
+      });
+      ctls.querySelectorAll('[data-nd]').forEach(function (b) {
+        b.addEventListener('click', function () { inc(b.getAttribute('data-nd'), -1); });
+      });
+      ctls.querySelectorAll('[data-fv]').forEach(function (el) {
+        el.addEventListener('keydown', function (e) {
+          var p = el.getAttribute('data-fv');
+          if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { e.preventDefault(); inc(p, 1); }
+          else if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { e.preventDefault(); inc(p, -1); }
+        });
+      });
+    }
+
+    function cmpHalf(n, d) {
+      if (n === d) return 'the whole inch';
+      if (n * 2 === d) return 'exactly half the inch';
+      return n * 2 > d ? 'more than half the inch' : 'less than half the inch';
+    }
+    function eqOne() {
+      var n = st.n, d = st.d, g = gcd(n, d), h;
+      h = 'cut the inch into <span class="num">' + d + '</span> equal pieces (the bottom)<br>' +
+        'take <span class="num">' + n + '</span> of them (the top)<br>' +
+        '= <span class="res">' + fs(n, d) + '</span>';
+      if (n === 0) h += ' <span class="dim">— no pieces yet</span>';
+      else if (n === d) h += ' = <span class="res">1</span> <span class="dim">(all ' + d + ' pieces — the whole inch)</span>';
+      else if (g > 1) h += ' = <span class="res">' + fs(n / g, d / g) +
+        '</span> <span class="dim">(÷' + g + ' top and bottom — same amount, coarser cut)</span>';
+      return h;
+    }
+    function eqAdd() {
+      var ad = st.ad, an = st.an, bd = st.bd, bn = st.bn;
+      var D = Math.max(ad, bd), ka = D / ad, kb = D / bd;
+      var A = an * ka, B = bn * kb, S1 = A + B, h, w, r, g;
+      h = '<span class="num">' + fs(an, ad) + '</span> + <span class="num">' + fs(bn, bd) + '</span><br>';
+      if (ad === bd) h += 'same bottom — the pieces already match<br>';
+      else {
+        h += 'recut to ' + dnp(D) + ':<br>';
+        if (ka > 1) h += fs(an, ad) + ' = <span class="num">' + fs(A, D) +
+          '</span> <span class="dim">(×' + ka + ' top and bottom)</span><br>';
+        if (kb > 1) h += fs(bn, bd) + ' = <span class="num">' + fs(B, D) +
+          '</span> <span class="dim">(×' + kb + ' top and bottom)</span><br>';
+      }
+      h += fs(A, D) + ' + ' + fs(B, D) + ' = <span class="res">' + fs(S1, D) + '</span>';
+      if (S1 === 0) return h + ' <span class="dim">— nothing yet</span>';
+      w = Math.floor(S1 / D); r = S1 % D;
+      if (r === 0) return h + ' = <span class="res">' + w + '</span> <span class="dim">(' +
+        (w === 1 ? 'exactly one inch' : 'exactly ' + w + ' inches') + ')</span>';
+      g = gcd(r, D);
+      if (w > 0 || g > 1) {
+        h += ' = <span class="res">' + mixedRedStr(S1, D) + '</span>';
+        if (w > 0 && g > 1) h += ' <span class="dim">(' + D + '/' + D + ' makes a whole, then ÷' + g + ')</span>';
+        else if (w > 0) h += ' <span class="dim">(' + D + '/' + D + ' makes a whole inch)</span>';
+        else h += ' <span class="dim">(÷' + g + ' top and bottom)</span>';
+      }
+      return h;
+    }
+
+    function update() {
+      var n, d, meaning, D, ka, kb, S1;
+      ctls.querySelectorAll('[data-fv]').forEach(function (el) {
+        var pr = pget(el.getAttribute('data-fv'));
+        el.textContent = pr.n + '/' + pr.d;
+        el.setAttribute('aria-valuenow', pr.n);
+        el.setAttribute('aria-valuemax', pr.d);
+      });
+      if (st.mode === 'one') {
+        n = st.n; d = st.d;
+        pics.innerHTML = '<div class="fr-pies">' + pieSVG(n, d, 170, 'var(--blue)', false) + '</div>' +
+          bigRuler(1, d, [{ n: n, c: 'var(--blue)' }]);
+        hintEl.textContent = 'Pick the cut (bottom), then take pieces (top). The pie and the ruler always ' +
+          'show the same fraction — and switching the cut keeps the amount when it can, so watch 1/2 become 2/4 become 4/8.';
+        eqBody.innerHTML = eqOne();
+        meaning = n === 0
+          ? 'Zero pieces taken of an inch cut into ' + dnp(d) + ' — nothing yet.'
+          : '<b>' + S.intWords(n) + ' piece' + (n === 1 ? '' : 's') + '</b> of an inch cut into ' + dnp(d) +
+            ' — ' + cmpHalf(n, d) + '.';
+        lastDro = fs(n, d);
+        droCtl.set(lastDro, meaning);
+      } else {
+        D = Math.max(st.ad, st.bd); ka = D / st.ad; kb = D / st.bd;
+        S1 = st.an * ka + st.bn * kb;
+        pics.innerHTML = '<div class="fr-pies">' + pieSVG(st.an, st.ad, 120, 'var(--blue)', false) +
+          '<div class="fr-plus">+</div>' + pieSVG(st.bn, st.bd, 120, 'var(--orange)', false) + '</div>' +
+          bigRuler(2, D, [{ n: st.an * ka, c: 'var(--blue)' }, { n: st.bn * kb, c: 'var(--orange)' }]);
+        hintEl.textContent = 'Blue is the first fraction, orange is the second, laid end to end on a ' +
+          'two-inch ruler. The equation recuts them to the same bottom before adding the tops.';
+        eqBody.innerHTML = eqAdd();
+        meaning = '<b>' + fw(st.an, st.ad) + '</b> plus <b>' + fw(st.bn, st.bd) +
+          '</b> laid end to end cover <b>' + sumWords(S1, D) + '</b>.';
+        lastDro = mixedRedStr(S1, D);
+        droCtl.set(lastDro, meaning);
+      }
+    }
+
+    function setMode(m) {
+      st.mode = m;
+      card.querySelector('#modeOne').classList.toggle('on', m === 'one');
+      card.querySelector('#modeAdd').classList.toggle('on', m === 'add');
+      buildCtls();
+      update();
+    }
+    card.querySelector('#modeOne').addEventListener('click', function () { setMode('one'); });
+    card.querySelector('#modeAdd').addEventListener('click', function () { setMode('add'); });
+
+    buildCtls();
+    update();
+
+    window.__l5 = {
+      set: function (o) {
+        o = o || {};
+        function okd(v) { return v === 2 || v === 4 || v === 8 || v === 16; }
+        if (o.mode === 'one' || o.mode === 'add') st.mode = o.mode;
+        if (okd(o.d)) st.d = o.d;
+        if (okd(o.ad)) st.ad = o.ad;
+        if (okd(o.bd)) st.bd = o.bd;
+        if (typeof o.n === 'number') st.n = clamp(o.n, 0, st.d);
+        if (typeof o.an === 'number') st.an = clamp(o.an, 0, st.ad);
+        if (typeof o.bn === 'number') st.bn = clamp(o.bn, 0, st.bd);
+        card.querySelector('#modeOne').classList.toggle('on', st.mode === 'one');
+        card.querySelector('#modeAdd').classList.toggle('on', st.mode === 'add');
+        buildCtls();
+        update();
+      },
+      info: function () {
+        return { mode: st.mode, d: st.d, n: st.n, ad: st.ad, an: st.an, bd: st.bd, bn: st.bn,
+          value: st.mode === 'one' ? st.n / st.d : st.an / st.ad + st.bn / st.bd,
+          text: lastDro };
+      }
+    };
+  }
+
+  /* ============ question generators (game + boss) ============ */
+  function genPickPicture(hard) {
+    var d = hard ? S.pick([8, 16]) : S.pick([4, 8]);
+    var n = 1 + 2 * rnd(d / 2);                 /* odd top: never exactly half, never reducible */
+    var isPie = rnd(2) === 0;
+    var pic = '<div class="q-pic">' + (isPie ? pieSVG(n, d, 150, 'var(--blue)', true) : qBarSVG(n, d)) + '</div>';
+    return { type: 'mc', a: 0, choices: [fs(n, d), fs(d - n, d), fs(d, n)],
+      q: 'This ' + (isPie ? 'circle' : 'bar') + ' is cut into <span class="num">' + d +
+        '</span> equal pieces. What fraction is <b>shaded</b>?' + pic,
+      explain: 'The bottom counts the cuts — the whole is in ' + d + ' equal pieces. The top counts ' +
+        'what you have — ' + n + ' are shaded: <span class="num">' + fs(n, d) + '</span>.',
+      hint: 'Bottom first: how many equal pieces is the WHOLE cut into? That number goes on the bottom. ' +
+        'Then count only the shaded pieces for the top.',
+      steps: '1 · Count the cuts: <span class="num">' + d + '</span> equal pieces → that is the bottom<br>' +
+        '2 · Count the shaded: <span class="num">' + n + '</span> → that is the top<br>' +
+        '3 · <span class="res">' + fs(n, d) + '</span>',
+      diagnose: function (chosen) {
+        if (chosen === 1) return { label: 'Counted the EMPTY pieces',
+          your: 'you counted the ' + (d - n) + ' unshaded pieces — the question asks for the shaded ones',
+          right: n + ' of the ' + d + ' pieces are shaded → ' + fs(n, d) };
+        return { label: 'Top and bottom flipped',
+          your: fs(d, n) + ' reads as "cut into ' + n + ' pieces, take ' + d + '" — upside down',
+          right: 'bottom = the ' + d + ' cuts, top = the ' + n + ' shaded → ' + fs(n, d) };
+      } };
+  }
+
+  function genEquivalent(hard) {
+    var bases = hard ? [[1, 2], [1, 4], [3, 4], [3, 8], [5, 8], [7, 8]] : [[1, 2], [1, 4], [3, 4]];
+    var b = S.pick(bases), n0 = b[0], d0 = b[1];
+    var maxD = hard ? 16 : 8, ks = [], kk, k, up, fromN, fromD, toD, a;
+    for (kk = 2; d0 * kk <= maxD; kk *= 2) ks.push(kk);
+    k = S.pick(ks);
+    up = rnd(2) === 0;
+    fromN = up ? n0 : n0 * k; fromD = up ? d0 : d0 * k; toD = up ? d0 * k : d0;
+    a = up ? n0 * k : n0;
+    return { type: 'num', a: a, tol: 0.4,
+      q: 'Same amount, different cut: <span class="num">' + fs(fromN, fromD) +
+        '</span> = <span class="num">?/' + toD + '</span> — what goes on top?',
+      explain: 'The bottom went ' + fromD + ' → ' + toD + ' (' + (up ? '×' : '÷') + k +
+        '), so the top takes the same ride: ' + fromN + ' ' + (up ? '×' : '÷') + ' ' + k +
+        ' = <span class="num">' + a + '</span>. Same amount, different cuts.',
+      hint: 'Compare the bottoms first: what got multiplied or divided to turn one into the other? ' +
+        'Then do exactly the same thing to the top — top and bottom always move together.',
+      steps: '1 · Bottom: ' + fromD + ' → ' + toD + ' — that is ' + (up ? '×' : '÷') + k + '<br>' +
+        '2 · Same to the top: <span class="num">' + fromN + '</span> ' + (up ? '×' : '÷') + ' ' + k + '<br>' +
+        '3 · = <span class="res">' + a + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - fromN) < 0.4) return { label: 'Copied the top',
+          your: 'you changed the cut but kept the top — ' + fs(fromN, toD) + ' is a different amount than ' + fs(fromN, fromD),
+          right: 'top and bottom move together: ' + fromN + ' ' + (up ? '×' : '÷') + ' ' + k + ' = ' + a };
+        if (up && Math.abs(v - (fromN + toD - fromD)) < 0.4) return { label: 'Added instead of multiplied',
+          your: 'the bottom grew by ' + (toD - fromD) + ', so you added ' + (toD - fromD) +
+            ' on top — but recutting MULTIPLIES: every old piece becomes ' + k + ' new ones',
+          right: fromN + ' × ' + k + ' = ' + a };
+        if (up && k !== 2 && Math.abs(v - fromN * 2) < 0.4) return { label: 'Scaled by the wrong number',
+          your: 'you went ×2 on the top out of habit, but the bottom went ×' + k,
+          right: fromN + ' × ' + k + ' = ' + a };
+        if (!up && k !== 2 && fromN % 2 === 0 && Math.abs(v - fromN / 2) < 0.4) return {
+          label: 'Divided top and bottom by different numbers',
+          your: 'the top went ÷2 but the bottom went ÷' + k + ' — that changes the amount',
+          right: fromN + ' ÷ ' + k + ' = ' + a };
+        return { label: 'The recut changed the amount',
+          your: v + '/' + toD + ' is not the same amount as ' + fs(fromN, fromD),
+          right: 'whatever the bottom does, the top does: ' + fromN + ' ' + (up ? '×' : '÷') + ' ' + k + ' = ' + a };
+      } };
+  }
+
+  function genAddSame(hard) {
+    var d = hard ? S.pick([8, 16]) : S.pick([4, 8]);
+    var a1, b1, t, s1;
+    for (t = 0; t < 30; t++) {
+      a1 = 1 + rnd(d - 2); b1 = 1 + rnd(d - 1 - a1);
+      if ((a1 + b1) % 2 === 1) break;
+    }
+    if ((a1 + b1) % 2 !== 1) { a1 = 1; b1 = 2; }
+    s1 = a1 + b1;
+    return { type: 'mc', a: 0, choices: [fs(s1, d), fs(s1, 2 * d), fs(a1 * b1, d)],
+      q: '<span class="num">' + fs(a1, d) + '</span> + <span class="num">' + fs(b1, d) + '</span> = ?' +
+        (hard ? '' : ' <i>(the bottoms already match)</i>'),
+      explain: 'Same bottom = same-size pieces, so just count them: ' + a1 + ' ' + dnp(d) + ' + ' + b1 +
+        ' ' + dnp(d) + ' = <span class="num">' + fs(s1, d) + '</span>. The bottom stays ' + d + '.',
+      hint: 'Check the bottoms. If they match, the pieces are the same size — so count them: add the ' +
+        'TOPS only. The bottom is the size of the cut, and it never adds.',
+      steps: '1 · Bottoms match (' + d + ' and ' + d + ') — the pieces are the same size<br>' +
+        '2 · Add the tops: <span class="num">' + a1 + '</span> + <span class="num">' + b1 + '</span> = ' + s1 + '<br>' +
+        '3 · Keep the bottom: <span class="res">' + fs(s1, d) + '</span>',
+      diagnose: function (chosen) {
+        if (chosen === 1) return { label: 'Added the tops AND the bottoms — the classic',
+          your: fs(s1, 2 * d) + ' says the pieces got SMALLER when you put them together. The bottom is a ' +
+            'piece size, not an amount — ' + dnp(d) + ' stay ' + dnp(d) + ' when you add them',
+          right: 'add the tops, keep the bottom: ' + a1 + ' + ' + b1 + ' = ' + s1 + ' → ' + fs(s1, d) };
+        return { label: 'Multiplied the tops',
+          your: a1 + ' × ' + b1 + ' = ' + (a1 * b1) + ' — but adding fractions COUNTS pieces, it never multiplies them',
+          right: a1 + ' + ' + b1 + ' = ' + s1 + ' → ' + fs(s1, d) };
+      } };
+  }
+
+  function genAddRecut(hard) {
+    var pr = S.pick(hard ? [[4, 8], [4, 16], [8, 16]] : [[2, 4], [2, 8], [4, 8]]);
+    var s = pr[0], D = pr[1], k = D / s;
+    var a2, b2, S1, t, w;
+    for (t = 0; t < 40; t++) {
+      a2 = 1 + rnd(s - 1);
+      b2 = 1 + 2 * rnd(D / 2);                  /* odd → sum never reducible against D */
+      S1 = a2 * k + b2;
+      if (S1 < D) break;
+    }
+    if (S1 >= D) { a2 = 1; b2 = 1; S1 = k + 1; }
+    w = hard ? 1 + rnd(2) : 0;
+    var qtxt = w
+      ? '<span class="num">' + w + ' ' + fs(a2, s) + '</span> + <span class="num">' + fs(b2, D) + '</span> = ?'
+      : '<span class="num">' + fs(a2, s) + '</span> + <span class="num">' + fs(b2, D) + '</span> = ?';
+    var right = (w ? w + ' ' : '') + fs(S1, D);
+    var choices = w
+      ? [right, w + ' ' + fs(a2 + b2, s + D), fs(S1, D)]
+      : [right, fs(a2 + b2, s + D), fs(a2 + b2, D)];
+    return { type: 'mc', a: 0, choices: choices,
+      q: qtxt,
+      explain: 'The bottoms differ, so recut first: ' + fs(a2, s) + ' = ' + fs(a2 * k, D) + ' (×' + k +
+        ' top and bottom). Then add the tops: ' + (a2 * k) + ' + ' + b2 + ' = ' + S1 +
+        ' → <span class="num">' + right + '</span>.' + (w ? ' The whole ' + w + ' just rides along.' : ''),
+      hint: 'You can only add pieces of the SAME size. Recut the fraction with the smaller bottom — ' +
+        'multiply its top and bottom by the same number until the bottoms match — then add the tops.',
+      steps: '1 · Bottoms differ: ' + dnp(s) + ' vs ' + dnp(D) + ' — recut the ' + dnp(s) + '<br>' +
+        '2 · ' + fs(a2, s) + ' = <span class="num">' + fs(a2 * k, D) + '</span> (×' + k + ' top and bottom)<br>' +
+        '3 · Add the tops: ' + (a2 * k) + ' + ' + b2 + ' = ' + S1 + '<br>' +
+        '4 · <span class="res">' + right + '</span>',
+      diagnose: function (chosen) {
+        if (chosen === 1) return { label: 'Added straight across — tops AND bottoms',
+          your: fs(a2 + b2, s + D) + ' pretends a ' + DN[s][0] + '-piece and a ' + DN[D][0] +
+            '-piece are the same size. They are not — the cuts differ, so the tops can\'t be counted together yet',
+          right: 'recut first: ' + fs(a2, s) + ' = ' + fs(a2 * k, D) + ', then ' + (a2 * k) + ' + ' + b2 +
+            ' = ' + S1 + ' → ' + right };
+        if (w) return { label: 'The whole number vanished',
+          your: 'the fraction part is right, but the ' + w + ' whole inch' + (w > 1 ? 'es' : '') + ' fell off the front',
+          right: 'the whole rides along: ' + right };
+        return { label: 'Added the tops without recutting',
+          your: a2 + ' + ' + b2 + ' = ' + (a2 + b2) + ' counts a ' + DN[s][0] + '-piece as if it were a ' +
+            DN[D][0] + '-piece — but it is ' + k + ' times bigger',
+          right: 'recut: ' + fs(a2, s) + ' = ' + fs(a2 * k, D) + ' → ' + (a2 * k) + ' + ' + b2 + ' = ' + S1 + ' → ' + right };
+      } };
+  }
+
+  function genMixedImproper(hard) {
+    var d = hard ? S.pick([8, 16]) : S.pick([4, 8]);
+    var w = hard ? 1 + rnd(3) : 1 + rnd(2);
+    var n = 1 + rnd(d - 1);
+    var a = w * d + n;
+    return { type: 'num', a: a, tol: 0.4,
+      q: 'A part measures <span class="num">' + w + ' ' + fs(n, d) + '</span> inches. How many <b>' +
+        dnp(d) + '</b> of an inch is that in total?',
+      explain: 'A mixed number is a plus sign in disguise: each whole inch is ' + d + '/' + d + ', so ' +
+        w + ' × ' + d + ' + ' + n + ' = <span class="num">' + a + '</span> ' + dnp(d) +
+        ' — written as a fraction, ' + fs(a, d) + '.',
+      hint: 'A mixed number means whole PLUS fraction. Turn every whole into bottom-many pieces first ' +
+        '(one whole = bottom/bottom), then add the top on.',
+      steps: '1 · Each whole inch = <span class="num">' + d + '</span>/' + d + '<br>' +
+        '2 · ' + w + ' whole' + (w > 1 ? 's' : '') + ' = ' + w + ' × ' + d + ' = ' + (w * d) + ' ' + dnp(d) + '<br>' +
+        '3 · Add the top: ' + (w * d) + ' + ' + n + ' = <span class="res">' + a + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - n) < 0.4) return { label: 'The whole number vanished',
+          your: 'you answered just the ' + n + ' on top — but the ' + w + ' whole inch' + (w > 1 ? 'es' : '') +
+            ' are ' + (w * d) + ' more ' + dnp(d),
+          right: w + ' × ' + d + ' + ' + n + ' = ' + a };
+        if (Math.abs(v - n * d) < 0.4) return { label: 'Multiplied instead of added',
+          your: n + ' × ' + d + ' = ' + (n * d) + ' — but a mixed number means PLUS: ' + w + ' ' + fs(n, d) +
+            ' is ' + w + ' + ' + fs(n, d) + ', nothing gets multiplied together',
+          right: w + ' × ' + d + ' + ' + n + ' = ' + a };
+        if (w > 1 && Math.abs(v - w * n) < 0.4) return { label: 'Multiplied the whole by the top',
+          your: w + ' × ' + n + ' = ' + (w * n) + ' — the mixed number is a sum, not a product',
+          right: w + ' × ' + d + ' + ' + n + ' = ' + a };
+        if (Math.abs(v - (w + n)) < 0.4) return { label: 'Added the whole straight to the top',
+          your: w + ' + ' + n + ' = ' + (w + n) + ' counts inches and ' + dnp(d) +
+            ' as the same size piece — recut the wholes into ' + dnp(d) + ' first',
+          right: w + ' × ' + d + ' + ' + n + ' = ' + a };
+        if (Math.abs(v - w * d) < 0.4) return { label: 'Dropped the extra pieces',
+          your: 'you converted the wholes (' + (w * d) + ') but the ' + n + ' on top got left behind',
+          right: (w * d) + ' + ' + n + ' = ' + a };
+        return { label: 'The wholes got lost in the recut',
+          your: v + ' is not wholes × bottom + top',
+          right: w + ' × ' + d + ' + ' + n + ' = ' + a };
+      } };
+  }
+
+  var GENS = { pickPicture: genPickPicture, equivalent: genEquivalent, addSame: genAddSame,
+    addRecut: genAddRecut, mixedImproper: genMixedImproper };
+  var HARD = false;
+  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 5'; return q; }
+
+  function makeSet(kinds, hard) {
+    HARD = !!hard;
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    HARD = false;
+    return S.shuffle(out);
+  }
+  function gameQs() {
+    return makeSet(['pickPicture', 'pickPicture', 'equivalent', 'equivalent', 'addSame', 'addSame',
+      'addRecut', 'addRecut', 'mixedImproper', 'mixedImproper'], false);
+  }
+  function bossQs() {
+    return makeSet(['pickPicture', 'equivalent', 'equivalent', 'addSame', 'addSame',
+      'addRecut', 'addRecut', 'addRecut', 'mixedImproper', 'mixedImproper'], true);
+  }
+
+  S.levelPage('l5', {
+    explainer: EXPLAINER,
+    playground: playground,
+    gameQs: gameQs,
+    bossQs: bossQs,
+  });
+})();
+</script>
+</body>
+</html>

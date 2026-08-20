@@ -1,0 +1,552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level 7 · Negative Numbers</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+.chiprow { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.chiprow button { min-width: 62px; }
+.plab { display: block; font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--soft); margin: 12px 0 4px; }
+.predict-note { font-family: var(--mono); font-size: 12.5px; line-height: 1.5; margin-top: 8px; min-height: 20px; }
+.predict-note.hit { color: var(--good-bd); font-weight: 700; }
+.predict-note.miss { color: var(--orange); font-weight: 700; }
+#craneBox:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← SKILL TREE</a>
+    <div class="eyebrow">Level 07 · World 1 · Shop Math School</div>
+    <h1>Negative <span class="b">Numbers</span></h1>
+    <p class="sub">Zero is a place, not a floor. A negative number answers two questions at once —
+      how far, and which side. Learn to slide the line and the minus sign on a DRO stops being spooky.</p>
+  </header>
+  <div id="sms-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function ri(lo, hi) { return lo + rnd(hi - lo + 1); }
+  function r2(v) { return Math.round(v * 100) / 100; }
+  function nf(v) { return S.fmtExact(v).replace('-', '−'); }
+  function signed(v) { return (v < 0 ? '−' : '+') + S.fmtExact(Math.abs(v)); }
+  function dispS(v) { return v === 0 ? '0' : signed(v); }
+  function near(v, t) { return Math.abs(v - t) <= 0.005; }
+  function nsp(s) { return '<span class="num">' + s + '</span>'; }
+  function dirWord(m) { return m < 0 ? 'DOWN' : 'UP'; }
+  function crossesZero(a, b) { return (a > 0 && b < 0) || (a < 0 && b > 0); }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EX_SVG =
+  '<svg viewBox="0 0 150 236" width="150" height="236" role="img" aria-label="a crane at plus two moves minus five and lands at minus three" style="margin:0 auto;display:block">' +
+  '<defs><marker id="exArr" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">' +
+  '<path d="M0,0 L8,4 L0,8 Z" fill="var(--orange)"></path></marker></defs>' +
+  '<line x1="50" y1="18" x2="50" y2="218" stroke="var(--ink)" stroke-width="2"></line>' +
+  (function () {
+    var t = '';
+    for (var p = -5; p <= 5; p++) {
+      var y = 115 - 18 * p;
+      t += '<line x1="44" y1="' + y + '" x2="56" y2="' + y + '" stroke="var(--ink)" stroke-width="1"></line>';
+    }
+    return t;
+  })() +
+  '<line x1="14" y1="115" x2="140" y2="115" stroke="var(--ink)" stroke-width="1" stroke-dasharray="5 4"></line>' +
+  '<text x="38" y="119" text-anchor="end" font-size="11" font-weight="700" fill="var(--ink)">0</text>' +
+  '<text x="38" y="83" text-anchor="end" font-size="11" font-weight="700" fill="var(--blue)">+2</text>' +
+  '<text x="38" y="173" text-anchor="end" font-size="11" font-weight="700" fill="var(--orange)">−3</text>' +
+  '<line x1="74" y1="79" x2="74" y2="163" stroke="var(--orange)" stroke-width="3" marker-end="url(#exArr)"></line>' +
+  '<text x="84" y="125" font-size="12" font-weight="700" fill="var(--orange)">−5</text>' +
+  '<circle cx="50" cy="79" r="5" fill="var(--blue)"></circle>' +
+  '<circle cx="50" cy="169" r="5" fill="var(--orange)"></circle>' +
+  '<text x="84" y="70" font-size="10" fill="var(--soft)">start</text>' +
+  '<text x="84" y="178" font-size="10" fill="var(--soft)">lands</text>' +
+  '</svg>';
+
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>Picture the number line standing on end, like a crane\'s cable. <b>Zero is a place, not a floor.</b> ' +
+  'There are just as many numbers below it as above it. Everything below (or left, if the line lies flat) ' +
+  'wears a <span class="term">minus sign</span>. A negative number answers two questions at once: ' +
+  '<b>how far</b> from zero, and <b>which side</b>. −3 means "three away, on the down side."</p>' +
+  '<p>On a mill, the DRO reads minus the moment the tool crosses zero: a cut 0.200 below the top ' +
+  'of the part is <b>Z −0.200</b>. Same tool, same math — the sign just tells you which side of zero you\'re on.</p>' +
+  '<p><span class="term">Adding is sliding.</span> Adding a positive slides UP the line. Adding a negative ' +
+  'slides DOWN. Work one all the way: a crane hook sits at <b>+2</b> and moves <b>−5</b>:</p>' +
+  '<div class="worked">' + EX_SVG +
+  '<span class="num">+2</span> + (<span class="num">−5</span>) = <span class="res">−3</span><br>' +
+  'two steps down reach zero · zero is no floor · three more steps keep going' +
+  '</div>' +
+  '<p><span class="term">Two negatives stack.</span> −3 + (−4) is two slides DOWN, one after the other — ' +
+  'seven steps down in total: <b>−7</b>. Same direction means add the sizes and keep the sign.</p>' +
+  '<p><span class="term">Subtracting flips the direction.</span> Subtracting a positive takes away "up-ness" — ' +
+  'you go down. So what does subtracting a <i>negative</i> do? It takes away "down-ness" — you go UP. ' +
+  'That\'s why <b>5 − (−2) = 7</b>. Think of −2 as a debt: if someone removes a 2-dollar debt from your ' +
+  'account, you end up 2 dollars better off. Removing a minus is a plus.</p>' +
+  '<table class="ref"><tr><th>the move says</th><th>the hook does</th></tr>' +
+  '<tr><td>+ 4</td><td>slide UP 4</td></tr>' +
+  '<tr><td>+ (−4)</td><td>slide DOWN 4</td></tr>' +
+  '<tr><td>− (+4)</td><td>flip it: DOWN 4</td></tr>' +
+  '<tr><td>− (−4)</td><td>flip the flip: UP 4</td></tr></table>' +
+  '<p style="margin-top:10px">One last trap: <b>−7 is smaller than −2</b>, even though 7 is a bigger count. ' +
+  'Seven steps DOWN leaves you lower than two steps down. Size is not position. ' +
+  'Now open the <b>Playground</b> and run the crane yourself — predict first, then move.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — predict the crane, then move it</h2><div class="body">' +
+      '<div class="pg-split">' +
+      '<div><div class="scrollbox" id="craneBox" tabindex="0" role="application" ' +
+      'aria-label="crane on a vertical number line from minus ten to plus ten. Arrow up and arrow down nudge the hook one step."></div>' +
+      '<div class="chiprow" id="chipRow"></div>' +
+      '<p class="hint">Pick a move chip, type where you think the hook will land, then hit MOVE — the ' +
+      'truth shows after your guess. ↑ and ↓ (or the NUDGE buttons) slide one step at a time.</p></div>' +
+      '<div class="pg-live">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div id="droBox"></div>' +
+      '<label class="plab" for="predIn">Predict the landing spot</label>' +
+      '<div class="answer-row"><input type="text" id="predIn" inputmode="decimal" autocomplete="off" ' +
+      'placeholder="where will it land?" aria-label="your predicted landing spot">' +
+      '<button class="primary" id="mvBtn" disabled>MOVE</button></div>' +
+      '<div class="predict-note" id="predOut"></div>' +
+      '<div class="btnrow"><button id="upBtn" aria-label="nudge the hook up one">▲ NUDGE +1</button>' +
+      '<button id="dnBtn" aria-label="nudge the hook down one">▼ NUDGE −1</button>' +
+      '<button id="rsBtn">RESET TO +2</button></div>' +
+      '</div></div></div>';
+    panes.appendChild(card);
+
+    var CHIPS = [3, -5, 7, -2, 4, -8, 6, -9];
+    var pos = 2, queued = null, lastMove = null;
+    var box = card.querySelector('#craneBox');
+    var chipRow = card.querySelector('#chipRow');
+    var eqBody = card.querySelector('#eqBody');
+    var predIn = card.querySelector('#predIn');
+    var predOut = card.querySelector('#predOut');
+    var mvBtn = card.querySelector('#mvBtn');
+    var droCtl = S.dro(card.querySelector('#droBox'), 'HOOK');
+
+    function clampP(v) { return Math.max(-10, Math.min(10, v)); }
+    function yOf(p) { return 230 - p * 21; }
+
+    function drawSvg() {
+      var h = '<svg viewBox="0 0 250 470" width="250" height="470" style="margin:0 auto" role="img" ' +
+        'aria-label="crane hook at ' + dispS(pos) + ' on the vertical number line">' +
+        '<defs><marker id="l7or" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">' +
+        '<path d="M0,0 L8,4 L0,8 Z" fill="var(--orange)"></path></marker>' +
+        '<marker id="l7bl" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">' +
+        '<path d="M0,0 L8,4 L0,8 Z" fill="var(--blue)"></path></marker></defs>';
+      /* above / below zero tint */
+      h += '<rect x="160" y="' + yOf(10) + '" width="82" height="210" fill="var(--good-bg)"></rect>' +
+        '<rect x="160" y="' + yOf(0) + '" width="82" height="210" fill="var(--bad-bg)"></rect>' +
+        '<text x="201" y="44" text-anchor="middle" font-size="10" font-weight="700" fill="var(--soft)">UP = plus</text>' +
+        '<text x="201" y="452" text-anchor="middle" font-size="10" font-weight="700" fill="var(--soft)">DOWN = minus</text>';
+      /* axis + ticks */
+      h += '<line x1="126" y1="14" x2="126" y2="446" stroke="var(--ink)" stroke-width="2"></line>';
+      for (var p = -10; p <= 10; p++) {
+        var y = yOf(p), major = (p % 5 === 0);
+        h += '<line x1="' + (major ? 114 : 118) + '" y1="' + y + '" x2="' + (major ? 138 : 134) +
+          '" y2="' + y + '" stroke="var(--ink)" stroke-width="1"></line>' +
+          '<text x="106" y="' + (y + 3.5) + '" text-anchor="end" font-family="inherit" font-size="' +
+          (p === 0 ? 12 : 10) + '" ' + (major ? 'font-weight="700" ' : '') +
+          'fill="' + (p === 0 ? 'var(--ink)' : 'var(--soft)') + '">' + dispS(p) + '</text>';
+      }
+      /* zero line */
+      h += '<line x1="34" y1="' + yOf(0) + '" x2="242" y2="' + yOf(0) + '" stroke="var(--ink)" ' +
+        'stroke-width="1.2" stroke-dasharray="5 4"></line>' +
+        '<text x="150" y="' + (yOf(0) - 6) + '" font-size="9" fill="var(--soft)">zero — a place, not a floor</text>';
+      /* completed move trace (blue) */
+      if (lastMove) {
+        h += '<circle cx="150" cy="' + yOf(lastMove.s) + '" r="4" fill="none" stroke="var(--blue)" stroke-width="2"></circle>' +
+          '<line x1="150" y1="' + yOf(lastMove.s) + '" x2="150" y2="' + yOf(lastMove.land) +
+          '" stroke="var(--blue)" stroke-width="2.5" stroke-dasharray="4 4" marker-end="url(#l7bl)"></line>';
+      }
+      /* queued move arrow (orange) */
+      if (queued !== null) {
+        var ty = yOf(clampP(pos + queued));
+        h += '<line x1="168" y1="' + yOf(pos) + '" x2="168" y2="' + ty +
+          '" stroke="var(--orange)" stroke-width="3" marker-end="url(#l7or)"></line>' +
+          '<text x="178" y="' + ((yOf(pos) + ty) / 2 + 4) + '" font-size="12" font-weight="700" ' +
+          'fill="var(--orange)">' + signed(queued) + '</text>';
+      }
+      /* trolley, cable, hook */
+      h += '<rect x="108" y="6" width="36" height="10" fill="var(--ink)"></rect>' +
+        '<line x1="126" y1="16" x2="126" y2="' + (yOf(pos) - 9) + '" stroke="var(--ink)" stroke-width="1.5"></line>' +
+        '<circle cx="126" cy="' + yOf(pos) + '" r="8" fill="var(--blue)" stroke="var(--ink)" stroke-width="1.5"></circle>' +
+        '<text x="142" y="' + (yOf(pos) + 4) + '" font-size="12" font-weight="700" fill="var(--blue)">hook ' +
+        dispS(pos) + '</text>';
+      h += '</svg>';
+      box.innerHTML = h;
+    }
+
+    function meaning() {
+      if (pos === 0) return 'Dead on <b>zero</b> — the boundary itself. Zero is a place, not a floor: there is plenty of room below.';
+      if (pos > 0) return '<b>' + S.intWords(pos) + ' above zero</b> — the plus side. A DRO would read this as ' + dispS(pos) + '.';
+      return '<b>' + S.intWords(-pos) + ' below zero</b> — the minus says <i>which side</i>, the ' +
+        S.intWords(-pos) + ' says <i>how far</i>. A DRO reads minus whenever the tool is below (or left of) zero.';
+    }
+
+    function updateEq() {
+      if (queued !== null) {
+        eqBody.innerHTML = nsp(dispS(pos)) + ' + (' + nsp(signed(queued)) + ') = <span class="res">?</span><br>' +
+          '<span class="dim">' + (queued < 0 ? 'minus move → slide DOWN ' : 'plus move → slide UP ') +
+          S.fmtExact(Math.abs(queued)) + ' — predict it, then MOVE</span>';
+      } else if (lastMove) {
+        eqBody.innerHTML = nsp(dispS(lastMove.s)) + ' + (' + nsp(signed(lastMove.m)) + ') = <span class="res">' +
+          dispS(lastMove.land) + '</span><br>' +
+          '<span class="dim">the sign on ' + signed(lastMove.m) + ' pointed the slide ' + dirWord(lastMove.m) + '</span>';
+      } else {
+        eqBody.innerHTML = 'hook at ' + nsp(dispS(pos)) + ' — pick a move chip<br>' +
+          '<span class="dim">the sign on a chip is a direction, not a size</span>';
+      }
+    }
+
+    function update() {
+      drawSvg();
+      updateEq();
+      chipRow.querySelectorAll('button').forEach(function (b) {
+        var v = Number(b.getAttribute('data-chip'));
+        b.classList.toggle('on', queued === v);
+        b.disabled = (pos + v > 10 || pos + v < -10);
+      });
+      mvBtn.disabled = (queued === null);
+      droCtl.set(dispS(pos), meaning());
+    }
+
+    function doMove(m) {
+      var s = pos, land = clampP(s + m);
+      lastMove = { s: s, m: m, land: land };
+      pos = land;
+      queued = null;
+    }
+
+    function note(cls, html) { predOut.className = 'predict-note' + (cls ? ' ' + cls : ''); predOut.innerHTML = html; }
+
+    var chipHtml = '';
+    for (var ci = 0; ci < CHIPS.length; ci++) {
+      chipHtml += '<button data-chip="' + CHIPS[ci] + '" aria-label="queue a move of ' +
+        (CHIPS[ci] < 0 ? 'minus ' : 'plus ') + Math.abs(CHIPS[ci]) + '">' + signed(CHIPS[ci]) + '</button>';
+    }
+    chipRow.innerHTML = chipHtml;
+    chipRow.querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var v = Number(b.getAttribute('data-chip'));
+        queued = (queued === v) ? null : v;
+        note('', queued === null ? '' : 'Queued ' + signed(queued) + '. Where will the hook land? Type your call, then MOVE.');
+        update();
+        if (queued !== null) predIn.focus();
+      });
+    });
+
+    mvBtn.addEventListener('click', function () {
+      if (queued === null) return;
+      var raw = String(predIn.value), pv = S.parseNum(raw);
+      if (raw.replace(/\s/g, '') !== '' && isNaN(pv)) {
+        note('miss', 'That prediction is not a number — try something like −3.');
+        return;
+      }
+      var m = queued;
+      doMove(m);
+      if (!isNaN(pv)) {
+        if (near(pv, pos)) {
+          note('hit', 'Called it — landed at ' + dispS(pos) + ', just like you said. ✔');
+        } else if (pos !== 0 && near(pv, -pos)) {
+          note('miss', 'It landed at ' + dispS(pos) + ' — you said ' + nf(pv) +
+            '. Right distance, wrong side: the minus tells you which side of zero.');
+        } else if (near(pv, lastMove.s - m)) {
+          note('miss', 'It landed at ' + dispS(pos) + ' — you said ' + nf(pv) +
+            '. You slid the wrong way: a ' + (m < 0 ? 'minus' : 'plus') + ' move goes ' + dirWord(m) + '.');
+        } else {
+          note('miss', 'It landed at ' + dispS(pos) + ' — you said ' + nf(pv) +
+            '. Count it on the line: ' + dispS(lastMove.s) + ', then ' + S.fmtExact(Math.abs(m)) +
+            ' steps ' + dirWord(m).toLowerCase() + '.');
+        }
+      } else {
+        note('', 'Landed at ' + dispS(pos) + '. Next time type a guess first — the predicting is where the learning is.');
+      }
+      predIn.value = '';
+      update();
+    });
+
+    function nudge(d) {
+      if (pos + d > 10 || pos + d < -10) { note('miss', 'End of the line — the playground stops at ±10.'); return; }
+      doMove(d);
+      note('', 'Nudged ' + signed(d) + ' → ' + dispS(pos) + '.');
+      update();
+    }
+    card.querySelector('#upBtn').addEventListener('click', function () { nudge(1); });
+    card.querySelector('#dnBtn').addEventListener('click', function () { nudge(-1); });
+    card.querySelector('#rsBtn').addEventListener('click', function () {
+      pos = 2; queued = null; lastMove = null; note('', ''); update();
+    });
+    box.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowUp') { e.preventDefault(); nudge(1); }
+      if (e.key === 'ArrowDown') { e.preventDefault(); nudge(-1); }
+    });
+
+    update();
+    window.__l7 = {
+      set: function (o) {
+        if (o && typeof o.pos === 'number') { pos = clampP(o.pos); lastMove = null; note('', ''); }
+        if (o && ('move' in o)) {
+          queued = (typeof o.move === 'number' && pos + o.move <= 10 && pos + o.move >= -10) ? o.move : null;
+        }
+        update();
+      },
+      info: function () {
+        return { pos: pos, queued: queued,
+          last: lastMove ? { start: lastMove.s, move: lastMove.m, land: lastMove.land } : null };
+      }
+    };
+  }
+
+  /* ============ question generators (game + boss) ============ */
+
+  function genSlide(hard) {
+    var dec = hard && Math.random() < 0.45;
+    var s, m, tries;
+    if (dec) {
+      s = r2(ri(-12, 12) * 0.25);
+      m = 0; while (m === 0) m = r2(ri(-10, 10) * 0.25);
+    } else if (hard) {
+      for (tries = 0; tries < 50; tries++) {
+        s = ri(-15, 15); m = ri(-15, 15);
+        if (m !== 0 && Math.abs(s + m) <= 20) break;
+      }
+    } else {
+      for (tries = 0; tries < 50; tries++) {
+        s = ri(-8, 8); m = ri(-9, 9);
+        if (m !== 0 && Math.abs(s + m) <= 10) break;
+      }
+    }
+    var a = r2(s + m);
+    var crosses = crossesZero(s, a);
+    return { type: 'num', a: a, tol: dec ? 0.0005 : 0.4,
+      q: 'The hook sits at ' + nsp(nf(s)) + '. The crane moves ' + nsp(signed(m)) + '. Where does the hook land?',
+      explain: 'A ' + (m < 0 ? 'minus' : 'plus') + ' move slides ' + dirWord(m) + ' ' + S.fmtExact(Math.abs(m)) +
+        ': ' + nf(s) + ' ' + (m < 0 ? '− ' : '+ ') + S.fmtExact(Math.abs(m)) + ' = <span class="num">' + nf(a) + '</span>.',
+      hint: 'The sign on the move is a direction: plus slides UP the line, minus slides DOWN. Put your finger on ' +
+        nf(s) + ' and take the steps one at a time — zero is just another stop on the way, not a wall.',
+      steps: '1 · Start at <span class="num">' + nf(s) + '</span><br>' +
+        '2 · The move ' + signed(m) + ' says: slide ' + dirWord(m) + ' <span class="num">' + S.fmtExact(Math.abs(m)) +
+        '</span>' + (crosses ? ' — you pass straight through zero on the way' : '') + '<br>' +
+        '3 · Land: <span class="res">' + nf(a) + '</span>',
+      diagnose: function (v) {
+        if (a !== 0 && near(v, -a)) return { label: 'Dropped the sign',
+          your: 'the distance is right — ' + S.fmtExact(Math.abs(a)) + ' from zero — but you landed on the wrong side',
+          right: 'the slide ends ' + (a < 0 ? 'BELOW' : 'ABOVE') + ' zero: ' + nf(a) };
+        if (near(v, s - m) && !near(s - m, a)) return { label: 'Moved the wrong way',
+          your: nf(v) + ' is start MINUS move — you slid ' + dirWord(-m).toLowerCase() + ' when the sign said ' + dirWord(m).toLowerCase(),
+          right: 'a ' + signed(m) + ' move goes ' + dirWord(m) + ': ' + nf(s) + ' ' + (m < 0 ? '− ' : '+ ') +
+            S.fmtExact(Math.abs(m)) + ' = ' + nf(a) };
+        if (crosses && near(Math.abs(v - a), 1)) return { label: 'Counted zero twice',
+          your: nf(v) + ' is off by exactly one — that happens when zero gets counted as a step. Zero is a place you pass through, not a hop you take',
+          right: 'count the hops, not the marks: ' + nf(s) + ' slid ' + S.fmtExact(Math.abs(m)) + ' ' + dirWord(m).toLowerCase() + ' = ' + nf(a) };
+        return { label: 'Lost on the line',
+          your: nf(v) + ' is not where the slide ends',
+          right: nf(s) + ' ' + (m < 0 ? '− ' : '+ ') + S.fmtExact(Math.abs(m)) + ' = ' + nf(a) };
+      } };
+  }
+
+  function genSubNeg(hard) {
+    var s = hard ? ri(-9, 9) : ri(1, 9);
+    var b = hard ? ri(1, 12) : ri(1, 9);
+    var a = s + b;
+    return { type: 'num', a: a, tol: 0.4,
+      q: nsp(nf(s)) + ' − (' + nsp('−' + S.fmtExact(b)) + ') = ?',
+      explain: 'Subtracting flips the move. Taking away a −' + b + ' — removing a debt — pushes you UP by ' + b +
+        ': ' + nf(s) + ' + ' + b + ' = <span class="num">' + nf(a) + '</span>.',
+      hint: 'Minus a minus flips the direction twice. Think of the −' + b + ' as a debt: taking a debt AWAY leaves you better off, so this move goes UP the line.',
+      steps: '1 · The thing being subtracted is <span class="num">−' + b + '</span> — on its own, a slide DOWN<br>' +
+        '2 · Subtracting REMOVES that slide, so go the other way: UP <span class="num">' + b + '</span><br>' +
+        '3 · ' + nf(s) + ' + ' + b + ' = <span class="res">' + nf(a) + '</span>',
+      diagnose: function (v) {
+        if (near(v, s - b)) return { label: 'Subtracted straight through the minus',
+          your: 'you did ' + nf(s) + ' − ' + b + ' = ' + nf(s - b) + ' — but the thing being taken away is NEGATIVE ' + b + ', not ' + b,
+          right: 'minus a minus goes UP: ' + nf(s) + ' + ' + b + ' = ' + nf(a) };
+        if (a !== 0 && near(v, -a)) return { label: 'Dropped the sign',
+          your: 'right distance from zero, wrong side — check which way the flipped move points',
+          right: nf(s) + ' + ' + b + ' = ' + nf(a) };
+        return { label: 'The flip got lost',
+          your: nf(v) + ' is not ' + nf(s) + ' with a −' + b + ' removed',
+          right: 'subtracting a negative ADDS: ' + nf(s) + ' + ' + b + ' = ' + nf(a) };
+      } };
+  }
+
+  function genStack(hard) {
+    var dec = hard && Math.random() < 0.5;
+    var x, y;
+    if (dec) { x = -r2(ri(1, 10) * 0.25); y = -r2(ri(1, 10) * 0.25); }
+    else if (hard) { x = -ri(3, 15); y = -ri(3, 15); }
+    else { x = -ri(1, 9); y = -ri(1, 9); }
+    var a = r2(x + y);
+    var diff = r2(Math.abs(Math.abs(x) - Math.abs(y)));
+    return { type: 'num', a: a, tol: dec ? 0.0005 : 0.4,
+      q: nsp(nf(x)) + ' + (' + nsp(nf(y)) + ') = ?',
+      explain: 'Two slides DOWN stack up: ' + S.fmtExact(-x) + ' down, then ' + S.fmtExact(-y) +
+        ' more down = ' + S.fmtExact(-a) + ' below zero: <span class="num">' + nf(a) + '</span>.',
+      hint: 'Both moves point the same way — DOWN. When the directions match, add the sizes and keep the direction.',
+      steps: '1 · Slide DOWN <span class="num">' + S.fmtExact(-x) + '</span> → you are at ' + nf(x) + '<br>' +
+        '2 · Slide DOWN <span class="num">' + S.fmtExact(-y) + '</span> more — same direction, so the sizes add<br>' +
+        '3 · ' + S.fmtExact(-x) + ' + ' + S.fmtExact(-y) + ' below zero = <span class="res">' + nf(a) + '</span>',
+      diagnose: function (v) {
+        if (near(v, -a)) return { label: 'Dropped the sign',
+          your: 'two slides DOWN cannot end above zero — the size ' + S.fmtExact(-a) + ' is right, the side is not',
+          right: 'both moves point down: ' + nf(a) };
+        if (near(v, diff) || near(v, -diff)) return { label: 'Subtracted the sizes',
+          your: 'you took ' + S.fmtExact(Math.max(-x, -y)) + ' − ' + S.fmtExact(Math.min(-x, -y)) +
+            ' — that is for moves pointing OPPOSITE ways. These both point down',
+          right: 'same direction → add the sizes: ' + S.fmtExact(-x) + ' + ' + S.fmtExact(-y) + ' = ' +
+            S.fmtExact(-a) + ' below zero = ' + nf(a) };
+        return { label: 'The stack slipped',
+          your: nf(v) + ' is not two downward slides added up',
+          right: nf(x) + ' + (' + nf(y) + ') = ' + nf(a) };
+      } };
+  }
+
+  function genCompare(hard) {
+    var pairs = hard
+      ? [[-0.3, -0.25], [-0.5, -0.375], [-1.5, -1.05], [0.1, -0.9], [-0.75, -0.7], [-21, -12], [3, -30], [-0.05, -0.5]]
+      : [[-7, -2], [-9, -4], [-1, -8], [2, -7], [1, -9], [-3, -5], [0, -6], [-2, -10]];
+    var p = S.pick(pairs);
+    var win = p[0] > p[1] ? 0 : 1;
+    var wv = p[win], lv = p[1 - win];
+    return { type: 'mc', a: win, choices: [nf(p[0]), nf(p[1])],
+      q: 'Which is the <b>larger</b> number — the one further UP the line?',
+      explain: 'On the line, ' + nf(wv) + ' sits ABOVE ' + nf(lv) + '. Further below zero is always smaller — ' +
+        'a big count of downward steps makes a SMALL number.',
+      hint: 'Put both on the line. Larger means further UP — closer to the plus side. Do not compare the sizes of the digits; compare the positions.',
+      steps: '1 · Place them on the line: <span class="num">' + nf(wv) + '</span> sits higher than <span class="num">' + nf(lv) + '</span><br>' +
+        '2 · Higher on the line = larger, no matter how the digits look<br>' +
+        '3 · Larger: <span class="res">' + nf(wv) + '</span>',
+      diagnose: function () {
+        return { label: 'Magnitude trap',
+          your: nf(lv) + ' LOOKS bigger because ' + S.fmtExact(Math.abs(lv)) +
+            ' is a bigger count of steps — but every one of those steps goes downward',
+          right: 'position beats size: ' + nf(wv) + ' sits higher on the line, so it is larger' };
+      } };
+  }
+
+  function genStory(hard) {
+    var lim = hard ? 15 : 8;
+    var s = ri(-lim, lim), t = s;
+    while (t === s) t = ri(-lim, lim);
+    var a = t - s;
+    var crosses = crossesZero(s, t);
+    var st;
+    if (crosses) {
+      st = '1 · From <span class="num">' + nf(s) + '</span> to zero: ' + Math.abs(s) + ' steps ' + dirWord(a).toLowerCase() + '<br>' +
+        '2 · From zero on to <span class="num">' + nf(t) + '</span>: ' + Math.abs(t) + ' more — passing zero is free<br>' +
+        '3 · ' + Math.abs(s) + ' + ' + Math.abs(t) + ' = ' + Math.abs(a) + ' ' + dirWord(a).toLowerCase() +
+        ' → the move is <span class="res">' + signed(a) + '</span>';
+    } else {
+      st = '1 · Direction first: ' + nf(t) + ' is ' + (a > 0 ? 'ABOVE' : 'BELOW') + ' ' + nf(s) + ' → the move goes ' + dirWord(a) + '<br>' +
+        '2 · Distance: target − start = ' + nf(t) + ' − (' + nf(s) + ') = ' + nf(a) + '<br>' +
+        '3 · The move is <span class="res">' + signed(a) + '</span>';
+    }
+    return { type: 'num', a: a, tol: 0.4,
+      q: 'The hook sits at ' + nsp(nf(s)) + ' and the job needs it at ' + nsp(nf(t)) + '. What move gets it there?',
+      explain: 'Move = where you are going − where you are: ' + nf(t) + ' − (' + nf(s) + ') = <span class="num">' +
+        signed(a) + '</span> — ' + S.intWords(Math.abs(a)) + ' steps ' + dirWord(a).toLowerCase() + '.',
+      hint: 'Two questions: which WAY (is the target above or below where you sit?) and how FAR. If the trip crosses zero, count each side separately and add — zero itself is not a step.',
+      steps: st,
+      diagnose: function (v) {
+        if (!near(s - t, a) && near(v, s - t)) return { label: 'Moved the wrong way',
+          your: 'you computed start − target = ' + nf(s - t) + ' — that move takes the hook AWAY from the job',
+          right: 'move = target − start = ' + nf(t) + ' − (' + nf(s) + ') = ' + signed(a) };
+        if (a < 0 && near(v, -a)) return { label: 'Dropped the sign',
+          your: 'the distance ' + S.fmtExact(-a) + ' is right, but the hook must travel DOWN — the move needs the minus',
+          right: 'the move is ' + signed(a) };
+        if (crosses && near(Math.abs(Math.abs(v) - Math.abs(a)), 1)) return { label: 'Counted zero twice',
+          your: 'off by exactly one — zero got counted as a step (or skipped). Count the hops on each side of zero and add',
+          right: Math.abs(s) + ' to zero + ' + Math.abs(t) + ' past it = ' + Math.abs(a) + ' → ' + signed(a) };
+        return { label: 'Move mystery',
+          your: nf(v) + ' does not carry the hook from ' + nf(s) + ' to ' + nf(t),
+          right: 'move = target − start = ' + signed(a) };
+      } };
+  }
+
+  function genChain(hard) {
+    var lim = hard ? 9 : 5, span = hard ? 20 : 10;
+    var s, m1, m2, tries;
+    for (tries = 0; tries < 60; tries++) {
+      s = ri(-lim, lim);
+      m1 = ri(-12, 12); m2 = ri(-12, 12);
+      if (m1 !== 0 && m2 !== 0 && Math.abs(s + m1) <= span && Math.abs(s + m1 + m2) <= span) break;
+    }
+    var mid = s + m1, a = s + m1 + m2;
+    return { type: 'num', a: a, tol: 0.4,
+      q: 'Start at ' + nsp(nf(s)) + ', then move ' + nsp(signed(m1)) + ', then move ' + nsp(signed(m2)) + '. Where do you end?',
+      explain: 'One slide at a time: ' + nf(s) + ' → ' + nf(mid) + ' → <span class="num">' + nf(a) + '</span>.',
+      hint: 'Do it as two separate slides. Land the first move, and only then start the second — from where you actually landed.',
+      steps: '1 · ' + nf(s) + ' move ' + signed(m1) + ' → land at <span class="num">' + nf(mid) + '</span><br>' +
+        '2 · From ' + nf(mid) + ', move ' + signed(m2) + ' — slide ' + dirWord(m2).toLowerCase() + ' ' + Math.abs(m2) + '<br>' +
+        '3 · End: <span class="res">' + nf(a) + '</span>',
+      diagnose: function (v) {
+        if ((near(v, s + m1 - m2) && !near(s + m1 - m2, a)) || (near(v, s - m1 + m2) && !near(s - m1 + m2, a)))
+          return { label: 'Moved the wrong way on one slide',
+            your: nf(v) + ' comes from flipping one of the moves — one sign got read backwards',
+            right: nf(s) + ' → ' + nf(mid) + ' → ' + nf(a) };
+        if (a !== 0 && near(v, -a)) return { label: 'Dropped the sign',
+          your: 'right distance from zero, wrong side',
+          right: nf(s) + ' → ' + nf(mid) + ' → ' + nf(a) };
+        if (near(v, mid) && !near(mid, a)) return { label: 'Stopped after the first move',
+          your: nf(v) + ' is where the FIRST slide lands — the second move ' + signed(m2) + ' still has to happen',
+          right: nf(mid) + ' then ' + signed(m2) + ' → ' + nf(a) };
+        return { label: 'Chain slipped',
+          your: nf(v) + ' is not the end of both slides',
+          right: nf(s) + ' → ' + nf(mid) + ' → ' + nf(a) };
+      } };
+  }
+
+  var GENS = { slide: genSlide, subNeg: genSubNeg, stack: genStack,
+    compare: genCompare, story: genStory, chain: genChain };
+  var HARD = false;
+  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 7'; return q; }
+
+  function makeSet(kinds, hard) {
+    HARD = !!hard;
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    HARD = false;
+    return S.shuffle(out);
+  }
+  function gameQs() {
+    return makeSet(['slide', 'slide', 'subNeg', 'subNeg', 'stack', 'stack',
+      'compare', 'compare', 'story', 'story'], false);
+  }
+  function bossQs() {
+    return makeSet(['slide', 'slide', 'subNeg', 'subNeg', 'stack', 'stack',
+      'compare', 'story', 'chain', 'chain'], true);
+  }
+
+  S.levelPage('l7', {
+    explainer: EXPLAINER,
+    playground: playground,
+    gameQs: gameQs,
+    bossQs: bossQs,
+  });
+})();
+</script>
+</body>
+</html>

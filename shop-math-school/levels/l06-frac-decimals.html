@@ -1,0 +1,560 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level 6 · Fractions ↔ Decimals</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+.zoomrow { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.zoomrow .zl { font-family: var(--mono); font-size: 10px; letter-spacing: .14em; color: var(--soft); }
+.zoomrow .push { margin-left: auto; }
+.rl-focus:focus-visible { outline: 3px solid var(--blue); outline-offset: 2px; }
+.fcard { width: 100%; min-height: 150px; font-size: 42px; letter-spacing: .02em; margin-top: 10px; }
+.fcard .side-lbl { display: block; font-family: var(--mono); font-size: 10px; font-weight: 700; letter-spacing: .14em; margin-bottom: 10px; color: var(--soft); }
+.fcard.dside { background: var(--dro-bg); color: var(--green); }
+.fcard.dside .side-lbl { color: var(--dro-dim); }
+.fcard.fside { background: var(--paper); color: var(--blue); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← SKILL TREE</a>
+    <div class="eyebrow">Level 06 · World 1 · Shop Math School</div>
+    <h1>Fractions <span class="b">↔ Decimals</span></h1>
+    <p class="sub">A fraction is a division that hasn't been done yet: 3/8 means 3 ÷ 8, and that's 0.375.
+      Learn fifteen landmark numbers and every mark on a shop ruler gets a decimal name you know cold.</p>
+  </header>
+  <div id="sms-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  var LMD = 0.0625;   /* one sixteenth, the landmark step */
+  var DEN_NAMES = { 2: ['half', 'halves'], 4: ['quarter', 'quarters'], 8: ['eighth', 'eighths'],
+    16: ['sixteenth', 'sixteenths'], 32: ['thirty-second', 'thirty-seconds'], 64: ['sixty-fourth', 'sixty-fourths'] };
+
+  function gcd(a, b) { while (b) { var t = a % b; a = b; b = t; } return a; }
+  function reduce(n, d) { var g = gcd(n, d) || 1; return [n / g, d / g]; }
+  function fr(n, d) { if (n === 0) return '0'; var r = reduce(n, d); return r[0] + '/' + r[1]; }
+  function fmtd(v) { return S.fmtExact(v, 3); }
+  function fw(n, d) {
+    var r = reduce(n, d), u = DEN_NAMES[r[1]];
+    if (!u) return r[0] + '/' + r[1];
+    return S.intWords(r[0]) + ' ' + (r[0] === 1 ? u[0] : u[1]);
+  }
+  function smallFrac(k64) {
+    var r = reduce(k64, 64), u = DEN_NAMES[r[1]];
+    if (r[0] === 1) return (r[1] === 8 ? 'an ' : 'a ') + u[0];
+    return S.intWords(r[0]) + ' ' + u[1];
+  }
+  /* name the landmark a decimal sits on, or '' */
+  function lmOf(v) {
+    var k = Math.round(v / LMD);
+    if (k >= 1 && k <= 15 && Math.abs(v - k * LMD) < 0.0005) return fr(k, 16);
+    return '';
+  }
+  /* binary decomposition of a 16th into 1/2 + 1/4 + 1/8 + 1/16 pieces */
+  function decomp16(n16) {
+    var bits = [[8, '1/2', 0.5], [4, '1/4', 0.25], [2, '1/8', 0.125], [1, '1/16', 0.0625]];
+    var out = [], k;
+    for (k = 0; k < 4; k++) if (n16 >= bits[k][0]) { out.push(bits[k]); n16 -= bits[k][0]; }
+    return out;
+  }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>Here is the whole secret: <span class="term">the fraction bar means divide</span>. ' +
+  '3/8 is not a strange symbol — it\'s an instruction that hasn\'t been carried out yet: ' +
+  '<b>3 ÷ 8</b>. Do the division and out comes its decimal name, <b>0.375</b>. ' +
+  'Every fraction works this way: top ÷ bottom, always.</p>' +
+  '<p>Work one all the way — <b>5/8</b>, three roads to the same place:</p>' +
+  '<div class="worked">ROAD 1 — divide: <span class="num">5/8</span> means 5 ÷ 8 = <span class="res">0.625</span><br>' +
+  'ROAD 2 — stack landmarks: <span class="num">5/8</span> = 1/2 + 1/8 = 0.500 + 0.125 = <span class="res">0.625</span><br>' +
+  'ROAD 3 — the ruler: <span class="num">5/8</span> = 10/16 → ten 16th-marks in, an eighth past the half</div>' +
+  '<p>In the shop you don\'t divide every time — you <span class="term">memorize fifteen landmarks</span>, ' +
+  'the sixteenths. Machinists know these the way you know your phone number:</p>' +
+  '<table class="ref"><tr><th>16th</th><th>decimal</th><th>16th</th><th>decimal</th><th>16th</th><th>decimal</th></tr>' +
+  '<tr><td>1/16</td><td>.0625</td><td>3/8</td><td>.375</td><td>11/16</td><td>.6875</td></tr>' +
+  '<tr><td>1/8</td><td>.125</td><td>7/16</td><td>.4375</td><td>3/4</td><td>.750</td></tr>' +
+  '<tr><td>3/16</td><td>.1875</td><td>1/2</td><td>.500</td><td>13/16</td><td>.8125</td></tr>' +
+  '<tr><td>1/4</td><td>.250</td><td>9/16</td><td>.5625</td><td>7/8</td><td>.875</td></tr>' +
+  '<tr><td>5/16</td><td>.3125</td><td>5/8</td><td>.625</td><td>15/16</td><td>.9375</td></tr></table>' +
+  '<p style="margin-top:10px">Don\'t brute-force the table — use the <span class="term">stacking trick</span>. ' +
+  'Every 16th is exactly <b>0.0625 more</b> than the one before it, and every 8th is <b>0.125 more</b>. ' +
+  'So from the half you just walk: 1/2 = .500, 9/16 = .5625, 5/8 = .625, 11/16 = .6875. ' +
+  'Any landmark is a short stack of ones you already know: 7/16 = 1/4 + 1/8 + 1/16 = .250 + .125 + .0625 = .4375.</p>' +
+  '<p>One more rung exists below the 16ths: <span class="term">64ths</span>, each <b>0.015625</b> apart ' +
+  '(drill charts live there). Nobody memorizes all of them — you build them: ' +
+  '21/64 = 5/16 + 1/64 = .3125 + .015625 = .328125. Know the fifteen, build the rest.</p>' +
+  '<p>Watch the traps: 0.625 is 5/8, but slide the point one seat and you get <b>0.0625 — a completely ' +
+  'different landmark (1/16)</b>. And top ÷ bottom, never bottom ÷ top: 8 ÷ 3 is 2.67, which can\'t be ' +
+  'a piece of one inch. Now open the <b>Playground</b> and walk the inch yourself.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — the inch, cut into 64ths</h2><div class="body">' +
+      '<div class="zoomrow"><span class="zl">ZOOM</span>' +
+      '<button data-z="16" class="on">16ths</button>' +
+      '<button data-z="32">32nds</button>' +
+      '<button data-z="64">64ths</button>' +
+      '<span class="zl push">STEP</span>' +
+      '<button id="stepDn" aria-label="one mark left">◀</button>' +
+      '<button id="stepUp" aria-label="one mark right">▶</button></div>' +
+      '<div class="rl-focus" id="rlFocus" tabindex="0" aria-label="one-inch rule. Left and right arrow keys move the grabbed mark." style="margin-top:10px">' +
+      '<div class="scrollbox" id="rulerBox"></div></div>' +
+      '<p class="hint">Tap anywhere on the rule to grab the nearest mark, or step with ◀ ▶ (arrow keys work ' +
+      'while the rule has focus). Zoom in and the 32nds and 64ths appear between the marks you already know.</p>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div>' +
+      '<div class="btnrow"><button id="flashBtn">FLASHCARDS: OFF</button>' +
+      '<button id="shufBtn" style="display:none">SHUFFLE</button></div>' +
+      '<div id="flashArea"></div>' +
+      '</div></div></div>';
+    panes.appendChild(card);
+
+    var n64 = 24;          /* 3/8 to start */
+    var zoom = 16;
+    var flashOn = false, flashFlipped = false, flashN16 = 10, flashFace = 'f';
+
+    var rulerBox = card.querySelector('#rulerBox');
+    var rlFocus = card.querySelector('#rlFocus');
+    var eqBody = card.querySelector('#eqBody');
+    var droCtl = S.dro(card.querySelector('#droBox'), 'DEC');
+    var flashBtn = card.querySelector('#flashBtn');
+    var shufBtn = card.querySelector('#shufBtn');
+    var flashArea = card.querySelector('#flashArea');
+    var RL = 30;           /* left margin inside the svg */
+
+    function unitW() { return zoom === 16 ? 13 : (zoom === 32 ? 17 : 22); }
+
+    function drawRuler() {
+      var u = unitW(), W = RL * 2 + 64 * u, edgeY = 30, H = 150;
+      var step = 64 / zoom, i, x, h, st;
+      var s = '<svg width="' + W + '" height="' + H + '" viewBox="0 0 ' + W + ' ' + H +
+        '" role="img" aria-label="one inch rule divided into ' + zoom + 'ths, mark grabbed at ' + fr(n64, 64) + '">';
+      s += '<line x1="' + RL + '" y1="' + edgeY + '" x2="' + (W - RL) + '" y2="' + edgeY +
+        '" style="stroke:var(--ink);stroke-width:2.5"/>';
+      for (i = 0; i <= 64; i += step) {
+        x = RL + i * u;
+        if (i % 64 === 0) h = 58; else if (i % 32 === 0) h = 48; else if (i % 16 === 0) h = 40;
+        else if (i % 8 === 0) h = 32; else if (i % 4 === 0) h = 24; else if (i % 2 === 0) h = 16; else h = 10;
+        if (i === n64) st = 'stroke:var(--orange);stroke-width:3';
+        else if (i % 16 === 0) st = 'stroke:var(--ink);stroke-width:2';
+        else if (i % 4 === 0) st = 'stroke:var(--ink);stroke-width:1.3';
+        else st = 'stroke:var(--soft);stroke-width:1';
+        s += '<line x1="' + x + '" y1="' + edgeY + '" x2="' + x + '" y2="' + (edgeY + h) + '" style="' + st + '"/>';
+      }
+      if (n64 % step !== 0) {   /* grabbed a finer mark, then zoomed out — still show it */
+        x = RL + n64 * u;
+        s += '<line x1="' + x + '" y1="' + edgeY + '" x2="' + x + '" y2="' + (edgeY + 20) +
+          '" style="stroke:var(--orange);stroke-width:3"/>';
+      }
+      s += '<text x="' + RL + '" y="104" text-anchor="middle" style="font-family:var(--mono);font-size:13px;font-weight:700;fill:var(--ink)">0</text>';
+      s += '<text x="' + (W - RL) + '" y="104" text-anchor="middle" style="font-family:var(--mono);font-size:13px;font-weight:700;fill:var(--ink)">1 in</text>';
+      for (i = 8; i < 64; i += 8) {
+        s += '<text x="' + (RL + i * u) + '" y="104" text-anchor="middle" style="font-family:var(--mono);font-size:11px;fill:var(--soft)">' + fr(i, 64) + '</text>';
+      }
+      if (zoom === 64) for (i = 4; i < 64; i += 8) {
+        s += '<text x="' + (RL + i * u) + '" y="120" text-anchor="middle" style="font-family:var(--mono);font-size:9.5px;fill:var(--soft)">' + fr(i, 64) + '</text>';
+      }
+      var xs = RL + n64 * u;
+      s += '<polygon points="' + (xs - 7) + ',8 ' + (xs + 7) + ',8 ' + xs + ',26" style="fill:var(--orange)"/>';
+      if (n64 > 0) {
+        s += '<line x1="' + RL + '" y1="134" x2="' + xs + '" y2="134" style="stroke:var(--orange);stroke-width:3"/>' +
+          '<line x1="' + RL + '" y1="128" x2="' + RL + '" y2="140" style="stroke:var(--orange);stroke-width:1.5"/>' +
+          '<line x1="' + xs + '" y1="128" x2="' + xs + '" y2="140" style="stroke:var(--orange);stroke-width:1.5"/>';
+      }
+      s += '</svg>';
+      rulerBox.innerHTML = s;
+    }
+
+    function stackHTML() {
+      if (n64 <= 0 || n64 >= 64) return '';
+      var parts = [], j;
+      if (n64 % 4 === 0) {
+        parts = decomp16(n64 / 4);
+        if (parts.length < 2) return '<span class="dim">a landmark on its own — nothing to stack</span>';
+      } else {
+        var b16 = Math.floor(n64 / 4), rem = n64 - b16 * 4;
+        if (b16 > 0) parts.push([0, fr(b16 * 4, 64), b16 * LMD]);
+        parts.push([0, fr(rem, 64), rem / 64]);
+      }
+      var fs = [], ds = [], tot = 0;
+      for (j = 0; j < parts.length; j++) { fs.push(parts[j][1]); ds.push(fmtd(parts[j][2])); tot += parts[j][2]; }
+      return '<span class="dim">stack:</span> ' + fs.join(' + ') + ' = ' + ds.join(' + ') +
+        ' = <span class="res">' + fmtd(tot) + '</span>';
+    }
+
+    function eqHTML() {
+      if (n64 === 0) return '<span class="dim">nothing grabbed yet — tap a mark</span><br>' +
+        '<span class="num">0/' + zoom + '</span> = <span class="res">0.000</span>';
+      if (n64 === 64) return '<span class="num">64/64</span> = <span class="num">1</span> — the whole inch<br>' +
+        '= <span class="res">1.000</span>';
+      var v = n64 / 64, red = reduce(n64, 64), n = red[0], d = red[1];
+      var rawD = Math.max(zoom, d), rawN = n64 * rawD / 64;
+      var h = '';
+      if (rawD !== d) h += '<span class="num">' + rawN + '/' + rawD + '</span> = <span class="num">' + n + '/' + d +
+        '</span> <span class="dim">(÷' + (rawD / d) + ' top and bottom)</span><br>';
+      h += '<span class="num">' + n + '/' + d + '</span> means <span class="num">' + n + '</span> ÷ <span class="num">' +
+        d + '</span> = <span class="res">' + fmtd(v) + '</span>';
+      var sl = stackHTML();
+      if (sl) h += '<br>' + sl;
+      return h;
+    }
+
+    function relPhrase(nv) {
+      if (nv === 32) return 'dead on the half';
+      if (nv === 16) return 'a quarter of the way in';
+      if (nv === 48) return 'three quarters of the way in';
+      var anchors = [[0, 'zero'], [16, 'the quarter'], [32, 'the half'], [48, 'three quarters'], [64, 'the full inch']];
+      var best = anchors[0], bd = 99, k, dd;
+      for (k = 0; k < anchors.length; k++) {
+        dd = Math.abs(nv - anchors[k][0]);
+        if (dd < bd) { bd = dd; best = anchors[k]; }
+      }
+      var diff = nv - best[0];
+      return smallFrac(Math.abs(diff)) + (diff > 0 ? ' past ' : ' shy of ') + best[1];
+    }
+    function meaningHTML() {
+      if (n64 === 0) return 'Zero — the left end of the inch. Nothing measured yet.';
+      if (n64 === 64) return 'One whole inch — all 64 sixty-fourths, all 16 sixteenths, a full 1.000.';
+      var red = reduce(n64, 64);
+      return '<b>' + fw(red[0], red[1]) + '</b> — ' + relPhrase(n64) + '.' +
+        (n64 % 4 === 0 ? ' A 16th landmark: one of the fifteen worth knowing cold.'
+                       : ' Between the 16th landmarks — build it from the nearest one.');
+    }
+
+    function cardHTML() {
+      if (!flashOn) return '';
+      var v = flashN16 * LMD;
+      var isDec = (flashFace === 'd') !== flashFlipped;
+      return '<button id="fcard" class="fcard ' + (isDec ? 'dside' : 'fside') + '" aria-label="flashcard — tap to flip">' +
+        '<span class="side-lbl">' + (isDec ? 'DECIMAL · tap to see the fraction' : 'FRACTION · tap to see the decimal') +
+        '</span>' + (isDec ? fmtd(v) : fr(flashN16, 16)) + '</button>';
+    }
+    function syncFlashUI() {
+      flashBtn.textContent = 'FLASHCARDS: ' + (flashOn ? 'ON' : 'OFF');
+      flashBtn.classList.toggle('on', flashOn);
+      shufBtn.style.display = flashOn ? '' : 'none';
+    }
+    function flashOffQuiet() { flashOn = false; flashFlipped = false; syncFlashUI(); }
+
+    function update() {
+      drawRuler();
+      eqBody.innerHTML = eqHTML();
+      droCtl.set(fmtd(n64 / 64), meaningHTML());
+      flashArea.innerHTML = cardHTML();
+      var fc = flashArea.querySelector('#fcard');
+      if (fc) fc.addEventListener('click', function () { flashFlipped = !flashFlipped; update(); });
+    }
+
+    function clampSet(nv) {
+      if (nv < 0) nv = 0; if (nv > 64) nv = 64;
+      n64 = nv;
+    }
+    function move(dir) {
+      var step = 64 / zoom;
+      var base = Math.round(n64 / step) * step;
+      if (flashOn) flashOffQuiet();
+      clampSet(base + dir * step);
+      update();
+    }
+
+    rulerBox.addEventListener('click', function (e) {
+      var svg = rulerBox.querySelector('svg');
+      if (!svg) return;
+      var r = svg.getBoundingClientRect();
+      var step = 64 / zoom;
+      var i = Math.round((e.clientX - r.left - RL) / unitW());
+      i = Math.round(i / step) * step;
+      if (flashOn) flashOffQuiet();
+      clampSet(i);
+      update();
+      rlFocus.focus();
+    });
+    rlFocus.addEventListener('keydown', function (e) {
+      if (e.key === 'ArrowLeft') { move(-1); e.preventDefault(); }
+      if (e.key === 'ArrowRight') { move(1); e.preventDefault(); }
+    });
+    card.querySelector('#stepDn').addEventListener('click', function () { move(-1); });
+    card.querySelector('#stepUp').addEventListener('click', function () { move(1); });
+    card.querySelectorAll('[data-z]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        zoom = Number(b.getAttribute('data-z'));
+        card.querySelectorAll('[data-z]').forEach(function (b2) { b2.classList.toggle('on', b2 === b); });
+        update();
+      });
+    });
+    flashBtn.addEventListener('click', function () {
+      flashOn = !flashOn;
+      flashFlipped = false;
+      if (flashOn) clampSet(flashN16 * 4);
+      syncFlashUI();
+      update();
+    });
+    shufBtn.addEventListener('click', function () {
+      var nx = flashN16, guard = 0;
+      while (nx === flashN16 && guard < 20) { nx = 1 + Math.floor(Math.random() * 15); guard++; }
+      flashN16 = nx;
+      flashFace = Math.random() < 0.5 ? 'f' : 'd';
+      flashFlipped = false;
+      clampSet(flashN16 * 4);
+      update();
+    });
+
+    update();
+    window.__l6 = {
+      set: function (o) {
+        o = o || {};
+        if (o.zoom === 16 || o.zoom === 32 || o.zoom === 64) {
+          zoom = o.zoom;
+          card.querySelectorAll('[data-z]').forEach(function (b2) {
+            b2.classList.toggle('on', Number(b2.getAttribute('data-z')) === zoom);
+          });
+        }
+        if (typeof o.n64 === 'number') clampSet(Math.round(o.n64));
+        if (typeof o.n16 === 'number') { flashN16 = Math.max(1, Math.min(15, Math.round(o.n16))); clampSet(flashN16 * 4); }
+        if (o.flash !== undefined) { flashOn = !!o.flash; flashFlipped = false; if (flashOn) clampSet(flashN16 * 4); syncFlashUI(); }
+        update();
+      },
+      info: function () {
+        var red = reduce(n64 || 64, 64);
+        return { n64: n64, num: n64 === 0 ? 0 : red[0], den: red[1], value: n64 / 64,
+          zoom: zoom, flash: flashOn, flipped: flashFlipped, n16: flashN16 };
+      }
+    };
+  }
+
+  /* ============ question generators (game + boss) ============ */
+  function rnd(n) { return Math.floor(Math.random() * n); }
+
+  function genF2D(hard) {
+    var pool = hard ? [1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15]
+                    : [2, 4, 6, 8, 10, 12, 14, 1, 3, 5];
+    var n16 = S.pick(pool);
+    var a = n16 * LMD;
+    var red = reduce(n16, 16), n = red[0], d = red[1];
+    var fs = n + '/' + d;
+    var parts = decomp16(n16), fsL = [], dsL = [], j;
+    for (j = 0; j < parts.length; j++) { fsL.push(parts[j][1]); dsL.push(fmtd(parts[j][2])); }
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'What is <span class="num">' + fs + '</span> as a decimal?',
+      explain: fs + ' = ' + n + ' ÷ ' + d + ' = <span class="num">' + fmtd(a) + '</span> — ' +
+        (n16 === 8 ? 'dead on the half.' : smallFracRel(n16) + '.'),
+      hint: 'Two roads, same place: the bar means divide, so do ' + n + ' ÷ ' + d +
+        ' — or stack landmarks you know: every 16th is 0.0625, every 8th is 0.125.',
+      steps: '1 · A fraction IS a division: ' + fs + ' means <span class="num">' + n + '</span> ÷ <span class="num">' + d + '</span><br>' +
+        '2 · ' + n + ' ÷ ' + d + ' = <span class="res">' + fmtd(a) + '</span>' +
+        (parts.length > 1 ? '<br>3 · Check by stacking: ' + fsL.join(' + ') + ' = ' + dsL.join(' + ') +
+          ' = <span class="res">' + fmtd(a) + '</span>' : ''),
+      diagnose: function (v) {
+        var lm;
+        if (Math.abs(v - d / n) < 0.011 && Math.abs(d / n - a) > 0.02) return { label: 'Inverted the division',
+          your: 'you did bottom ÷ top: ' + d + ' ÷ ' + n + ' ≈ ' + fmtd(d / n) +
+            ' — bigger than 1, but ' + fs + ' is a piece of ONE inch, so it must be under 1',
+          right: 'top ÷ bottom: ' + n + ' ÷ ' + d + ' = ' + fmtd(a) };
+        if (Math.abs(v - a * 10) < 0.005) {
+          lm = lmOf(a * 10);
+          return { label: 'Decimal slipped one seat', your: S.fmtExact(v) + ' is the right digits with the point slid left' +
+            (lm ? ' — and it happens to be ' + lm + '\'s decimal, a different landmark' : ''),
+            right: fs + ' = ' + fmtd(a) };
+        }
+        if (Math.abs(v - a / 10) < 0.0006) {
+          lm = lmOf(a / 10);
+          return { label: 'Decimal slipped one seat', your: S.fmtExact(v) + ' is the right digits with the point slid right' +
+            (lm ? ' — that\'s ' + lm + '\'s decimal, a different landmark' : ''),
+            right: fs + ' = ' + fmtd(a) };
+        }
+        if (n16 < 15 && Math.abs(v - (n16 + 1) * LMD) < 0.0006) return { label: 'Grabbed the neighboring 16th',
+          your: S.fmtExact(v) + ' is ' + fr(n16 + 1, 16) + ' — one 16th (0.0625) ABOVE ' + fs + ' on the ruler',
+          right: fs + ' = ' + fr(n16, 16) + '\'s mark = ' + fmtd(a) };
+        if (n16 > 1 && Math.abs(v - (n16 - 1) * LMD) < 0.0006) return { label: 'Grabbed the neighboring 16th',
+          your: S.fmtExact(v) + ' is ' + fr(n16 - 1, 16) + ' — one 16th (0.0625) BELOW ' + fs + ' on the ruler',
+          right: fs + ' = ' + fr(n16, 16) + '\'s mark = ' + fmtd(a) };
+        return { label: 'Division slip',
+          your: S.fmtExact(v) + ' is not ' + n + ' ÷ ' + d,
+          right: fs + ' = ' + n + ' ÷ ' + d + ' = ' + fmtd(a) };
+      } };
+  }
+  function smallFracRel(n16) {
+    var anchors = [[0, 'zero'], [4, 'the quarter'], [8, 'the half'], [12, 'three quarters'], [16, 'the inch']];
+    var best = anchors[0], bd = 99, k, dd;
+    for (k = 0; k < anchors.length; k++) {
+      dd = Math.abs(n16 - anchors[k][0]);
+      if (dd < bd) { bd = dd; best = anchors[k]; }
+    }
+    if (bd === 0) return 'dead on ' + best[1];
+    var diff = n16 - best[0], r = reduce(Math.abs(diff), 16), u = DEN_NAMES[r[1]];
+    var w = r[0] === 1 ? ((r[1] === 8 ? 'an ' : 'a ') + u[0]) : (S.intWords(r[0]) + ' ' + u[1]);
+    return w + (diff > 0 ? ' past ' : ' shy of ') + best[1];
+  }
+
+  function genD2F(hard) {
+    var pool = hard ? [1, 2, 3, 5, 6, 7, 9, 10, 11, 13, 14, 15] : [2, 3, 4, 5, 6, 8, 10, 12];
+    var n16 = S.pick(pool);
+    var a0 = n16 * LMD, ds = fmtd(a0), fs = fr(n16, 16);
+    var others = [], cand = [n16 - 1, n16 + 1, n16 + 2, n16 - 2], c, k;
+    for (k = 0; k < cand.length && others.length < (hard ? 3 : 2); k++) {
+      c = cand[k];
+      if (c >= 1 && c <= 15 && c !== n16) others.push(c);
+    }
+    var choices = [fs], vals = [n16];
+    for (k = 0; k < others.length; k++) { choices.push(fr(others[k], 16)); vals.push(others[k]); }
+    return { type: 'mc', a: 0, choices: choices,
+      q: 'A print says <span class="num">' + ds + '</span>. Which fraction is that?',
+      explain: ds + ' = <span class="num">' + fs + '</span> — count it: ' + n16 + ' steps of 0.0625.',
+      hint: 'Every 16th landmark is 0.0625 apart. Ask how many 0.0625 steps make this decimal — count up .0625, .125, .1875… or anchor on a landmark you know (.250, .500, .750) and step from there.',
+      steps: '1 · Each 16th = <span class="num">0.0625</span><br>' +
+        '2 · ' + ds + ' ÷ 0.0625 = <span class="num">' + n16 + '</span> → ' + n16 + ' sixteenths<br>' +
+        '3 · ' + n16 + '/16 = <span class="res">' + fs + '</span>',
+      diagnose: function (chosen) {
+        var cn = vals[chosen], cv = cn * LMD;
+        var away = Math.abs(cn - n16);
+        return { label: 'Neighboring mark',
+          your: fr(cn, 16) + ' = ' + fmtd(cv) + ' — that\'s ' + (away === 1 ? 'one 16th (0.0625)' : away + ' sixteenths') +
+            ' ' + (cn > n16 ? 'above' : 'below') + ' the print\'s ' + ds,
+          right: ds + ' ÷ 0.0625 = ' + n16 + ' → ' + fs };
+      } };
+  }
+
+  function genWhichBigger(hard) {
+    var pairs = hard
+      ? [[7, '0.44'], [9, '0.56'], [10, '0.63'], [3, '0.19'], [11, '0.69'], [13, '0.81'], [5, '0.31'], [15, '0.94'], [1, '0.06']]
+      : [[5, '0.3'], [6, '0.4'], [4, '0.3'], [10, '0.6'], [12, '0.7'], [8, '0.55'], [14, '0.9'], [7, '0.45'], [2, '0.1']];
+    var p = S.pick(pairs);
+    var n16 = p[0], fs = fr(n16, 16), fv = n16 * LMD, dvs = p[1], dv = parseFloat(dvs);
+    var bigger = fv > dv ? 0 : 1;
+    var win = bigger === 0 ? fs : dvs, lose = bigger === 0 ? dvs : fs;
+    var diff = Math.abs(fv - dv);
+    return { type: 'mc', a: bigger, choices: [fs, dvs],
+      q: 'Which is larger: <span class="num">' + fs + '</span> or <span class="num">' + dvs + '</span>?',
+      explain: fs + ' = ' + fv.toFixed(4) + ' and ' + dvs + ' = ' + dv.toFixed(4) +
+        ' → <span class="num">' + win + '</span> wins by ' + S.fmtExact(diff) + '.',
+      hint: 'Get both into the same language first. Turn the fraction into its decimal (top ÷ bottom, or count 0.0625 landmarks), pad both to the same number of places, then compare seat by seat.',
+      steps: '1 · ' + fs + ' = <span class="num">' + fmtd(fv) + '</span><br>' +
+        '2 · Pad to four places: ' + fv.toFixed(4) + ' vs ' + dv.toFixed(4) + '<br>' +
+        '3 · Compare left to right → <span class="res">' + win + '</span> is larger',
+      diagnose: function () {
+        return { label: 'Compared the writing, not the value',
+          your: 'side by side as symbols, ' + lose + ' can LOOK bigger — big denominators and extra digits fool the eye until both speak decimal',
+          right: fv.toFixed(4) + ' vs ' + dv.toFixed(4) + ' → ' + win + ' by ' + S.fmtExact(diff) };
+      } };
+  }
+
+  function genStack(hard) {
+    var units = [[2, '1/2', 0.5], [4, '1/4', 0.25], [8, '1/8', 0.125], [16, '1/16', 0.0625]];
+    var idx = S.shuffle([0, 1, 2, 3]).slice(0, hard ? 3 : 2).sort();
+    var terms = [], a = 0, dsum = 0, j;
+    for (j = 0; j < idx.length; j++) { terms.push(units[idx[j]]); a += units[idx[j]][2]; dsum += units[idx[j]][0]; }
+    var fsL = [], dsL = [], qL = [];
+    for (j = 0; j < terms.length; j++) {
+      fsL.push(terms[j][1]); dsL.push(fmtd(terms[j][2]));
+      qL.push('<span class="num">' + terms[j][1] + '</span>');
+    }
+    var tb = terms.length / dsum;   /* the added-tops-and-bottoms trap value */
+    var lmName = lmOf(a);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'Stack the landmarks: ' + qL.join(' + ') + ' = ? (answer as a decimal)',
+      explain: fsL.join(' + ') + ' = ' + dsL.join(' + ') + ' = <span class="num">' + fmtd(a) + '</span>' +
+        (lmName ? ' — which is ' + lmName + ' on the ruler.' : '.'),
+      hint: 'Turn each landmark into its decimal first (1/2 is .500, 1/4 is .250, 1/8 is .125, 1/16 is .0625), then add the decimals. Never add tops and bottoms across different-sized pieces.',
+      steps: '1 · ' + fsL.join(' = … · ') + ' — each in decimal: ' + dsL.join(' · ') + '<br>' +
+        '2 · Add: ' + dsL.join(' + ') + ' = <span class="res">' + fmtd(a) + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - tb) < 0.006) return { label: 'Added tops and bottoms',
+          your: '(' + terms.length + ' tops) over (' + dsum + ' bottoms) = ' + terms.length + '/' + dsum + ' ≈ ' + S.fmtExact(Math.round(tb * 1000) / 1000) +
+            ' — but halves and ' + DEN_NAMES[terms[terms.length - 1][0]][1] + ' are different-sized pieces; counts of different pieces don\'t add',
+          right: 'convert first, then add: ' + dsL.join(' + ') + ' = ' + fmtd(a) };
+        if (Math.abs(v - a * 10) < 0.005 || Math.abs(v - a / 10) < 0.0006) return { label: 'Decimal slipped one seat',
+          your: S.fmtExact(v) + ' is the right digits with the point in the wrong seat',
+          right: dsL.join(' + ') + ' = ' + fmtd(a) };
+        for (var k = 0; k < terms.length; k++) {
+          if (Math.abs(v - (a - terms[k][2])) < 0.0006) return { label: 'Dropped a landmark',
+            your: S.fmtExact(v) + ' is the stack without the ' + terms[k][1] + ' (' + fmtd(terms[k][2]) + ')',
+            right: 'all ' + terms.length + ' terms: ' + dsL.join(' + ') + ' = ' + fmtd(a) };
+        }
+        return { label: 'Stack slip',
+          your: S.fmtExact(v) + ' is not the sum of those landmark decimals',
+          right: dsL.join(' + ') + ' = ' + fmtd(a) };
+      } };
+  }
+
+  function genNearest(hard) {
+    var n16 = 2 + rnd(13);   /* 2..14, so both neighbors exist */
+    var a0 = n16 * LMD;
+    var offs = hard ? S.pick([-0.012, -0.009, -0.006, 0.006, 0.009, 0.012])
+                    : S.pick([-0.02, -0.015, -0.01, 0.01, 0.015, 0.02]);
+    var meas = hard ? Math.round((a0 + offs) * 1000) / 1000 : Math.round((a0 + offs) * 100) / 100;
+    var measStr = S.fmtExact(meas);
+    var fs = fr(n16, 16);
+    var others = [n16 - 1, n16 + 1];
+    if (hard) others.push(n16 + 2 <= 15 ? n16 + 2 : n16 - 2);
+    var choices = [fs], vals = [n16], k;
+    for (k = 0; k < others.length; k++) { choices.push(fr(others[k], 16)); vals.push(others[k]); }
+    return { type: 'mc', a: 0, choices: choices,
+      q: 'You measure <span class="num">' + measStr + '</span> with the calipers. Which landmark is that closest to?',
+      explain: measStr + ' sits only ' + S.fmtExact(Math.abs(meas - a0)) + ' from <span class="num">' + fs +
+        '</span> (' + fmtd(a0) + ') — closer than any other 16th.',
+      hint: 'Write the nearby 16th landmarks as decimals and check the distance to each — smallest distance wins. Landmarks are 0.0625 apart, so anything within about 0.03 of a mark belongs to that mark.',
+      steps: '1 · Candidates: ' + choices.map(function (cs, j) { return cs + ' = ' + fmtd(vals[j] * LMD); }).join(' · ') + '<br>' +
+        '2 · Distance from ' + measStr + ': ' + choices.map(function (cs, j) {
+          return S.fmtExact(Math.round(Math.abs(meas - vals[j] * LMD) * 1e6) / 1e6); }).join(' · ') + '<br>' +
+        '3 · Smallest distance → <span class="res">' + fs + '</span>',
+      diagnose: function (chosen) {
+        var cn = vals[chosen], cv = cn * LMD;
+        return { label: 'Wrong landmark',
+          your: fr(cn, 16) + ' = ' + fmtd(cv) + ' is ' + S.fmtExact(Math.round(Math.abs(meas - cv) * 1e6) / 1e6) +
+            ' away from ' + measStr + ' — a longer walk than the right mark',
+          right: fs + ' = ' + fmtd(a0) + ' is only ' + S.fmtExact(Math.abs(meas - a0)) + ' away' };
+      } };
+  }
+
+  var GENS = { f2d: genF2D, d2f: genD2F, whichBigger: genWhichBigger, stack: genStack, nearest: genNearest };
+  var HARD = false;
+  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 6'; return q; }
+
+  function makeSet(kinds, hard) {
+    HARD = !!hard;
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    HARD = false;
+    return S.shuffle(out);
+  }
+  function gameQs() {
+    return makeSet(['f2d', 'f2d', 'f2d', 'd2f', 'd2f', 'whichBigger', 'whichBigger', 'stack', 'stack', 'nearest'], false);
+  }
+  function bossQs() {
+    return makeSet(['f2d', 'f2d', 'f2d', 'd2f', 'd2f', 'whichBigger', 'whichBigger', 'stack', 'stack', 'nearest'], true);
+  }
+
+  S.levelPage('l6', {
+    explainer: EXPLAINER,
+    playground: playground,
+    gameQs: gameQs,
+    bossQs: bossQs,
+  });
+})();
+</script>
+</body>
+</html>

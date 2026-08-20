@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level 4 · Division from Zero</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+  #fracRow { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; margin: 8px 0 12px; }
+  #fracRow button { padding: 10px 2px; font-size: 14px; min-height: 46px; }
+  .l4-svgbox { margin: 10px 0; }
+  .l4-svgbox svg { width: 100%; height: auto; min-width: 480px; }
+  @media (max-width: 760px) { #fracRow { grid-template-columns: repeat(4, 1fr); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← SKILL TREE</a>
+    <div class="eyebrow">Level 04 · World 1 · Shop Math School</div>
+    <h1>Division <span class="b">from Zero</span></h1>
+    <p class="sub">Division is dealing a pile into equal shares — and long division is the same
+      dealing done one digit at a time, leftovers carried along. By the end, 3 ÷ 8 becomes
+      0.375 right in front of you.</p>
+  </header>
+  <div id="sms-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+  function nf(v) { return S.fmtExact(v); }
+  function rnd(n) { return Math.floor(Math.random() * n); }
+
+  var EASY_FRACS = [[1,2],[1,4],[3,4],[1,8],[3,8],[5,8],[7,8]];
+  var HARD_FRACS = [[1,16],[3,16],[5,16],[7,16],[9,16],[11,16],[13,16],[15,16]];
+  var PG_FRACS = [[1,2],[1,4],[3,4],[1,8],[3,8],[5,8],[7,8],[1,16],[3,16],[5,16],[2,3],[5,6]];
+
+  /* run a long division n ÷ d (n < d here), collecting each step */
+  function longDiv(n, d, cap) {
+    var r = n % d;
+    var out = { digits: [], states: [], rems: [], r: r };
+    var i, m, g;
+    for (i = 0; i < (cap || 6) && r > 0; i++) {
+      m = r * 10; g = Math.floor(m / d); r = m - g * d;
+      out.states.push(m); out.digits.push(g); out.rems.push(r);
+    }
+    out.r = r;
+    return out;
+  }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>Division is <span class="term">sharing</span>. 12 cookies, 4 plates: deal them out one at ' +
+  'a time, around and around, and every plate ends up with 3. That whole story is written ' +
+  '<b>12 ÷ 4 = 3</b>. The ÷ sign asks one question: split the first number into this many equal ' +
+  'shares — how big is one share?</p>' +
+  '<p>Sometimes it doesn\'t split clean. 13 cookies, 4 plates: 3 each uses up 12, and one cookie ' +
+  'has nowhere to go. We say <b>13 ÷ 4 = 3 remainder 1</b>. The <span class="term">remainder</span> ' +
+  'is what\'s left after the last full round of dealing — always smaller than the number of ' +
+  'plates, or you could have dealt another round.</p>' +
+  '<p>Division is also multiplication asked backwards: 12 ÷ 4 really asks "4 × what = 12?" ' +
+  'That gives you the <span class="term">check habit</span>: after any division, multiply your ' +
+  'answer by the number you divided by. You must land back on the number you started with — ' +
+  'if you don\'t, something slipped.</p>' +
+  '<p><span class="term">Long division</span> is sharing digit by digit, and it\'s how a fraction ' +
+  'becomes a decimal — because a fraction IS a division: 3/8 means 3 ÷ 8, <b>top ÷ bottom, ' +
+  'always</b>. Watch the machinist\'s favorite happen:</p>' +
+  '<div class="worked">3 ÷ 8 — can 8 go into 3? No. Write <span class="num">0</span>, bring the decimal point → <span class="res">0.</span><br>' +
+  'Stick a zero on the 3 → 30. 8 into 30 goes <span class="num">3</span> (8×3=24 fits, 8×4=32 goes over) — leftover 6 → <span class="res">0.3</span><br>' +
+  'Stick a zero on the 6 → 60. 8 into 60 goes <span class="num">7</span> (8×7=56 fits, 8×8=64 goes over) — leftover 4 → <span class="res">0.37</span><br>' +
+  'Stick a zero on the 4 → 40. 8 into 40 goes <span class="num">5</span> (8×5=40, lands exactly) — leftover 0 → <span class="res">0.375</span> done<br>' +
+  'Check: 0.375 × 8 = <span class="res">3</span> ✓ — right back where we started.</div>' +
+  '<p>Every step is the same three moves: <b>stick a zero on the leftover</b>, ask <b>"how many ' +
+  'times does it go?"</b> — push the digit up until one more would go over — then <b>carry the ' +
+  'new leftover</b> to the next seat. The digits you write down ARE the answer, building left ' +
+  'to right.</p>' +
+  '<p>The eighths live on every drill index and every ruler, so this ladder is worth knowing cold:</p>' +
+  '<table class="ref"><tr><th>fraction</th><th>the division</th><th>decimal</th></tr>' +
+  '<tr><td>1/8</td><td>1 ÷ 8</td><td>0.125</td></tr>' +
+  '<tr><td>1/4</td><td>1 ÷ 4</td><td>0.250</td></tr>' +
+  '<tr><td>3/8</td><td>3 ÷ 8</td><td>0.375</td></tr>' +
+  '<tr><td>1/2</td><td>1 ÷ 2</td><td>0.500</td></tr>' +
+  '<tr><td>5/8</td><td>5 ÷ 8</td><td>0.625</td></tr>' +
+  '<tr><td>3/4</td><td>3 ÷ 4</td><td>0.750</td></tr>' +
+  '<tr><td>7/8</td><td>7 ÷ 8</td><td>0.875</td></tr></table>' +
+  '<p style="margin-top:10px">One heads-up: some divisions never land. 2 ÷ 3 = 0.666… — the ' +
+  'leftover 2 keeps coming back, so the 6s repeat forever. Nothing is broken; you just round ' +
+  'where the job needs it. Now open the <b>Playground</b> and step through one yourself.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — watch a division happen, one digit at a time</h2><div class="body">' +
+      '<div class="btnrow"><button id="modeLong" class="on">LONG DIVISION STEPPER</button>' +
+      '<button id="modeShare">SHARING COINS</button></div>' +
+
+      '<div id="pgLong" style="margin-top:12px">' +
+      '<p class="hint">Pick a fraction (top ÷ bottom, always), then hit NEXT DIGIT and watch each ' +
+      'step land. The leftover gets a zero stuck on and carries to the next seat.</p>' +
+      '<div id="fracRow"></div>' +
+      '<div class="pg-split">' +
+      '<div class="eq" id="eqL"><span class="lbl">The division, line by line</span><span id="eqLBody"></span></div>' +
+      '<div class="pg-live"><div id="droL"></div>' +
+      '<div class="btnrow"><button class="primary" id="stepBtn">NEXT DIGIT →</button>' +
+      '<button id="againBtn">START OVER</button></div></div></div></div>' +
+
+      '<div id="pgShare" style="display:none;margin-top:12px">' +
+      '<p class="hint">Whole-number division is dealing coins onto plates. Blue coins got dealt; ' +
+      'orange coins are the remainder — never enough for another full round. Slide either number ' +
+      '(arrow keys work) and watch the math move with it.</p>' +
+      '<div class="slider-row"><span class="name">COINS</span>' +
+      '<input type="range" id="coinR" min="1" max="24" value="13" aria-label="number of coins">' +
+      '<span class="out" id="coinOut">13</span></div>' +
+      '<div class="slider-row"><span class="name">PLATES</span>' +
+      '<input type="range" id="plateR" min="2" max="6" value="4" aria-label="number of plates">' +
+      '<span class="out" id="plateOut">4</span></div>' +
+      '<div class="scrollbox l4-svgbox" id="svgBox"></div>' +
+      '<div class="pg-split">' +
+      '<div class="eq" id="eqS"><span class="lbl">The math, live</span><span id="eqSBody"></span></div>' +
+      '<div class="pg-live"><div id="droS"></div></div></div></div>' +
+      '</div>';
+    panes.appendChild(card);
+
+    var mode = 'long';
+    var eqLBody = card.querySelector('#eqLBody');
+    var eqSBody = card.querySelector('#eqSBody');
+    var droL = S.dro(card.querySelector('#droL'), 'DEC');
+    var droS = S.dro(card.querySelector('#droS'), 'EACH');
+    var stepBtn = card.querySelector('#stepBtn');
+    var fracRow = card.querySelector('#fracRow');
+    var svgBox = card.querySelector('#svgBox');
+    var coinR = card.querySelector('#coinR'), plateR = card.querySelector('#plateR');
+
+    /* ---- long division stepper ---- */
+    var L = { n: 3, d: 8, digitStr: '', r: 3, done: false, lines: [], count: 0 };
+
+    function startFrac(n, d) {
+      L.n = n; L.d = d; L.digitStr = ''; L.count = 0; L.done = false;
+      L.r = n % d;
+      L.lines = [
+        '<span class="num">' + n + '</span> ÷ <span class="num">' + d + '</span> — top ÷ bottom',
+        d + ' into ' + n + '? Doesn\'t go (' + n + ' is smaller) — write <span class="num">0</span> and bring the decimal point'
+      ];
+      updateLong();
+    }
+    function doStep() {
+      if (L.done) return;
+      var m = L.r * 10, g = Math.floor(m / L.d), rr = m - g * L.d;
+      L.count += 1;
+      L.digitStr += String(g);
+      var fitTxt = (L.d * g === m)
+        ? L.d + '×' + g + '=' + (L.d * g) + ' lands exactly'
+        : L.d + '×' + g + '=' + (L.d * g) + ' fits but ' + L.d + '×' + (g + 1) + '=' + (L.d * (g + 1)) + ' goes over';
+      L.lines.push('Stick a zero on the ' + L.r + ' → ' + m + '. ' + L.d + ' into ' + m +
+        ' goes <span class="num">' + g + '</span> — ' + fitTxt + ' — leftover <span class="res">' + rr + '</span>');
+      L.r = rr;
+      if (rr === 0) {
+        L.done = true;
+        L.lines.push('Leftover 0 — finished. ' + L.n + ' ÷ ' + L.d + ' = <span class="res">0.' + L.digitStr + '</span>');
+        L.lines.push('Check: 0.' + L.digitStr + ' × ' + L.d + ' = ' + L.n + ' ✓ — back where we started');
+      } else if (L.count >= 6) {
+        L.done = true;
+        L.lines.push('See it? The leftover ' + rr + ' keeps coming back — the <span class="num">' + g +
+          '</span>s repeat forever. Nothing is broken; round where the job needs it.');
+      }
+      updateLong();
+    }
+    function updateLong() {
+      eqLBody.innerHTML = L.lines.join('<br>');
+      var val = '0.' + L.digitStr + (L.done && L.r > 0 ? '…' : '');
+      var mean;
+      if (!L.digitStr) {
+        mean = 'Nothing shared yet — <b>zero so far</b>; the whole answer lives to the right of the point.';
+      } else {
+        var words;
+        if (L.digitStr.length <= 3) {
+          words = S.placeWords(parseFloat('0.' + L.digitStr), L.digitStr.length);
+        } else {
+          var nm = ['zero','one','two','three','four','five','six','seven','eight','nine'];
+          words = 'zero point';
+          for (var wi = 0; wi < L.digitStr.length; wi++) words += ' ' + nm[Number(L.digitStr.charAt(wi))];
+        }
+        mean = 'Right now: <b>' + words + '</b>' +
+          (L.done ? (L.r > 0 ? ' — and the pattern repeats forever.' : ' — exactly. ' + L.n + ' ÷ ' + L.d + ' is finished.')
+                  : ' so far, with a leftover of ' + L.r + ' still to share.');
+      }
+      droL.set(val, mean);
+      stepBtn.disabled = L.done;
+      var bs = fracRow.querySelectorAll('button');
+      for (var bi = 0; bi < bs.length; bi++) {
+        bs[bi].classList.toggle('on', PG_FRACS[bi][0] === L.n && PG_FRACS[bi][1] === L.d);
+      }
+    }
+
+    var fh = '';
+    for (var fi = 0; fi < PG_FRACS.length; fi++) {
+      fh += '<button data-f="' + fi + '" aria-label="divide ' + PG_FRACS[fi][0] + ' by ' + PG_FRACS[fi][1] + '">' +
+        PG_FRACS[fi][0] + '/' + PG_FRACS[fi][1] + '</button>';
+    }
+    fracRow.innerHTML = fh;
+    fracRow.querySelectorAll('button').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var f = PG_FRACS[Number(b.getAttribute('data-f'))];
+        startFrac(f[0], f[1]);
+      });
+    });
+    stepBtn.addEventListener('click', doStep);
+    card.querySelector('#againBtn').addEventListener('click', function () { startFrac(L.n, L.d); });
+
+    /* ---- sharing coins ---- */
+    var C = { coins: 13, plates: 4 };
+    function drawShare(q, r) {
+      var svg = '<svg viewBox="0 0 640 258" role="img" aria-label="coins dealt onto plates">';
+      var i, k;
+      for (i = 0; i < C.plates; i++) {
+        var slot = 480 / C.plates;
+        var cx = 20 + (i + 0.5) * slot;
+        var rx = Math.min(42, slot / 2 - 6);
+        for (k = 0; k < q; k++) {
+          svg += '<circle cx="' + cx + '" cy="' + (211 - k * 14) + '" r="9" style="fill:var(--blue);stroke:var(--ink);stroke-width:1"/>';
+        }
+        svg += '<ellipse cx="' + cx + '" cy="224" rx="' + rx + '" ry="9" style="fill:none;stroke:var(--ink);stroke-width:1.5"/>';
+        svg += '<text x="' + cx + '" y="250" text-anchor="middle" style="fill:var(--soft);font-family:var(--mono);font-size:12px">' + q + '</text>';
+      }
+      svg += '<rect x="545" y="62" width="80" height="172" rx="6" style="fill:none;stroke:var(--orange);stroke-width:1.5;stroke-dasharray:5 4"/>';
+      svg += '<text x="585" y="50" text-anchor="middle" style="fill:var(--orange);font-family:var(--mono);font-size:11px;letter-spacing:1px">LEFT OVER</text>';
+      for (k = 0; k < r; k++) {
+        svg += '<circle cx="585" cy="' + (218 - k * 20) + '" r="9" style="fill:var(--orange);stroke:var(--ink);stroke-width:1"/>';
+      }
+      if (r === 0) svg += '<text x="585" y="152" text-anchor="middle" style="fill:var(--soft);font-family:var(--mono);font-size:12px">none</text>';
+      svg += '</svg>';
+      svgBox.innerHTML = svg;
+    }
+    function updateShare() {
+      var q = Math.floor(C.coins / C.plates), r = C.coins - q * C.plates;
+      card.querySelector('#coinOut').textContent = C.coins;
+      card.querySelector('#plateOut').textContent = C.plates;
+      drawShare(q, r);
+      eqSBody.innerHTML =
+        '<span class="num">' + C.coins + '</span> coins ÷ <span class="num">' + C.plates + '</span> plates<br>' +
+        'Deal one to every plate, around and around: <span class="num">' + q + '</span> full round' + (q === 1 ? '' : 's') + '<br>' +
+        C.plates + ' × ' + q + ' = ' + (C.plates * q) + ' dealt · ' + C.coins + ' − ' + (C.plates * q) + ' = ' + r + ' left<br>' +
+        '= <span class="res">' + q + (r ? ' remainder ' + r : ' exactly') + '</span>';
+      droS.set(q + (r ? ' R' + r : ''),
+        S.intWords(C.coins) + ' coins onto ' + S.intWords(C.plates) + ' plates: <b>' + S.intWords(q) + ' each</b>' +
+        (r ? ', ' + S.intWords(r) + ' left over — not enough to go around again.' : ', nothing left over — it splits clean.'));
+    }
+    coinR.addEventListener('input', function () { C.coins = Number(coinR.value); updateShare(); });
+    plateR.addEventListener('input', function () { C.plates = Number(plateR.value); updateShare(); });
+
+    /* ---- mode switch + boot + test hook ---- */
+    function setMode(m) {
+      mode = m;
+      card.querySelector('#modeLong').classList.toggle('on', m === 'long');
+      card.querySelector('#modeShare').classList.toggle('on', m === 'share');
+      card.querySelector('#pgLong').style.display = m === 'long' ? '' : 'none';
+      card.querySelector('#pgShare').style.display = m === 'share' ? '' : 'none';
+    }
+    card.querySelector('#modeLong').addEventListener('click', function () { setMode('long'); });
+    card.querySelector('#modeShare').addEventListener('click', function () { setMode('share'); });
+    startFrac(3, 8);
+    updateShare();
+
+    window.__l4 = {
+      set: function (o) {
+        o = o || {};
+        if (o.mode === 'share') {
+          setMode('share');
+          if (o.coins !== undefined) C.coins = Math.max(1, Math.min(24, Math.floor(o.coins)));
+          if (o.plates !== undefined) C.plates = Math.max(2, Math.min(6, Math.floor(o.plates)));
+          coinR.value = C.coins; plateR.value = C.plates;
+          updateShare();
+        } else {
+          setMode('long');
+          startFrac(o.n !== undefined ? o.n : L.n, o.d !== undefined ? o.d : L.d);
+          var k = o.steps || 0;
+          while (k > 0 && !L.done) { doStep(); k -= 1; }
+        }
+      },
+      info: function () {
+        if (mode === 'share') {
+          return { mode: 'share', coins: C.coins, plates: C.plates,
+            each: Math.floor(C.coins / C.plates), rem: C.coins % C.plates };
+        }
+        return { mode: 'long', n: L.n, d: L.d, digits: L.digitStr, rem: L.r, done: L.done };
+      }
+    };
+  }
+
+  /* ============ question generators (game + boss) ============ */
+  var FLAVORS = [
+    ['cookies', 'plates', 'onto'],
+    ['washers', 'bins', 'into'],
+    ['dowel pins', 'pouches', 'into'],
+    ['cutting inserts', 'trays', 'onto']
+  ];
+
+  function genShare(hard) {
+    var p = hard ? 4 + rnd(6) : 2 + rnd(5);
+    var s = hard ? 6 + rnd(7) : 2 + rnd(8);
+    var n = p * s;
+    var fl = S.pick(FLAVORS);
+    return { type: 'num', a: s, tol: 0.4,
+      q: '<span class="num">' + n + '</span> ' + fl[0] + ', dealt evenly ' + fl[2] + ' <span class="num">' + p +
+        '</span> ' + fl[1] + ' — how many does each get?',
+      explain: 'Division asks multiplication backwards: ' + p + ' × what = ' + n + '? ' + p + ' × ' + s + ' = ' + n +
+        ', so each gets <span class="num">' + s + '</span>. Check: ' + s + ' × ' + p + ' = ' + n + ' ✓',
+      hint: 'Turn it around: ' + p + ' × WHAT lands exactly on ' + n + '? Walk up the ' + p +
+        's table until you hit it — this one splits clean, no leftover.',
+      steps: '1 · Ask it backwards: <span class="num">' + p + '</span> × what = <span class="num">' + n + '</span>?<br>' +
+        '2 · Walk the table: ' + p + '×' + s + ' = ' + n + ' — lands exactly<br>' +
+        '3 · Each gets <span class="res">' + s + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - (n - p)) < 0.4) return { label: 'Subtracted instead of divided',
+          your: n + ' − ' + p + ' = ' + (n - p) + ' takes away one round of dealing — it doesn\'t split the pile',
+          right: n + ' ÷ ' + p + ': since ' + p + ' × ' + s + ' = ' + n + ', each gets ' + s };
+        if (Math.abs(v - n * p) < 0.4) return { label: 'Multiplied instead of divided',
+          your: n + ' × ' + p + ' = ' + (n * p) + ' makes the pile BIGGER — a share must be smaller than the pile',
+          right: n + ' ÷ ' + p + ' = ' + s };
+        if (Math.abs(v - (s + 1)) < 0.4) return { label: 'One round too many',
+          your: (s + 1) + ' each would need ' + p + ' × ' + (s + 1) + ' = ' + (p * (s + 1)) + ' — more than the ' + n + ' you have',
+          right: p + ' × ' + s + ' = ' + n + ' exactly → ' + s + ' each' };
+        if (Math.abs(v - (s - 1)) < 0.4) return { label: 'Stopped one round early',
+          your: p + ' × ' + (s - 1) + ' = ' + (p * (s - 1)) + ' leaves ' + p + ' undealt — exactly enough for one more round',
+          right: 'keep dealing: ' + p + ' × ' + s + ' = ' + n + ' → ' + s + ' each' };
+        return { label: 'Share slipped',
+          your: 'the check fails: ' + nf(v) + ' × ' + p + ' = ' + nf(Math.round(v * p * 1000) / 1000) + ', not ' + n,
+          right: p + ' × ' + s + ' = ' + n + ' → ' + s + ' each' };
+      } };
+  }
+
+  function genShareRem(hard) {
+    var p = hard ? 4 + rnd(6) : 3 + rnd(4);
+    var s = hard ? 5 + rnd(8) : 2 + rnd(6);
+    var r = 1 + rnd(p - 1);
+    var n = p * s + r;
+    var askRem = rnd(2) === 1;
+    return { type: 'num', a: askRem ? r : s, tol: 0.4,
+      q: '<span class="num">' + n + '</span> parts to pack, <span class="num">' + p + '</span> boxes, every box filled the same — ' +
+        (askRem ? 'how many parts are <b>left over</b>?' : 'how many parts in each full box?'),
+      explain: 'Biggest multiple of ' + p + ' that fits under ' + n + ': ' + p + ' × ' + s + ' = ' + (p * s) +
+        '. Left over: ' + n + ' − ' + (p * s) + ' = ' + r + '. So ' + n + ' ÷ ' + p + ' = <span class="num">' + s +
+        '</span> remainder <span class="num">' + r + '</span>.',
+      hint: 'Walk the ' + p + 's table to the biggest multiple that still FITS under ' + n +
+        ' (one more must go over). That many go in each box; the gap up to ' + n + ' is the remainder.',
+      steps: '1 · Biggest fit: ' + p + '×' + s + ' = ' + (p * s) + ' (one more, ' + p + '×' + (s + 1) + ' = ' + (p * (s + 1)) +
+        ', goes over ' + n + ')<br>' +
+        '2 · Left over: ' + n + ' − ' + (p * s) + ' = ' + r + '<br>' +
+        '3 · ' + (askRem ? 'Remainder: <span class="res">' + r + '</span>' : 'Each full box: <span class="res">' + s + '</span>'),
+      diagnose: function (v) {
+        if (askRem) {
+          if (Math.abs(v - s) < 0.4) return { label: 'You gave the share, not the remainder',
+            your: s + ' is how many each box HOLDS — the question asked what wouldn\'t fit',
+            right: n + ' − ' + p + '×' + s + ' = ' + n + ' − ' + (p * s) + ' = ' + r + ' left over' };
+          if (Math.abs(v - p) < 0.4) return { label: 'That\'s the box count',
+            your: p + ' is how many boxes there are, not what\'s left outside them',
+            right: n + ' − ' + (p * s) + ' = ' + r };
+          return { label: 'Remainder slipped',
+            your: nf(v) + ' isn\'t the gap between ' + n + ' and the biggest fit ' + (p * s),
+            right: n + ' − ' + p + '×' + s + ' = ' + r };
+        }
+        if (Math.abs(v - r) < 0.4) return { label: 'You gave the remainder, not the share',
+          your: r + ' is what\'s left OUTSIDE the boxes after filling them',
+          right: 'each full box holds ' + s + ' (' + p + '×' + s + ' = ' + (p * s) + ' fits under ' + n + ')' };
+        if (Math.abs(v - (s + 1)) < 0.4) return { label: 'One too many per box',
+          your: p + '×' + (s + 1) + ' = ' + (p * (s + 1)) + ' parts needed — you only have ' + n,
+          right: p + '×' + s + ' = ' + (p * s) + ' fits → ' + s + ' each, ' + r + ' left' };
+        if (Math.abs(v - n / p) < 0.06 && Math.abs(v - s) > 0.3) return { label: 'You divided all the way into a decimal',
+          your: n + ' ÷ ' + p + ' = ' + nf(Math.round(n / p * 1000) / 1000) + ' is true — but boxes hold WHOLE parts',
+          right: 'whole share ' + s + ', remainder ' + r };
+        return { label: 'Share slipped',
+          your: 'the check fails: ' + nf(v) + ' per box × ' + p + ' + a remainder can\'t rebuild ' + n,
+          right: p + '×' + s + ' + ' + r + ' = ' + n + ' → ' + s + ' each' };
+      } };
+  }
+
+  function genNextDigit(hard) {
+    var f = S.pick(hard ? HARD_FRACS : EASY_FRACS);
+    var n = f[0], d = f[1];
+    var ld = longDiv(n, d, 8);
+    var len = ld.digits.length;
+    var idx = (hard && len > 1) ? 1 + rnd(len - 1) : rnd(len);
+    var m = ld.states[idx], g = ld.digits[idx], rr = ld.rems[idx];
+    var prev = m / 10;
+    var sofar = '0.' + ld.digits.slice(0, idx).join('');
+    return { type: 'num', a: g, tol: 0.4,
+      q: 'You\'re turning <span class="num">' + n + '/' + d + '</span> into a decimal by long division, with <span class="num">' +
+        sofar + '</span> written so far. The leftover <span class="num">' + prev + '</span> gets a zero stuck on: <span class="num">' +
+        m + '</span>. Now — <span class="num">' + d + '</span> into <span class="num">' + m + '</span> goes what digit?',
+      explain: 'Would one more go over? ' + d + '×' + g + ' = ' + (d * g) + ' fits inside ' + m + '; ' + d + '×' + (g + 1) +
+        ' = ' + (d * (g + 1)) + ' goes over. Digit <span class="num">' + g + '</span>, new leftover ' + m + ' − ' + (d * g) + ' = ' + rr + '.',
+      hint: 'Walk the ' + d + 's table upward: the digit is the most times ' + d + ' FITS inside ' + m +
+        ' — one more must go over. Compare each product to ' + m + '.',
+      steps: '1 · Walk the table: ' + d + '×' + g + ' = ' + (d * g) + ' ≤ ' + m + '<br>' +
+        '2 · One more: ' + d + '×' + (g + 1) + ' = ' + (d * (g + 1)) + ' — goes over<br>' +
+        '3 · Digit <span class="res">' + g + '</span>, leftover ' + m + ' − ' + (d * g) + ' = ' + rr,
+      diagnose: function (v) {
+        if (Math.abs(v - (g + 1)) < 0.4) return { label: 'Digit too big',
+          your: d + '×' + (g + 1) + ' = ' + (d * (g + 1)) + ' — that overshoots ' + m + '; the product has to FIT',
+          right: d + '×' + g + ' = ' + (d * g) + ' fits → digit ' + g };
+        if (g > 0 && Math.abs(v - (g - 1)) < 0.4) return { label: 'Digit too small',
+          your: d + '×' + (g - 1) + ' = ' + (d * (g - 1)) + ' fits — but so does one more: ' + d + '×' + g + ' = ' + (d * g) + ' ≤ ' + m,
+          right: 'push until one more would go over → ' + g };
+        if (Math.abs(v - rr) < 0.4 && rr !== g) return { label: 'That\'s the leftover, not the digit',
+          your: m + ' − ' + d + '×' + g + ' = ' + rr + ' is what CARRIES to the next step',
+          right: 'the digit written in the answer is ' + g + '; the ' + rr + ' carries on' };
+        return { label: 'Digit drifted',
+          your: nf(v) + ' would mean ' + d + '×' + nf(v) + ' fits in ' + m + ' with one more going over — it doesn\'t',
+          right: d + '×' + g + ' = ' + (d * g) + ' fits → digit ' + g };
+      } };
+  }
+
+  function genFrac2Dec(hard) {
+    var f = S.pick(hard ? HARD_FRACS : EASY_FRACS);
+    var n = f[0], d = f[1];
+    var a = n / d;
+    var ld = longDiv(n, d, 8);
+    var st = '1 · Top ÷ bottom: ' + n + ' ÷ ' + d + '. ' + d + ' into ' + n +
+      '? Doesn\'t go — write <span class="num">0</span> and bring the point';
+    var run = '0.';
+    for (var i = 0; i < ld.digits.length; i++) {
+      run += String(ld.digits[i]);
+      st += '<br>' + (i + 2) + ' · ' + d + ' into ' + ld.states[i] + ' goes <span class="num">' + ld.digits[i] + '</span>' +
+        (d * ld.digits[i] === ld.states[i]
+          ? ' (' + d + '×' + ld.digits[i] + ' = ' + ld.states[i] + ' exactly)'
+          : ' (' + d + '×' + (ld.digits[i] + 1) + ' = ' + (d * (ld.digits[i] + 1)) + ' would go over)') +
+        ' — leftover ' + ld.rems[i] + ' → ' + run;
+    }
+    st += '<br>' + (ld.digits.length + 2) + ' · <span class="res">' + nf(a) + '</span> · check: ' + nf(a) + ' × ' + d + ' = ' + n + ' ✓';
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'Turn <span class="num">' + n + '/' + d + '</span> into a decimal. (A fraction IS a division: top ÷ bottom.)',
+      explain: n + '/' + d + ' = ' + n + ' ÷ ' + d + ' = <span class="num">' + nf(a) + '</span>. Check by going backwards: ' +
+        nf(a) + ' × ' + d + ' = ' + n + ' ✓',
+      hint: 'Top ÷ bottom, never the other way. ' + d + ' won\'t go into ' + n + ' — write 0, bring the point, then work ' +
+        d + ' into ' + (n * 10) + '. Each leftover gets a zero stuck on and carries to the next seat.',
+      steps: st,
+      diagnose: function (v) {
+        var inv = d / n;
+        if (Math.abs(v - inv) < (n === 1 ? 0.4 : 0.02)) return { label: 'Inverted — you worked bottom ÷ top',
+          your: d + ' ÷ ' + n + ' ≈ ' + nf(Math.round(inv * 100) / 100) + ' answers the upside-down question (how many ' +
+            n + 's fit in ' + d + ')',
+          right: 'a fraction is top ÷ bottom: ' + n + ' ÷ ' + d + ' = ' + nf(a) };
+        if (Math.abs(v - a * 10) < 0.002 || Math.abs(v - a * 100) < 0.02 || Math.abs(v - a / 10) < 0.0005) return { label: 'Decimal slipped',
+          your: nf(v) + ' has the right digits in the wrong seats — the point slid',
+          right: n + ' is smaller than ' + d + ', so the answer starts 0.: ' + nf(a) };
+        return { label: 'A digit went off the rails',
+          your: 'the check fails: ' + nf(v) + ' × ' + d + ' = ' + nf(Math.round(v * d * 10000) / 10000) + ', not ' + n,
+          right: 'work it digit by digit: ' + nf(a) + ' (check: ' + nf(a) + ' × ' + d + ' = ' + n + ' ✓)' };
+      } };
+  }
+
+  function genCheck(hard) {
+    var n, d, c, f;
+    if (hard) {
+      f = S.pick([[3, 8], [5, 8], [7, 8], [1, 8], [3, 16], [5, 16], [7, 16], [11, 16]]);
+      n = f[0]; d = f[1]; c = n / d;
+    } else if (rnd(2) === 0) {
+      d = 3 + rnd(7); c = 3 + rnd(7); n = d * c;
+    } else {
+      f = S.pick([[1, 2], [1, 4], [3, 4], [3, 8], [1, 8]]);
+      n = f[0]; d = f[1]; c = n / d;
+    }
+    var good = nf(c) + ' × ' + d + ' = ' + n;
+    var w1 = nf(c) + ' × ' + n + ' = ' + d;
+    var w2 = n + ' × ' + d + ' = ' + nf(c);
+    return { type: 'mc', a: 0, choices: [good, w1, w2],
+      q: 'You worked out <span class="num">' + n + ' ÷ ' + d + ' = ' + nf(c) + '</span>. Which multiplication <b>checks</b> it?',
+      explain: 'Multiplying back un-does the division: answer × divisor must land on the start. ' + good + ' ✓',
+      hint: 'You split ' + n + ' into ' + d + ' equal shares. Gluing the shares back together means answer × the number you ' +
+        'divided BY — and it has to land on what you started with.',
+      steps: '1 · Name the roles: start ' + n + ', divided by ' + d + ', answer ' + nf(c) + '<br>' +
+        '2 · Rebuild the start: answer × divisor<br>' +
+        '3 · <span class="res">' + good + '</span> — it lands, so the division was right',
+      diagnose: function (chosen) {
+        if (chosen === 1) return { label: 'Answer × start',
+          your: nf(c) + ' × ' + n + ' doesn\'t rebuild anything — ' + n + ' is the number you\'re trying to LAND ON, not a factor',
+          right: good };
+        return { label: 'Start × divisor',
+          your: n + ' × ' + d + ' makes something far from ' + nf(c) + ' — that repeats the split instead of un-doing it',
+          right: good };
+      } };
+  }
+
+  var GENS = { share: genShare, shareRem: genShareRem, nextDigit: genNextDigit,
+    frac2dec: genFrac2Dec, check: genCheck };
+  var HARD = false;
+  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 4'; return q; }
+
+  function makeSet(kinds, hard) {
+    HARD = !!hard;
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    HARD = false;
+    return S.shuffle(out);
+  }
+  function gameQs() {
+    return makeSet(['share', 'share', 'shareRem', 'shareRem', 'nextDigit', 'nextDigit',
+      'frac2dec', 'frac2dec', 'check', 'check'], false);
+  }
+  function bossQs() {
+    return makeSet(['share', 'shareRem', 'shareRem', 'nextDigit', 'nextDigit', 'nextDigit',
+      'frac2dec', 'frac2dec', 'frac2dec', 'check'], true);
+  }
+
+  S.levelPage('l4', {
+    explainer: EXPLAINER,
+    playground: playground,
+    gameQs: gameQs,
+    bossQs: bossQs,
+  });
+})();
+</script>
+</body>
+</html>

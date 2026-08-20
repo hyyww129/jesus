@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level 2 · Add &amp; Subtract</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+/* Level 2 only — stacked column work. Token colors, nothing new. */
+.as-grid { display: grid; font-family: var(--mono); text-align: center; width: max-content; margin: 0 auto; }
+.as-seat { font-size: 9px; letter-spacing: .06em; text-transform: uppercase; color: var(--soft); padding: 0 4px 2px; align-self: end; }
+.as-carry { min-height: 22px; font-size: 13px; font-weight: 700; color: var(--orange); padding: 0 4px; align-self: end; }
+.as-d { font-size: 26px; font-weight: 800; color: var(--ink); padding: 2px 4px; }
+.as-pt { padding: 2px 0; }
+.as-op { color: var(--soft); }
+.as-ansrow { border-top: 3px solid var(--ink); color: var(--orange); }
+.as-un { color: var(--line); }
+.as-cut { text-decoration: line-through; color: var(--soft); }
+.as-now { background: var(--good-bg); }
+.as-nm { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; text-transform: uppercase; color: var(--soft); margin: 10px 0 4px; }
+.as-val { font-family: var(--mono); font-size: 22px; font-weight: 800; color: var(--blue); min-width: 96px; text-align: center; align-self: center; padding: 0 4px; }
+.xstack { font-family: var(--mono); font-size: 20px; font-weight: 800; line-height: 1.45; background: var(--panel); display: inline-block; padding: 8px 18px; border-radius: 5px; white-space: pre; margin: 4px 0 10px; }
+.xstack .cy { color: var(--orange); }
+.xstack .cut { text-decoration: line-through; color: var(--soft); }
+.xstack .rule { color: var(--soft); }
+.xstack .res { color: var(--orange); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← SKILL TREE</a>
+    <div class="eyebrow">Level 02 · World 1 · Shop Math School</div>
+    <h1>Add &amp; <span class="b">Subtract</span></h1>
+    <p class="sub">Only same seats mix — ones with ones, tens with tens. Stack on the seat,
+      work right to left, and let carries and borrows move tens between seats in the open.</p>
+  </header>
+  <div id="sms-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  var P10 = [1, 10, 100, 1000, 10000];
+  var SEATN = ['hundredths', 'tenths', 'ones', 'tens', 'hundreds'];
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function d10(v, c) { return Math.floor(v / P10[c]) % 10; }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>Adding big numbers is Level 1 with one rule bolted on: <span class="term">only same seats mix</span>. ' +
+  'Ones add to ones, tens add to tens. So you stack the numbers with the seats lined up and work ' +
+  '<b>right to left</b>, one column at a time.</p>' +
+  '<p><b>Carrying.</b> Work <b>47 + 38</b>. Ones first: 7 + 8 = 15. Fifteen is one ten and five ones — ' +
+  'the 5 stays home in the ones column, and the ten <span class="term">carries</span> into the tens ' +
+  'column as a small 1. Then the tens: 4 + 3 + 1 carried = 8.</p>' +
+  '<div class="xstack">  <span class="cy">1</span><br>  4 7<br>+ 3 8<br><span class="rule">─────</span><br>  <span class="res">8 5</span></div>' +
+  '<div class="worked">Ones: <span class="num">7</span> + <span class="num">8</span> = 15 → write <b>5</b>, carry <span class="res">1</span><br>' +
+  'Tens: <span class="num">4</span> + <span class="num">3</span> + <span class="res">1</span> carried = 8<br>' +
+  'So 47 + 38 = <span class="res">85</span></div>' +
+  '<p><b>Borrowing.</b> Now <b>62 − 27</b>. Ones first: 2 can\'t give 7. So the tens seat lends one ' +
+  'ten — the 6 becomes 5, and the 2 becomes 12. Nothing appeared or disappeared; a ten just ' +
+  '<span class="term">changed seats</span>. Now 12 − 7 = 5, and 5 − 2 = 3.</p>' +
+  '<div class="xstack">  <span class="cy">5</span> <span class="cy">12</span><br>  <span class="cut">6</span> 2<br>− 2 7<br><span class="rule">─────</span><br>  <span class="res">3 5</span></div>' +
+  '<p>When the seat you\'d borrow from holds a <b>0</b>, the 0 borrows from ITS neighbor first: it ' +
+  'becomes a 9 and passes the ten down the line. The Playground has a preset (40.2 − 16.85) that ' +
+  'walks one of those in front of you.</p>' +
+  '<p><b>Decimals — the one new thing.</b> <span class="term">The POINT lines up, not the right edge.</span> ' +
+  'Pad the short number with zeros so every column has a digit, then add like normal. ' +
+  '3.5 + 0.25 stacks as 3.50 + 0.25:</p>' +
+  '<div class="xstack"> 3.50<br>+0.25<br><span class="rule">─────</span><br> <span class="res">3.75</span></div>' +
+  '<div class="callout warn"><b>The classic wrong move:</b> lining up the right edges. Done that way, ' +
+  '3.5 + 0.25 turns into 35 + 25 = 60, and someone confidently writes 0.60 or 6.0. It was wrong before ' +
+  'the adding started — the 3 was whole inches and the 2 was hundredths, and different seats never ' +
+  'share a column. Line up the points, pad with zeros, and this mistake can\'t happen.</div>' +
+  '<table class="ref"><tr><th>When…</th><th>The move</th></tr>' +
+  '<tr><td>a column adds up to 10 or more</td><td>write its ones digit, carry the 1 one seat left</td></tr>' +
+  '<tr><td>the top digit is smaller</td><td>borrow 10 from the seat to the left; that seat drops by 1</td></tr>' +
+  '<tr><td>the seat you\'d borrow from is 0</td><td>the 0 borrows too — it becomes 9, the ten passes along</td></tr>' +
+  '<tr><td>decimals anywhere</td><td>line up the POINTS, pad the short side with zeros</td></tr></table>' +
+  '<p style="margin-top:10px">Now open the <b>Playground</b> and watch a carry actually move.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    function stepBtns(id) {
+      return '<button data-d="' + id + ':-1000">−10</button><button data-d="' + id + ':-100">−1</button>' +
+        '<button data-d="' + id + ':-10">−.1</button><button data-d="' + id + ':-1">−.01</button>' +
+        '<span class="as-val" data-v="' + id + '"></span>' +
+        '<button data-d="' + id + ':1">+.01</button><button data-d="' + id + ':10">+.1</button>' +
+        '<button data-d="' + id + ':100">+1</button><button data-d="' + id + ':1000">+10</button>';
+    }
+    card.innerHTML =
+      '<h2>Playground — watch the columns carry and borrow</h2><div class="body">' +
+      '<div class="as-nm">First number (top row)</div><div class="btnrow">' + stepBtns('a') + '</div>' +
+      '<div class="as-nm">Second number (bottom row)</div><div class="btnrow">' + stepBtns('b') + '</div>' +
+      '<div class="as-nm">Job</div><div class="btnrow">' +
+      '<button data-op="add" class="on">ADD ( + )</button><button data-op="sub">SUBTRACT ( − )</button>' +
+      '<button id="stepBtn">STEP →</button><button id="allBtn">SHOW ALL</button></div>' +
+      '<div class="btnrow" style="margin-top:8px">' +
+      '<button data-pre="4700,3800,add">47 + 38</button>' +
+      '<button data-pre="6200,2700,sub">62 − 27</button>' +
+      '<button data-pre="350,25,add">3.5 + 0.25</button>' +
+      '<button data-pre="4020,1685,sub">40.2 − 16.85</button></div>' +
+      '<div class="scrollbox" style="margin-top:12px;padding:12px"><div id="stack"></div></div>' +
+      '<p class="hint">Every button press recomputes the whole stack. STEP hides the answer and ' +
+      'reveals it one column at a time, right to left — carries and borrows appear small above the ' +
+      'columns exactly when they happen.</p>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The columns, narrated</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var A = 4700, B = 3800, OP = 'add', shown = 99, lastInfo = null;
+    var stackEl = card.querySelector('#stack');
+    var eqBody = card.querySelector('#eqBody');
+    var droCtl = S.dro(card.querySelector('#droBox'), 'RESULT');
+    var aVal = card.querySelector('[data-v="a"]');
+    var bVal = card.querySelector('[data-v="b"]');
+
+    function numDisp(h, lo) { return (h / 100).toFixed(lo === 2 ? 0 : (lo === 1 ? 1 : 2)); }
+
+    function update() {
+      var flip = OP === 'sub' && B > A;
+      var top = flip ? B : A, bot = flip ? A : B;
+      var lo = 2;
+      if (A % 10 !== 0 || B % 10 !== 0) lo = 0;
+      else if (A % 100 !== 0 || B % 100 !== 0) lo = 1;
+      var res = OP === 'add' ? top + bot : top - bot;
+      var steps = [], c, carry = 0, borrow = 0;
+      for (c = lo; c <= 3; c++) {
+        if (OP === 'add') {
+          var sm = d10(top, c) + d10(bot, c) + carry;
+          steps.push({ c: c, ad: d10(top, c), bd: d10(bot, c), cin: carry, sum: sm,
+            digit: sm % 10, cout: Math.floor(sm / 10) });
+          carry = Math.floor(sm / 10);
+        } else {
+          var raw = d10(top, c), bd = d10(bot, c), avail = raw - borrow, bout = 0, eff = avail;
+          if (avail < bd) { eff = avail + 10; bout = 1; }
+          steps.push({ c: c, raw: raw, bd: bd, bin: borrow, avail: avail, eff: eff,
+            digit: eff - bd, bout: bout });
+          borrow = bout;
+        }
+      }
+      var extra = OP === 'add' ? carry : 0;
+      var total = steps.length;
+      var sh = Math.min(shown, total);
+      lastInfo = { a: A / 100, b: B / 100, op: OP, top: top / 100, bottom: bot / 100,
+        result: res / 100, shown: sh, total: total, flipped: flip };
+
+      /* ------- the stacked column view ------- */
+      var defs = [];
+      if (extra) defs.push({ c: 4 });
+      defs.push({ c: 3 });
+      defs.push({ c: 2 });
+      if (lo < 2) { defs.push({ pt: 1 }); defs.push({ c: 1 }); }
+      if (lo < 1) defs.push({ c: 0 });
+      var widths = '44px', i;
+      for (i = 0; i < defs.length; i++) widths += defs[i].pt ? ' 20px' : ' 50px';
+      var nowIdx = sh < total ? sh - 1 : -1;
+      var h = '<div class="as-grid" style="grid-template-columns:' + widths + '">';
+      h += '<div class="as-seat"></div>';
+      for (i = 0; i < defs.length; i++) {
+        h += '<div class="as-seat">' + (defs[i].pt ? '' : SEATN[defs[i].c]) + '</div>';
+      }
+      h += '<div class="as-carry"></div>';
+      for (i = 0; i < defs.length; i++) {
+        var cc = '';
+        if (!defs[i].pt) {
+          if (defs[i].c === 4) { if (extra && sh >= total) cc = '1'; }
+          else {
+            var ix = defs[i].c - lo;
+            if (OP === 'add') { if (steps[ix].cin > 0 && ix <= sh) cc = String(steps[ix].cin); }
+            else if (ix < sh && (steps[ix].bin > 0 || steps[ix].bout > 0)) cc = String(steps[ix].eff);
+          }
+        }
+        h += '<div class="as-carry">' + cc + '</div>';
+      }
+      h += '<div class="as-d as-op"></div>';
+      for (i = 0; i < defs.length; i++) {
+        if (defs[i].pt) { h += '<div class="as-d as-pt">.</div>'; continue; }
+        var tc = defs[i].c, tcls = 'as-d', tv = '';
+        if (tc < 4) {
+          tv = String(d10(top, tc));
+          if (tc === 3 && d10(top, 3) === 0) tv = '';
+          var tix = tc - lo;
+          if (OP === 'sub' && tix >= 0 && tix < sh && steps[tix].bin > 0) tcls += ' as-cut';
+          if (tix === nowIdx) tcls += ' as-now';
+        }
+        h += '<div class="' + tcls + '">' + tv + '</div>';
+      }
+      h += '<div class="as-d as-op">' + (OP === 'add' ? '+' : '−') + '</div>';
+      for (i = 0; i < defs.length; i++) {
+        if (defs[i].pt) { h += '<div class="as-d as-pt">.</div>'; continue; }
+        var bc = defs[i].c, bcls = 'as-d', bv = '';
+        if (bc < 4) {
+          bv = String(d10(bot, bc));
+          if (bc === 3 && d10(bot, 3) === 0) bv = '';
+          if (bc - lo === nowIdx) bcls += ' as-now';
+        }
+        h += '<div class="' + bcls + '">' + bv + '</div>';
+      }
+      h += '<div class="as-d as-ansrow as-op">=</div>';
+      for (i = 0; i < defs.length; i++) {
+        if (defs[i].pt) { h += '<div class="as-d as-ansrow as-pt">.</div>'; continue; }
+        var ac = defs[i].c, acls = 'as-d as-ansrow', av = '';
+        if (ac === 4) av = (extra && sh >= total) ? '1' : '';
+        else {
+          var aix = ac - lo;
+          if (aix < sh) {
+            av = String(steps[aix].digit);
+            if (ac === 3 && steps[aix].digit === 0 && !extra && res < 1000) av = '';
+          } else { acls += ' as-un'; av = '·'; }
+          if (aix === nowIdx) acls += ' as-now';
+        }
+        h += '<div class="' + acls + '">' + av + '</div>';
+      }
+      h += '</div>';
+      stackEl.innerHTML = h;
+
+      /* ------- narration ------- */
+      var dp = lo === 2 ? 0 : (lo === 1 ? 1 : 2);
+      var adp = A % 10 !== 0 ? 2 : (A % 100 !== 0 ? 1 : 0);
+      var bdp = B % 10 !== 0 ? 2 : (B % 100 !== 0 ? 1 : 0);
+      var lines = [];
+      lines.push('<span class="num">' + (top / 100).toFixed(dp) + '</span> ' + (OP === 'add' ? '+' : '−') +
+        ' <span class="num">' + (bot / 100).toFixed(dp) + '</span>' +
+        (lo < 2 && adp !== bdp ? ' <span class="dim">(padded so the points line up)</span>' : ''));
+      if (flip) lines.push('<span class="dim">flipped: the bigger number goes on top — below zero is Level 7\'s job</span>');
+      for (i = 0; i < sh; i++) {
+        var st = steps[i], nm = SEATN[st.c], ln;
+        if (OP === 'add') {
+          ln = nm + ': <span class="num">' + st.ad + '</span> + <span class="num">' + st.bd + '</span>' +
+            (st.cin ? ' + ' + st.cin + ' carried' : '') + ' = ' + st.sum +
+            ' → write <span class="res">' + st.digit + '</span>' + (st.cout ? ', carry <span class="res">1</span>' : '');
+        } else if (st.avail < 0) {
+          ln = nm + ': the 0 already lent 1 — it borrows too and works as 9: 9 − <span class="num">' + st.bd +
+            '</span> = <span class="res">' + st.digit + '</span>';
+        } else if (st.bout) {
+          ln = nm + ': ' + (st.bin ? st.raw + ' lent 1 → ' + st.avail + '; ' : '') + st.avail +
+            ' can\'t give ' + st.bd + ' → borrow 10: ' + st.eff + ' − <span class="num">' + st.bd +
+            '</span> = <span class="res">' + st.digit + '</span>';
+        } else {
+          ln = nm + ': ' + (st.bin ? st.raw + ' lent 1 → ' + st.avail + '; ' : '') + st.avail +
+            ' − <span class="num">' + st.bd + '</span> = <span class="res">' + st.digit + '</span>';
+        }
+        lines.push(ln);
+      }
+      if (OP === 'add' && extra && sh >= total) {
+        lines.push('hundreds: the carried 1 has no partner — it drops straight into the answer as <span class="res">1</span>');
+      }
+      if (sh >= total) lines.push('= <span class="res">' + numDisp(res, lo) + '</span>');
+      else lines.push('<span class="dim">press STEP for the ' + SEATN[steps[sh].c] + ' column →</span>');
+      eqBody.innerHTML = lines.join('<br>');
+
+      aVal.textContent = (A / 100).toFixed(2);
+      bVal.textContent = (B / 100).toFixed(2);
+      var meaning = S.placeWords(top / 100) + (OP === 'add' ? ' plus ' : ' take away ') +
+        S.placeWords(bot / 100) + ' makes <b>' + S.placeWords(res / 100) + '</b>.';
+      if (flip) meaning += ' (You asked for the smaller minus the bigger — flipped for now; negatives arrive in Level 7.)';
+      droCtl.set(numDisp(res, lo), meaning);
+    }
+
+    function clampH(v) { return Math.max(0, Math.min(9999, v)); }
+    card.querySelectorAll('[data-d]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var p = b.getAttribute('data-d').split(':');
+        if (p[0] === 'a') A = clampH(A + Number(p[1]));
+        else B = clampH(B + Number(p[1]));
+        shown = 99; update();
+      });
+    });
+    card.querySelectorAll('[data-op]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        OP = b.getAttribute('data-op');
+        card.querySelectorAll('[data-op]').forEach(function (x) {
+          x.classList.toggle('on', x === b);
+        });
+        shown = 99; update();
+      });
+    });
+    card.querySelectorAll('[data-pre]').forEach(function (b) {
+      b.addEventListener('click', function () {
+        var p = b.getAttribute('data-pre').split(',');
+        A = Number(p[0]); B = Number(p[1]); OP = p[2];
+        card.querySelectorAll('[data-op]').forEach(function (x) {
+          x.classList.toggle('on', x.getAttribute('data-op') === OP);
+        });
+        shown = 99; update();
+      });
+    });
+    card.querySelector('#stepBtn').addEventListener('click', function () {
+      var cur = Math.min(shown, lastInfo.total);
+      shown = cur >= lastInfo.total ? 1 : cur + 1;
+      update();
+    });
+    card.querySelector('#allBtn').addEventListener('click', function () {
+      shown = 99; update();
+    });
+    update();
+    window.__l2 = {
+      set: function (av, bv, op) {
+        A = clampH(Math.round(av * 100)); B = clampH(Math.round(bv * 100));
+        if (op === 'add' || op === 'sub') {
+          OP = op;
+          card.querySelectorAll('[data-op]').forEach(function (x) {
+            x.classList.toggle('on', x.getAttribute('data-op') === OP);
+          });
+        }
+        shown = 99; update();
+      },
+      info: function () { return lastInfo; }
+    };
+  }
+
+  /* ============ question generators (game + boss) ============ */
+  function dropCarryAdd(a, b) {
+    var v = 0, p = 1;
+    while (a > 0 || b > 0) {
+      v += ((a % 10 + b % 10) % 10) * p;
+      a = Math.floor(a / 10); b = Math.floor(b / 10); p *= 10;
+    }
+    return v;
+  }
+  function glueAdd(a, b) {
+    var s = '';
+    while (a > 0 || b > 0) {
+      s = String(a % 10 + b % 10) + s;
+      a = Math.floor(a / 10); b = Math.floor(b / 10);
+    }
+    return parseInt(s || '0', 10);
+  }
+  function flipSub(a, b) {
+    var v = 0, p = 1;
+    while (a > 0 || b > 0) {
+      v += Math.abs(a % 10 - b % 10) * p;
+      a = Math.floor(a / 10); b = Math.floor(b / 10); p *= 10;
+    }
+    return v;
+  }
+  function stripPt(s) { return parseInt(String(s).replace('.', ''), 10); }
+  function decStr(h) { return S.fmtExact(h / 100); }
+
+  var COLNM = ['Ones', 'Tens', 'Hundreds', 'Thousands', 'Ten-thousands'];
+  function addStepsHTML(a, b) {
+    var lines = ['1 · Stack them: ones over ones, tens over tens'];
+    var carry = 0, c = 0, n = 2, x = a, y = b;
+    while ((x > 0 || y > 0 || carry > 0) && c < 5) {
+      var ad = x % 10, bd = y % 10, sm = ad + bd + carry, ln;
+      if (ad === 0 && bd === 0 && carry === 1 && x === 0 && y === 0) {
+        ln = n + ' · ' + COLNM[c] + ': just the carried 1 → write <span class="num">1</span>';
+        carry = 0;
+      } else {
+        ln = n + ' · ' + COLNM[c] + ': <span class="num">' + ad + '</span> + <span class="num">' + bd + '</span>' +
+          (carry ? ' + ' + carry + ' carried' : '') + ' = ' + sm +
+          (sm >= 10 ? ' → write ' + (sm % 10) + ', carry 1' : '');
+        carry = Math.floor(sm / 10);
+      }
+      lines.push(ln);
+      x = Math.floor(x / 10); y = Math.floor(y / 10); c++; n++;
+    }
+    lines.push(n + ' · Answer: <span class="res">' + (a + b) + '</span>');
+    return lines.join('<br>');
+  }
+  function subStepsHTML(a, b) {
+    var lines = ['1 · Stack them, bigger on top — and pay back every borrow'];
+    var borrow = 0, c = 0, n = 2, x = a, y = b;
+    while ((x > 0 || y > 0) && c < 5) {
+      var raw = x % 10, bd = y % 10, avail = raw - borrow, ln;
+      if (avail < 0) {
+        ln = n + ' · ' + COLNM[c] + ': the 0 already lent 1 — it borrows too and works as 9: 9 − <span class="num">' +
+          bd + '</span> = ' + (9 - bd);
+        borrow = 1;
+      } else if (avail < bd) {
+        ln = n + ' · ' + COLNM[c] + ': ' + (borrow ? raw + ' lent 1 → ' + avail + '; ' : '') +
+          '<span class="num">' + avail + '</span> can\'t give <span class="num">' + bd + '</span> → borrow 10: ' +
+          (avail + 10) + ' − ' + bd + ' = ' + (avail + 10 - bd);
+        borrow = 1;
+      } else {
+        ln = n + ' · ' + COLNM[c] + ': ' + (borrow ? raw + ' lent 1 → ' + avail + '; ' : '') +
+          '<span class="num">' + avail + '</span> − <span class="num">' + bd + '</span> = ' + (avail - bd);
+        borrow = 0;
+      }
+      lines.push(ln);
+      x = Math.floor(x / 10); y = Math.floor(y / 10); c++; n++;
+    }
+    lines.push(n + ' · Answer: <span class="res">' + (a - b) + '</span>');
+    return lines.join('<br>');
+  }
+
+  function genAddCarry(hard) {
+    var a = 0, b = 0, t, good = false;
+    for (t = 0; t < 300 && !good; t++) {
+      if (hard) {
+        a = 100 + rnd(800); b = 100 + rnd(800);
+        good = a % 10 + b % 10 >= 10 && d10(a, 1) + d10(b, 1) + 1 >= 10;
+      } else {
+        a = 12 + rnd(76); b = 12 + rnd(76);
+        good = a % 10 + b % 10 >= 10 && Math.floor(a / 10) + Math.floor(b / 10) + 1 <= 9;
+      }
+    }
+    if (!good) { a = hard ? 347 : 47; b = hard ? 265 : 38; }
+    var ans = a + b;
+    var oSum = a % 10 + b % 10;
+    var noCarry = dropCarryAdd(a, b);
+    var glue = glueAdd(a, b);
+    return { type: 'num', a: ans, tol: 0.4,
+      q: 'Add: <span class="num">' + a + '</span> + <span class="num">' + b + '</span> = ?',
+      explain: 'The ones make ' + oSum + ' — the 1 in front of the ' + (oSum % 10) +
+        ' is a ten, so it carries one seat left. Column by column: <span class="num">' + ans + '</span>.',
+      hint: 'Stack them: ones over ones, tens over tens. Work right to left. Any column that reaches 10 keeps its ones digit and sends a small 1 to the next column left.',
+      steps: addStepsHTML(a, b),
+      diagnose: function (v) {
+        if (Math.abs(v - glue) < 0.4 && glue !== ans) return { label: 'The carry got written down instead of carried',
+          your: 'the ones made ' + oSum + ' and the whole ' + oSum + ' went into the answer — digits glued into ' + glue,
+          right: 'write only the ' + (oSum % 10) + ', carry the 1 into the tens → ' + ans };
+        if (Math.abs(v - noCarry) < 0.4 && noCarry !== ans) return { label: 'Forgot the carry',
+          your: 'each column kept only its own ones digit — every carried 1 vanished, leaving ' + noCarry,
+          right: 'a carried 1 is worth a whole ' + (hard ? '10 or 100' : '10') + ': ' + a + ' + ' + b + ' = ' + ans };
+        var d = Math.round(ans - v);
+        if (d === 10 || d === 100 || d === 110) return { label: 'A carry went missing',
+          your: 'your answer is exactly ' + d + ' short — the size of a dropped carry',
+          right: 'carry every 1: ' + a + ' + ' + b + ' = ' + ans };
+        if (Math.abs(v - Math.abs(a - b)) < 0.4) return { label: 'Subtracted instead of added',
+          your: 'you found the GAP between ' + a + ' and ' + b + ' (' + Math.abs(a - b) + '), not the total',
+          right: 'this one stacks them together: ' + a + ' + ' + b + ' = ' + ans };
+        return { label: 'Column slip',
+          your: S.fmtExact(v) + ' doesn\'t come from adding seat to seat',
+          right: 'ones, then tens' + (hard ? ', then hundreds' : '') + ', carrying each 1: ' + ans };
+      } };
+  }
+
+  function genSubBorrow(hard) {
+    var a = 0, b = 0, t, good = false;
+    for (t = 0; t < 500 && !good; t++) {
+      if (hard) {
+        a = 200 + rnd(750);
+        if (rnd(2) === 0) a = Math.floor(a / 100) * 100 + a % 10;   /* zero tens: borrow across zero */
+        b = 100 + rnd(700);
+        good = b < a && a % 10 < b % 10 && d10(a, 1) <= d10(b, 1);
+      } else {
+        a = 30 + rnd(69); b = 12 + rnd(70);
+        good = b < a && a % 10 < b % 10;
+      }
+    }
+    if (!good) { a = hard ? 502 : 62; b = hard ? 178 : 27; }
+    var ans = a - b;
+    var flip = flipSub(a, b);
+    var oa = a % 10, ob = b % 10;
+    return { type: 'num', a: ans, tol: 0.4,
+      q: 'Take away: <span class="num">' + a + '</span> − <span class="num">' + b + '</span> = ?',
+      explain: 'The ones come up short (' + oa + ' can\'t give ' + ob + '), so a ten changes seats — borrow, then subtract: <span class="num">' + ans + '</span>.',
+      hint: 'Stack them with the bigger number on top. When a top digit is smaller than the one below it, borrow 10 from the seat to its left — and drop that seat by 1. If that seat is 0, it borrows too and becomes 9.',
+      steps: subStepsHTML(a, b),
+      diagnose: function (v) {
+        if (Math.abs(v - flip) < 0.4 && flip !== ans) return { label: 'Columns flipped instead of borrowed',
+          your: 'in each column the small digit came off the big one whichever row it sat in — ' + oa + ' short of ' + ob +
+            ' became ' + Math.abs(oa - ob) + ' with no borrow, landing on ' + flip,
+          right: 'the TOP row is the one being cut: borrow 10, then ' + a + ' − ' + b + ' = ' + ans };
+        if (Math.abs(v - (a + b)) < 0.4) return { label: 'Added instead of subtracted',
+          your: a + ' + ' + b + ' = ' + (a + b) + ' — the pile grew, but this one takes away',
+          right: a + ' − ' + b + ' = ' + ans };
+        var d = Math.round(v - ans);
+        if (d === 10 || d === 100 || d === 110 || d === 90) return { label: 'Borrowed but never paid it back',
+          your: 'a column took its 10, but the seat that lent it never went down by 1 — the answer ran ' + d + ' high',
+          right: 'every borrow costs the lender 1: ' + a + ' − ' + b + ' = ' + ans };
+        return { label: 'Column slip',
+          your: S.fmtExact(v) + ' doesn\'t come from working the columns right to left',
+          right: 'borrow where a column runs short: ' + a + ' − ' + b + ' = ' + ans };
+      } };
+  }
+
+  function genAddDec(hard) {
+    var a, b;
+    if (hard) {
+      a = (10 + rnd(20)) * 100 + S.pick([5, 15, 25, 45, 75, 95, 8, 65]);
+      b = (1 + rnd(8)) * 100 + (1 + rnd(9)) * 10;
+    } else {
+      a = (1 + rnd(8)) * 100 + (1 + rnd(9)) * 10;
+      b = rnd(2) * 100 + S.pick([25, 75, 5, 45, 15, 35, 65, 85]);
+    }
+    var ans = (a + b) / 100;
+    var as = decStr(a), bs = decStr(b);
+    var pa = (a / 100).toFixed(2), pb = (b / 100).toFixed(2);
+    var ga = stripPt(as), gb = stripPt(bs), glue = ga + gb;
+    function near(v, x) { return Math.abs(v - x) < 0.005; }
+    return { type: 'num', a: ans, tol: 0.0005,
+      q: 'Stack two shims: <span class="num">' + as + '</span> + <span class="num">' + bs + '</span> = ? (inches)',
+      explain: 'Points line up, pad with zeros: ' + pa + ' + ' + pb + ' = <span class="num">' + S.fmtExact(ans) + '</span>.',
+      hint: 'Stack them so the decimal POINTS sit in one column, then pad the short one with zeros until both have the same number of places. Now add like whole numbers — the point drops straight down.',
+      steps: '1 · Points line up — right edges do NOT<br>' +
+        '2 · Pad: <span class="num">' + pa + '</span> + <span class="num">' + pb + '</span><br>' +
+        '3 · Think in hundredths: ' + a + ' + ' + b + ' = ' + (a + b) + ' hundredths<br>' +
+        '4 · The point drops straight down: <span class="res">' + S.fmtExact(ans) + '</span>',
+      diagnose: function (v) {
+        if (near(v, glue) || near(v, glue / 10) || near(v, glue / 100)) return { label: 'Right edges lined up',
+          your: 'stacked flush right the digits read ' + ga + ' + ' + gb + ' = ' + glue +
+            ' — but those digits sat in different seats, so the sum means nothing',
+          right: 'points in one column, pad with zeros: ' + pa + ' + ' + pb + ' = ' + S.fmtExact(ans) };
+        if (near(v, Math.abs(a - b) / 100)) return { label: 'Subtracted instead of added',
+          your: 'you found the gap between them (' + S.fmtExact(Math.abs(a - b) / 100) + '), not the stack height',
+          right: pa + ' + ' + pb + ' = ' + S.fmtExact(ans) };
+        if (near(v, ans * 10) || near(v, ans / 10)) return { label: 'The point slipped a seat',
+          your: S.fmtExact(v) + ' is the right digits with the decimal point one seat off',
+          right: 'the point never moves: ' + pa + ' + ' + pb + ' = ' + S.fmtExact(ans) };
+        return { label: 'Column slip',
+          your: S.fmtExact(v) + ' doesn\'t come from adding the padded columns',
+          right: pa + ' + ' + pb + ' = ' + S.fmtExact(ans) };
+      } };
+  }
+
+  function genSubDec(hard) {
+    var a = 0, b = 0, t, good = false;
+    for (t = 0; t < 300 && !good; t++) {
+      if (hard) {
+        a = (10 + rnd(30)) * 100 + (1 + rnd(9)) * 10;
+        b = (1 + rnd(15)) * 100 + S.pick([25, 75, 85, 45, 15, 65, 35, 95]);
+      } else {
+        a = (1 + rnd(8)) * 100 + (1 + rnd(9)) * 10;
+        b = rnd(2) * 100 + S.pick([25, 75, 5, 45, 15, 65]);
+      }
+      good = b < a;
+    }
+    if (!good) { a = 250; b = 75; }
+    var ans = (a - b) / 100;
+    var as = decStr(a), bs = decStr(b);
+    var pa = (a / 100).toFixed(2), pb = (b / 100).toFixed(2);
+    var ga = stripPt(as), gb = stripPt(bs), gd = Math.abs(ga - gb);
+    var flip = flipSub(a, b) / 100;
+    function near(v, x) { return Math.abs(v - x) < 0.005; }
+    return { type: 'num', a: ans, tol: 0.0005,
+      q: 'Trim it: <span class="num">' + as + '</span> − <span class="num">' + bs + '</span> = ? (inches)',
+      explain: 'Points line up, pad with zeros: ' + pa + ' − ' + pb + ' — the padded 0 borrows from the tenths → <span class="num">' + S.fmtExact(ans) + '</span>.',
+      hint: 'Line up the POINTS and pad with zeros so every column has a digit. Then subtract like whole numbers, borrowing where a column runs short — the padded 0 will need to borrow.',
+      steps: '1 · Points line up — pad: <span class="num">' + pa + '</span> − <span class="num">' + pb + '</span><br>' +
+        '2 · Think in hundredths: ' + a + ' − ' + b + ' = ' + (a - b) + ' hundredths (the padded 0 borrows just like any digit)<br>' +
+        '3 · The point drops straight down: <span class="res">' + S.fmtExact(ans) + '</span>',
+      diagnose: function (v) {
+        if (near(v, gd) || near(v, gd / 10) || near(v, gd / 100)) return { label: 'Right edges lined up',
+          your: 'stacked flush right the digits read ' + ga + ' and ' + gb + ', giving ' + gd +
+            ' — but those digits sat in different seats',
+          right: 'points in one column, pad: ' + pa + ' − ' + pb + ' = ' + S.fmtExact(ans) };
+        if (near(v, (a + b) / 100)) return { label: 'Added instead of subtracted',
+          your: pa + ' + ' + pb + ' = ' + S.fmtExact((a + b) / 100) + ' grows the part — this cut shrinks it',
+          right: pa + ' − ' + pb + ' = ' + S.fmtExact(ans) };
+        if (near(v, flip) && Math.abs(flip - ans) > 0.005) return { label: 'Borrow skipped',
+          your: 'each column took small from big whichever row it sat in, landing on ' + S.fmtExact(flip),
+          right: 'the TOP row is being cut — borrow 10 where it runs short: ' + S.fmtExact(ans) };
+        if (near(v, ans * 10) || near(v, ans / 10)) return { label: 'The point slipped a seat',
+          your: S.fmtExact(v) + ' is the right digits with the decimal point one seat off',
+          right: 'the point never moves: ' + pa + ' − ' + pb + ' = ' + S.fmtExact(ans) };
+        return { label: 'Column slip',
+          your: S.fmtExact(v) + ' doesn\'t come from the padded columns',
+          right: pa + ' − ' + pb + ' = ' + S.fmtExact(ans) };
+      } };
+  }
+
+  function genMissing(hard) {
+    var form = hard ? S.pick(['addend', 'start', 'took']) : 'addend';
+    var a = 0, b = 0, t, good = false;
+    if (form === 'addend') {
+      for (t = 0; t < 300 && !good; t++) {
+        if (hard) { a = 100 + rnd(800); b = 100 + rnd(800); good = a % 10 + b % 10 >= 10; }
+        else {
+          a = 12 + rnd(76); b = 12 + rnd(76);
+          good = a % 10 + b % 10 >= 10 && Math.floor(a / 10) + Math.floor(b / 10) + 1 <= 9;
+        }
+      }
+      if (!good) { a = 47; b = 38; }
+      var s = a + b, ans = b, flip = flipSub(s, a);
+      return { type: 'num', a: ans, tol: 0.4,
+        q: '<span class="num">' + a + '</span> + ? = <span class="num">' + s + '</span> — what number fills the gap?',
+        explain: 'The missing piece is the GAP between ' + a + ' and ' + s + ': ' + s + ' − ' + a + ' = <span class="num">' + ans + '</span>.',
+        hint: 'You know the total and one piece. The other piece is total minus the known piece — a take-away, borrowing if a column comes up short.',
+        steps: '1 · missing piece = total − known piece<br>' +
+          '2 · <span class="num">' + s + '</span> − <span class="num">' + a + '</span>, column by column<br>' +
+          '3 · = <span class="res">' + ans + '</span> (check: ' + a + ' + ' + ans + ' = ' + s + ')',
+        diagnose: function (v) {
+          if (Math.abs(v - (s + a)) < 0.4) return { label: 'Added the two numbers you can see',
+            your: a + ' + ' + s + ' = ' + (s + a) + ' — but ' + s + ' is the TOTAL, not a piece of it',
+            right: 'piece = total − known piece: ' + s + ' − ' + a + ' = ' + ans };
+          if (Math.abs(v - flip) < 0.4 && flip !== ans) return { label: 'Borrow skipped inside the take-away',
+            your: 'working ' + s + ' − ' + a + ', each column took small from big — no borrowing — landing on ' + flip,
+            right: 'borrow properly: ' + s + ' − ' + a + ' = ' + ans };
+          if (Math.abs(v - a) < 0.4 || Math.abs(v - s) < 0.4) return { label: 'Echoed a number already on the board',
+            your: 'that number is given — the ? is the gap between the two givens',
+            right: s + ' − ' + a + ' = ' + ans };
+          return { label: 'Gap slip',
+            your: a + ' + ' + S.fmtExact(v) + ' lands on ' + S.fmtExact(a + v) + ', not ' + s,
+            right: s + ' − ' + a + ' = ' + ans };
+        } };
+    }
+    if (form === 'start') {
+      b = 100 + rnd(700);
+      var d2 = 100 + rnd(700), ans2 = b + d2;
+      return { type: 'num', a: ans2, tol: 0.4,
+        q: '? − <span class="num">' + b + '</span> = <span class="num">' + d2 + '</span> — what did we start with?',
+        explain: 'Un-do the take-away by adding back: ' + d2 + ' + ' + b + ' = <span class="num">' + ans2 + '</span>.',
+        hint: 'Something lost the first amount and ended at the second. To rebuild the start, put the lost part BACK — this one is an ADD, carrying as usual.',
+        steps: '1 · start − ' + b + ' = ' + d2 + ' means start = ' + d2 + ' + ' + b + '<br>' +
+          '2 · Add, carrying where a column tops 10<br>' +
+          '3 · = <span class="res">' + ans2 + '</span> (check: ' + ans2 + ' − ' + b + ' = ' + d2 + ')',
+        diagnose: function (v) {
+          if (Math.abs(v - Math.abs(d2 - b)) < 0.4) return { label: 'Subtracted again',
+            your: 'the take-away already happened — subtracting the visible numbers gives ' + Math.abs(d2 - b) + ', which un-does nothing',
+            right: 'ADD back what was removed: ' + d2 + ' + ' + b + ' = ' + ans2 };
+          return { label: 'Un-do slip',
+            your: S.fmtExact(v) + ' − ' + b + ' = ' + S.fmtExact(v - b) + ', not ' + d2,
+            right: d2 + ' + ' + b + ' = ' + ans2 };
+        } };
+    }
+    a = 200 + rnd(750);
+    var d3 = 20 + rnd(a - 40), ans3 = a - d3;
+    var flip3 = flipSub(a, d3);
+    return { type: 'num', a: ans3, tol: 0.4,
+      q: '<span class="num">' + a + '</span> − ? = <span class="num">' + d3 + '</span> — how much came off?',
+      explain: 'The amount removed is the gap between start and finish: ' + a + ' − ' + d3 + ' = <span class="num">' + ans3 + '</span>.',
+      hint: 'Start and finish are both on the board. The amount removed is the distance between them: start minus finish, borrowing where a column runs short.',
+      steps: '1 · amount off = start − finish<br>' +
+        '2 · <span class="num">' + a + '</span> − <span class="num">' + d3 + '</span>, column by column<br>' +
+        '3 · = <span class="res">' + ans3 + '</span> (check: ' + a + ' − ' + ans3 + ' = ' + d3 + ')',
+      diagnose: function (v) {
+        if (Math.abs(v - (a + d3)) < 0.4) return { label: 'Added instead',
+          your: a + ' + ' + d3 + ' = ' + (a + d3) + ' — that grows the number, but this one shrank',
+          right: a + ' − ' + d3 + ' = ' + ans3 };
+        if (Math.abs(v - flip3) < 0.4 && flip3 !== ans3) return { label: 'Borrow skipped',
+          your: 'each column took small from big both ways, giving ' + flip3,
+          right: 'borrow properly: ' + a + ' − ' + d3 + ' = ' + ans3 };
+        return { label: 'Gap slip',
+          your: a + ' − ' + S.fmtExact(v) + ' = ' + S.fmtExact(a - v) + ', not ' + d3,
+          right: a + ' − ' + d3 + ' = ' + ans3 };
+      } };
+  }
+
+  var GENS = { addCarry: genAddCarry, subBorrow: genSubBorrow, addDec: genAddDec,
+    subDec: genSubDec, missing: genMissing };
+  var HARD = false;
+  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 2'; return q; }
+
+  function makeSet(kinds, hard) {
+    HARD = !!hard;
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    HARD = false;
+    return S.shuffle(out);
+  }
+  function gameQs() {
+    return makeSet(['addCarry', 'addCarry', 'subBorrow', 'subBorrow', 'addDec', 'addDec',
+      'subDec', 'subDec', 'missing', 'missing'], false);
+  }
+  function bossQs() {
+    return makeSet(['addCarry', 'addCarry', 'subBorrow', 'subBorrow', 'addDec', 'addDec',
+      'subDec', 'subDec', 'missing', 'missing'], true);
+  }
+
+  S.levelPage('l2', {
+    explainer: EXPLAINER,
+    playground: playground,
+    gameQs: gameQs,
+    bossQs: bossQs,
+  });
+})();
+</script>
+</body>
+</html>

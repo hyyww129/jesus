@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level 3 · Times Tables &amp; Multiply</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+.mul-steppers { display: flex; gap: 12px; flex-wrap: wrap; }
+.stepper { border: 1.5px solid var(--ink); border-radius: 6px; background: var(--paper); padding: 10px 12px; min-width: 200px; flex: 1; }
+.stepper .s-name { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; color: var(--soft); text-transform: uppercase; }
+.stepper .s-row { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
+.stepper .s-row button { min-width: 52px; font-size: 18px; }
+.stepper .s-val { font-family: var(--mono); font-size: 34px; font-weight: 800; color: var(--blue); flex: 1; text-align: center; }
+.stepper.snd .s-val { color: var(--orange); }
+.stepper .s-sub { font-family: var(--mono); font-size: 10px; color: var(--soft); margin-top: 4px; text-align: center; }
+.tt-wrap { overflow-x: auto; padding-bottom: 4px; }
+.tt-grid { display: grid; grid-template-columns: repeat(13, minmax(44px, 1fr)); gap: 3px; min-width: 640px; }
+.tt-grid .hd { font-family: var(--mono); font-size: 12px; font-weight: 700; color: var(--soft); background: var(--panel); border-radius: 4px; display: flex; align-items: center; justify-content: center; min-height: 44px; }
+.tt-grid button { min-height: 44px; padding: 0; font-size: 12.5px; font-weight: 700; border-color: var(--line); box-shadow: none; border-radius: 4px; }
+.tt-grid button.hl { background: var(--good-bg); border-color: var(--good-bd); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← SKILL TREE</a>
+    <div class="eyebrow">Level 03 · World 1 · Shop Math School</div>
+    <h1>Times Tables &amp; <span class="b">Multiply</span></h1>
+    <p class="sub">Multiplying is repeated addition with the counting already done. Make the 2–12
+      table yours, then cut bigger numbers into area boxes — split at the seats, multiply each
+      piece, add the boxes back together.</p>
+  </header>
+  <div id="sms-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function near(v, x) { return Math.abs(v - x) < 0.4; }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>Multiplication is <span class="term">repeated addition</span> with the counting already done. ' +
+  '<b>4 × 6</b> means "four rows of six": 6 + 6 + 6 + 6 = 24. You could count that out every single ' +
+  'time — or you could just <i>know</i> it. The <span class="term">times table</span> (2 through 12) ' +
+  'is the answers, memorized, so your head stays free for the actual job.</p>' +
+  '<p>And some rows you never memorize at all — you build them from rows you already own:</p>' +
+  '<table class="ref"><tr><th>Row</th><th>The shortcut</th><th>Example</th></tr>' +
+  '<tr><td>× 10</td><td>slide every digit one seat left</td><td>37 × 10 = 370</td></tr>' +
+  '<tr><td>× 5</td><td>× 10, then take half</td><td>14 × 5 → 140 → 70</td></tr>' +
+  '<tr><td>× 9</td><td>× 10, minus one row</td><td>9 × 7 = 70 − 7 = 63</td></tr>' +
+  '<tr><td>× 11</td><td>× 10, plus one row</td><td>11 × 7 = 70 + 7 = 77</td></tr>' +
+  '<tr><td>× 4</td><td>double, then double again</td><td>4 × 13 → 26 → 52</td></tr></table>' +
+  '<p style="margin-top:10px">The table stops at 12 — the shop does not. For anything bigger, cut the number at its ' +
+  '<b>place-value seats</b> (Level 1 pays off right here). Take <b>37 × 4</b>: the 3 is really 30, ' +
+  'so 37 is a 30-piece and a 7-piece. Draw the whole thing as one rectangle, 37 wide and 4 rows ' +
+  'tall, and cut it where the 30 ends:</p>' +
+  '<div class="scrollbox" style="margin:10px 0"><svg viewBox="0 0 520 172" width="520" height="172" role="img" aria-label="area box for 37 times 4: a tens box of 120 and a ones box of 28">' +
+  '<rect x="56" y="34" width="360" height="96" style="fill:var(--blue);fill-opacity:.12;stroke:var(--blue);stroke-width:2"/>' +
+  '<rect x="416" y="34" width="84" height="96" style="fill:var(--orange);fill-opacity:.15;stroke:var(--orange);stroke-width:2"/>' +
+  '<line x1="56" y1="58" x2="500" y2="58" style="stroke:var(--line)"/>' +
+  '<line x1="56" y1="82" x2="500" y2="82" style="stroke:var(--line)"/>' +
+  '<line x1="56" y1="106" x2="500" y2="106" style="stroke:var(--line)"/>' +
+  '<text x="236" y="24" text-anchor="middle" style="font-family:var(--mono);font-size:14px;font-weight:700;fill:var(--blue)">30</text>' +
+  '<text x="458" y="24" text-anchor="middle" style="font-family:var(--mono);font-size:14px;font-weight:700;fill:var(--orange)">7</text>' +
+  '<text x="30" y="80" text-anchor="middle" style="font-family:var(--mono);font-size:16px;font-weight:700;fill:var(--ink)">4</text>' +
+  '<text x="30" y="96" text-anchor="middle" style="font-family:var(--mono);font-size:9px;fill:var(--soft)">rows</text>' +
+  '<text x="236" y="87" text-anchor="middle" style="font-family:var(--mono);font-size:15px;font-weight:700;fill:var(--blue)">30 × 4 = 120</text>' +
+  '<text x="458" y="78" text-anchor="middle" style="font-family:var(--mono);font-size:14px;font-weight:700;fill:var(--orange)">7 × 4</text>' +
+  '<text x="458" y="96" text-anchor="middle" style="font-family:var(--mono);font-size:14px;font-weight:700;fill:var(--orange)">= 28</text>' +
+  '<text x="278" y="158" text-anchor="middle" style="font-family:var(--mono);font-size:13px;font-weight:700;fill:var(--soft)">whole rectangle = 120 + 28 = 148</text>' +
+  '</svg></div>' +
+  '<div class="worked">37 × 4 = (30 × 4) + (7 × 4)<br>' +
+  '&nbsp;&nbsp;tens box: 30 × 4 = <span class="num">120</span><br>' +
+  '&nbsp;&nbsp;ones box: &nbsp;7 × 4 = <span class="num">28</span><br>' +
+  '120 + 28 = <span class="res">148</span></div>' +
+  '<p>That is the entire method: <span class="term">split at the seats, multiply each piece, add ' +
+  'the boxes</span>. It never gets harder — bigger numbers just mean more boxes.</p>' +
+  '<p>One shop use you will lean on constantly: "how many 4-inch parts come out of a 36-inch bar?" ' +
+  'is this same picture run backwards — 9, because 9 × 4 lands exactly on 36. Careful though: a ' +
+  '35-inch bar gives only <b>8</b>, because a part you cannot finish does not count. ' +
+  'Now open the <b>Playground</b> and cut some rectangles yourself.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function svgText(x, y, str, color, size, anchor) {
+    return '<text x="' + x + '" y="' + y + '" text-anchor="' + (anchor || 'start') +
+      '" style="font-family:var(--mono);font-size:' + size + 'px;font-weight:700;fill:' + color + '">' + str + '</text>';
+  }
+  function areaSVG(A, B) {
+    var t = Math.floor(A / 10), o = A % 10;
+    var u = Math.min(26, Math.floor(520 / A), Math.floor(210 / B));
+    if (u < 4) u = 4;
+    var x0 = 46, y0 = 30;
+    var wT = t * 10 * u, wO = o * u, hh = B * u;
+    var boxes = '', lines = '', texts = '';
+    var belowY = y0 + hh + 16, below = 0;
+    texts += svgText(x0 - 22, y0 + hh / 2 - 1, B, 'var(--ink)', 16, 'middle');
+    texts += svgText(x0 - 22, y0 + hh / 2 + 13, 'rows', 'var(--soft)', 9, 'middle');
+    if (t > 0) {
+      boxes += '<rect x="' + x0 + '" y="' + y0 + '" width="' + wT + '" height="' + hh +
+        '" style="fill:var(--blue);fill-opacity:.12;stroke:var(--blue);stroke-width:2"/>';
+      for (var j = 1; j < t; j++) {
+        lines += '<line x1="' + (x0 + j * 10 * u) + '" y1="' + y0 + '" x2="' + (x0 + j * 10 * u) +
+          '" y2="' + (y0 + hh) + '" style="stroke:var(--blue);stroke-opacity:.3;stroke-dasharray:3 4"/>';
+      }
+      texts += svgText(x0 + wT / 2, y0 - 10, t * 10, 'var(--blue)', 14, 'middle');
+      var labT = (t * 10) + '×' + B + ' = ' + (t * 10 * B);
+      if (wT >= 104 && hh >= 26) texts += svgText(x0 + wT / 2, y0 + hh / 2 + 5, labT, 'var(--blue)', 14, 'middle');
+      else { texts += svgText(x0 + wT / 2, belowY, labT, 'var(--blue)', 12, 'middle'); belowY += 15; below++; }
+    }
+    if (o > 0) {
+      var xo = x0 + wT;
+      boxes += '<rect x="' + xo + '" y="' + y0 + '" width="' + wO + '" height="' + hh +
+        '" style="fill:var(--orange);fill-opacity:.15;stroke:var(--orange);stroke-width:2"/>';
+      texts += svgText(xo + wO / 2, y0 - 10, o, 'var(--orange)', 14, 'middle');
+      var labO = o + '×' + B + ' = ' + (o * B);
+      if (wO >= 96 && hh >= 26) texts += svgText(xo + wO / 2, y0 + hh / 2 + 5, labO, 'var(--orange)', 14, 'middle');
+      else { texts += svgText(Math.max(xo + wO / 2, x0 + 40), belowY, labO, 'var(--orange)', 12, 'middle'); belowY += 15; below++; }
+    }
+    if (u >= 7) {
+      for (var r = 1; r < B; r++) {
+        lines += '<line x1="' + x0 + '" y1="' + (y0 + r * u) + '" x2="' + (x0 + wT + wO) +
+          '" y2="' + (y0 + r * u) + '" style="stroke:var(--line)"/>';
+      }
+    }
+    var W = x0 + wT + wO + 24;
+    var H = y0 + hh + 12 + below * 16;
+    return '<svg viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H +
+      '" role="img" aria-label="area box for ' + A + ' times ' + B + '">' + boxes + lines + texts + '</svg>';
+  }
+
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — cut the rectangle, add the boxes</h2><div class="body">' +
+      '<div class="btnrow" style="margin-bottom:12px">' +
+      '<button id="modeArea" class="on">AREA BOXES</button>' +
+      '<button id="modeTable">TIMES TABLE</button></div>' +
+      '<div id="areaPane">' +
+      '<div class="mul-steppers">' +
+      '<div class="stepper" data-step="a" tabindex="0" aria-label="first number, 2 to 99">' +
+      '<div class="s-name">First number</div><div class="s-row">' +
+      '<button data-dn="a" aria-label="first number down">−</button>' +
+      '<div class="s-val" id="valA">37</div>' +
+      '<button data-up="a" aria-label="first number up">+</button></div>' +
+      '<div class="s-sub">2 – 99 · gets split at the seats</div></div>' +
+      '<div class="stepper snd" data-step="b" tabindex="0" aria-label="second number, 2 to 12">' +
+      '<div class="s-name">Second number</div><div class="s-row">' +
+      '<button data-dn="b" aria-label="second number down">−</button>' +
+      '<div class="s-val" id="valB">4</div>' +
+      '<button data-up="b" aria-label="second number up">+</button></div>' +
+      '<div class="s-sub">2 – 12 · how many rows</div></div></div>' +
+      '<div class="scrollbox" id="areaBox" style="margin-top:12px"></div>' +
+      '<p class="hint">Tap + / − (or focus a stepper and use the arrow keys). The rectangle is drawn ' +
+      'to true proportion — blue is the tens piece, orange the ones piece, and their two partial ' +
+      'products add up in the equation as you go.</p>' +
+      '</div>' +
+      '<div id="tablePane" style="display:none">' +
+      '<div class="tt-wrap"><div class="tt-grid" id="ttGrid"></div></div>' +
+      '<p class="hint">Tap any cell. The shaded block IS the multiplication — its height is the ' +
+      'first number, its width the second, and the count of shaded cells is the answer.</p>' +
+      '</div>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var A = 37, B = 4, R = 7, C = 6, mode = 'area';
+    var droCtl = S.dro(card.querySelector('#droBox'), 'ANSWER');
+    var eqBody = card.querySelector('#eqBody');
+    var boxEl = card.querySelector('#areaBox');
+    var grid = card.querySelector('#ttGrid');
+    var areaPane = card.querySelector('#areaPane');
+    var tablePane = card.querySelector('#tablePane');
+
+    function drawArea() {
+      card.querySelector('#valA').textContent = A;
+      card.querySelector('#valB').textContent = B;
+      boxEl.innerHTML = areaSVG(A, B);
+      var t = Math.floor(A / 10), o = A % 10, p = A * B;
+      if (t === 0) {
+        var rep = [];
+        for (var k = 0; k < B; k++) rep.push(A);
+        eqBody.innerHTML = '<span class="num">' + A + '</span> × <span class="num">' + B + '</span> = ' +
+          rep.join(' + ') + '<br>= <span class="res">' + p + '</span>';
+      } else if (o === 0) {
+        eqBody.innerHTML = '<span class="num">' + A + '</span> × <span class="num">' + B + '</span> = ' +
+          t + '×' + B + ' tens = ' + (t * B) + ' tens<br>= <span class="res">' + p + '</span>';
+      } else {
+        eqBody.innerHTML = '<span class="num">' + A + '</span> × <span class="num">' + B + '</span> = ' +
+          (t * 10) + '×' + B + ' + ' + o + '×' + B +
+          '<br>= ' + (t * 10 * B) + ' + ' + (o * B) +
+          '<br>= <span class="res">' + p + '</span>';
+      }
+      droCtl.set(String(p), S.intWords(B) + ' rows of ' + S.intWords(A) +
+        (t > 0 && o > 0 ? ' — the big box holds ' + (t * 10 * B) + ', the small box ' + (o * B) +
+          ', together <b>' + S.intWords(p) + '</b>.' : ' — <b>' + S.intWords(p) + '</b>.'));
+    }
+
+    function refreshTable() {
+      var btns = grid.querySelectorAll('button[data-r]');
+      for (var i = 0; i < btns.length; i++) {
+        var bb = btns[i];
+        var rr = Number(bb.getAttribute('data-r')), cc = Number(bb.getAttribute('data-c'));
+        var inBlock = rr <= R && cc <= C;
+        var isSel = rr === R && cc === C;
+        if (inBlock && !isSel) bb.classList.add('hl'); else bb.classList.remove('hl');
+        if (isSel) bb.classList.add('on'); else bb.classList.remove('on');
+      }
+      var rep = [];
+      for (var k = 0; k < R; k++) rep.push(C);
+      eqBody.innerHTML = '<span class="num">' + R + '</span> × <span class="num">' + C + '</span> = ' +
+        rep.join(' + ') + '<br>= <span class="res">' + (R * C) + '</span>';
+      droCtl.set(String(R * C), S.intWords(R) + ' rows of ' + S.intWords(C) +
+        ' — the shaded block is ' + R + ' tall and ' + C + ' wide: <b>' + S.intWords(R * C) + ' cells</b>.');
+    }
+
+    function setMode(m) {
+      mode = m;
+      areaPane.style.display = m === 'area' ? '' : 'none';
+      tablePane.style.display = m === 'table' ? '' : 'none';
+      var ba = card.querySelector('#modeArea'), bt = card.querySelector('#modeTable');
+      if (m === 'area') { ba.classList.add('on'); bt.classList.remove('on'); drawArea(); }
+      else { bt.classList.add('on'); ba.classList.remove('on'); refreshTable(); }
+    }
+
+    /* build the 12×12 grid once */
+    var gh = '<div class="hd">×</div>';
+    for (var c = 1; c <= 12; c++) gh += '<div class="hd">' + c + '</div>';
+    for (var r = 1; r <= 12; r++) {
+      gh += '<div class="hd">' + r + '</div>';
+      for (var c2 = 1; c2 <= 12; c2++) {
+        gh += '<button data-r="' + r + '" data-c="' + c2 + '" aria-label="' + r + ' times ' + c2 + '">' + (r * c2) + '</button>';
+      }
+    }
+    grid.innerHTML = gh;
+    grid.addEventListener('click', function (ev) {
+      var el = ev.target;
+      if (!el || !el.getAttribute || !el.getAttribute('data-r')) return;
+      R = Number(el.getAttribute('data-r'));
+      C = Number(el.getAttribute('data-c'));
+      refreshTable();
+    });
+
+    function bump(which, d) {
+      if (which === 'a') { A += d; if (A > 99) A = 2; if (A < 2) A = 99; }
+      else { B += d; if (B > 12) B = 2; if (B < 2) B = 12; }
+      drawArea();
+    }
+    card.querySelectorAll('[data-up]').forEach(function (b) {
+      b.addEventListener('click', function () { bump(b.getAttribute('data-up'), 1); });
+    });
+    card.querySelectorAll('[data-dn]').forEach(function (b) {
+      b.addEventListener('click', function () { bump(b.getAttribute('data-dn'), -1); });
+    });
+    card.querySelectorAll('.stepper').forEach(function (st) {
+      st.addEventListener('keydown', function (e) {
+        var w = st.getAttribute('data-step');
+        if (e.key === 'ArrowUp' || e.key === 'ArrowRight') { bump(w, 1); e.preventDefault(); }
+        if (e.key === 'ArrowDown' || e.key === 'ArrowLeft') { bump(w, -1); e.preventDefault(); }
+      });
+    });
+    card.querySelector('#modeArea').addEventListener('click', function () { setMode('area'); });
+    card.querySelector('#modeTable').addEventListener('click', function () { setMode('table'); });
+    drawArea();
+
+    window.__l3 = {
+      set: function (o) {
+        o = o || {};
+        if (o.mode === 'table') {
+          if (o.r) R = Math.max(1, Math.min(12, Math.round(o.r)));
+          if (o.c) C = Math.max(1, Math.min(12, Math.round(o.c)));
+          setMode('table');
+        } else {
+          if (o.a !== undefined) A = Math.max(2, Math.min(99, Math.round(o.a)));
+          if (o.b !== undefined) B = Math.max(2, Math.min(12, Math.round(o.b)));
+          setMode('area');
+        }
+      },
+      info: function () {
+        return { mode: mode, a: A, b: B, r: R, c: C, product: mode === 'area' ? A * B : R * C };
+      }
+    };
+  }
+
+  /* ============ question generators (game + boss) ============ */
+  function trickSteps(a, b) {
+    var p = a * b;
+    if (b === 9 || a === 9) {
+      var f = b === 9 ? a : b;
+      return '1 · ×10 first: <span class="num">' + f + '</span> × 10 = ' + (f * 10) + '<br>' +
+        '2 · ×9 is one row less — take one ' + f + ' back: ' + (f * 10) + ' − ' + f + '<br>' +
+        '3 · = <span class="res">' + p + '</span>';
+    }
+    if (b === 11 || a === 11) {
+      var f2 = b === 11 ? a : b;
+      return '1 · ×10 first: <span class="num">' + f2 + '</span> × 10 = ' + (f2 * 10) + '<br>' +
+        '2 · ×11 is one row more: ' + (f2 * 10) + ' + ' + f2 + '<br>' +
+        '3 · = <span class="res">' + p + '</span>';
+    }
+    if (b === 5 || a === 5) {
+      var f3 = b === 5 ? a : b;
+      return '1 · ×10 first: <span class="num">' + f3 + '</span> × 10 = ' + (f3 * 10) + '<br>' +
+        '2 · ×5 is half of ×10: ' + (f3 * 10) + ' ÷ 2<br>' +
+        '3 · = <span class="res">' + p + '</span>';
+    }
+    if (b === 4 || a === 4) {
+      var f4 = b === 4 ? a : b;
+      return '1 · Double <span class="num">' + f4 + '</span> → ' + (f4 * 2) + '<br>' +
+        '2 · Double it again → ' + (f4 * 4) + '<br>' +
+        '3 · ×4 = double twice = <span class="res">' + p + '</span>';
+    }
+    var list = [];
+    for (var k = 1; k <= b; k++) list.push(a * k);
+    return '1 · Skip-count by <span class="num">' + a + '</span>, ' + b + ' steps:<br>' +
+      '2 · ' + list.join(', ') + '<br>' +
+      '3 · Step ' + b + ' lands on <span class="res">' + p + '</span>';
+  }
+
+  function genTableFact(hard) {
+    var a = hard ? 3 + rnd(10) : 2 + rnd(8);
+    var b = hard ? S.pick([6, 7, 8, 9, 9, 11, 11, 12]) : 2 + rnd(8);
+    var p = a * b;
+    return { type: 'num', a: p, tol: 0.4,
+      q: 'Times table: <span class="num">' + a + '</span> × <span class="num">' + b + '</span> = ?',
+      explain: a + ' × ' + b + ' means ' + a + ' rows of ' + b + ' — <span class="num">' + p + '</span>.',
+      hint: 'If it will not surface, build it from a row you own: ×10 slides the seat, ×9 is ×10 minus one row, ×11 is ×10 plus one row, ×5 is half of ×10, ×4 is double twice.',
+      steps: trickSteps(a, b),
+      diagnose: function (v) {
+        if (near(v, a + b)) return { label: 'Added instead of multiplied',
+          your: a + ' + ' + b + ' = ' + (a + b) + ' — that is one row plus one column, not ' + a + ' rows of ' + b,
+          right: a + ' × ' + b + ' = ' + p };
+        if (near(v, a * (b + 1)) || near(v, a * (b - 1))) return { label: 'Neighbor fact',
+          your: S.fmtExact(v) + ' is ' + a + ' × ' + (near(v, a * (b + 1)) ? (b + 1) : (b - 1)) + ' — one column over from what was asked',
+          right: a + ' × ' + b + ' = ' + p };
+        if (near(v, (a + 1) * b) || near(v, (a - 1) * b)) return { label: 'Neighbor fact',
+          your: S.fmtExact(v) + ' is ' + (near(v, (a + 1) * b) ? (a + 1) : (a - 1)) + ' × ' + b + ' — one row over from what was asked',
+          right: a + ' × ' + b + ' = ' + p };
+        if (near(v, p * 10) || Math.abs(v - p / 10) < 0.05) return { label: 'Magnitude slip',
+          your: S.fmtExact(v) + ' has the right digits at the wrong size — a zero slipped in or out',
+          right: a + ' × ' + b + ' = ' + p };
+        return { label: 'Table slip',
+          your: S.fmtExact(v) + ' is not on the ' + a + ' row — anchor on a fact you trust, like ' + a + ' × 10 = ' + (a * 10) + ', and step from there',
+          right: a + ' × ' + b + ' = ' + p };
+      } };
+  }
+
+  function genTableMissing(hard) {
+    var a = hard ? 4 + rnd(9) : 3 + rnd(7);
+    var b = hard ? 4 + rnd(9) : 2 + rnd(8);
+    var p = a * b;
+    var list = [];
+    for (var k = 1; k <= b; k++) list.push(a * k);
+    return { type: 'num', a: b, tol: 0.4,
+      q: '<span class="num">' + a + '</span> × ? = <span class="num">' + p + '</span> — what number fills the blank?',
+      explain: a + ' × <span class="num">' + b + '</span> = ' + p + ', so the blank is ' + b + '.',
+      hint: 'Say it as a question: "' + a + ' times WHAT lands on ' + p + '?" Skip-count by ' + a + ' until you hit ' + p + ', and count your steps.',
+      steps: '1 · Count by <span class="num">' + a + '</span>: ' + list.join(', ') + '<br>' +
+        '2 · That took ' + b + ' steps<br>' +
+        '3 · Check it: ' + a + ' × ' + b + ' = <span class="res">' + p + '</span>',
+      diagnose: function (v) {
+        if (near(v, p - a)) return { label: 'Subtracted instead of un-multiplying',
+          your: p + ' − ' + a + ' = ' + (p - a) + ' — but the blank asks how many TIMES ' + a + ' fits into ' + p + ', not what is left after taking one away',
+          right: 'count by ' + a + ' up to ' + p + ' — that takes ' + b + ' steps' };
+        if (near(v, b + 1) || near(v, b - 1)) return { label: 'One step off',
+          your: a + ' × ' + Math.round(v) + ' = ' + (a * Math.round(v)) + ', not ' + p,
+          right: a + ' × ' + b + ' = ' + p };
+        return { label: 'Blank slip',
+          your: 'multiply back to check: ' + a + ' × ' + S.fmtExact(v) + ' = ' + (Math.round(a * v * 100) / 100) + ', not ' + p,
+          right: a + ' × ' + b + ' = ' + p };
+      } };
+  }
+
+  function genAreaMultiply(hard) {
+    var t = hard ? 2 + rnd(8) : 1 + rnd(4);
+    var o = 1 + rnd(9);
+    var b = hard ? 6 + rnd(7) : 2 + rnd(5);
+    var a2 = t * 10 + o;
+    var p1 = t * 10 * b, p2 = o * b, p = a2 * b;
+    return { type: 'num', a: p, tol: 0.4,
+      q: 'Cut it into boxes: <span class="num">' + a2 + '</span> × <span class="num">' + b + '</span> = ?',
+      explain: '(' + (t * 10) + ' × ' + b + ') + (' + o + ' × ' + b + ') = ' + p1 + ' + ' + p2 + ' = <span class="num">' + p + '</span>.',
+      hint: 'Split ' + a2 + ' at the seats: ' + (t * 10) + ' and ' + o + '. Multiply EACH piece by ' + b + ', then add the two boxes.',
+      steps: '1 · Split at the seats: ' + a2 + ' = ' + (t * 10) + ' + ' + o + '<br>' +
+        '2 · Tens box: <span class="num">' + (t * 10) + '</span> × ' + b + ' = ' + p1 +
+        ' · ones box: <span class="num">' + o + '</span> × ' + b + ' = ' + p2 + '<br>' +
+        '3 · Add the boxes: ' + p1 + ' + ' + p2 + ' = <span class="res">' + p + '</span>',
+      diagnose: function (v) {
+        if (near(v, a2 + b)) return { label: 'Added instead of multiplied',
+          your: a2 + ' + ' + b + ' = ' + (a2 + b) + ' — that is one of each, not ' + b + ' rows of ' + a2,
+          right: '(' + (t * 10) + '×' + b + ') + (' + o + '×' + b + ') = ' + p };
+        if (near(v, p1)) return { label: 'Dropped the ones box',
+          your: p1 + ' is just the tens box (' + (t * 10) + '×' + b + ') — the ' + o + ' never got multiplied',
+          right: 'add the ones box: ' + p1 + ' + ' + p2 + ' = ' + p };
+        if (near(v, p2)) return { label: 'Dropped the tens box',
+          your: p2 + ' is just the ones box (' + o + '×' + b + ') — the ' + (t * 10) + ' never got multiplied',
+          right: 'add the tens box: ' + p1 + ' + ' + p2 + ' = ' + p };
+        if (near(v, t * b + p2)) return { label: 'Tens digit read as ones',
+          your: t + '×' + b + ' + ' + o + '×' + b + ' = ' + (t * b + p2) + ' — but the ' + t + ' sits in the tens seat, so it is worth ' + (t * 10),
+          right: (t * 10) + '×' + b + ' + ' + o + '×' + b + ' = ' + p };
+        if (near(v, p1 + o)) return { label: 'Ones walked in unmultiplied',
+          your: p1 + ' + ' + o + ' = ' + (p1 + o) + ' — the ' + o + ' skipped its turn with the × ' + b,
+          right: o + ' × ' + b + ' = ' + p2 + ', then ' + p1 + ' + ' + p2 + ' = ' + p };
+        if (near(v, p * 10) || Math.abs(v - p / 10) < 0.05) return { label: 'Magnitude slip',
+          your: S.fmtExact(v) + ' is the right digits at the wrong size — sanity-check it: ' + a2 + ' is about ' + ((t + 1) * 10) + ', and ' + ((t + 1) * 10) + ' × ' + b + ' = ' + ((t + 1) * 10 * b),
+          right: p1 + ' + ' + p2 + ' = ' + p };
+        return { label: 'Box slip',
+          your: S.fmtExact(v) + ' is not (tens × ' + b + ') + (ones × ' + b + ')',
+          right: p1 + ' + ' + p2 + ' = ' + p };
+      } };
+  }
+
+  function genPartialPick(hard) {
+    var t = hard ? 3 + rnd(7) : 1 + rnd(4);
+    var o = 1 + rnd(9);
+    var b = hard ? 6 + rnd(7) : 2 + rnd(5);
+    var a2 = t * 10 + o;
+    var right = (t * 10) + '×' + b + ' + ' + o + '×' + b;
+    var c1 = (t * 10) + '×' + b + ' + ' + o;
+    var c2 = a2 + ' + ' + b;
+    var c3 = t + '×' + b + ' + ' + o + '×' + b;
+    var choices = hard ? [right, c1, c2, c3] : [right, c1, c2];
+    return { type: 'mc', a: 0, choices: choices,
+      q: 'Which pair of boxes builds <span class="num">' + a2 + '</span> × <span class="num">' + b + '</span>?',
+      explain: a2 + ' splits at the seats into ' + (t * 10) + ' and ' + o + ' — each piece gets its own × ' + b +
+        ' box: (' + (t * 10) + '×' + b + ') + (' + o + '×' + b + ') = ' + (t * 10 * b) + ' + ' + (o * b) +
+        ' = <span class="num">' + (a2 * b) + '</span>.',
+      hint: 'Split ' + a2 + ' at the seats first. Then check each choice: does EVERY piece get multiplied by ' + b + '? Do the pieces still add back up to ' + a2 + '?',
+      steps: '1 · Split at the seats: ' + a2 + ' = ' + (t * 10) + ' + ' + o + '<br>' +
+        '2 · Both pieces get × ' + b + ': ' + (t * 10) + '×' + b + ' + ' + o + '×' + b + '<br>' +
+        '3 · = ' + (t * 10 * b) + ' + ' + (o * b) + ' = <span class="res">' + (a2 * b) + '</span>',
+      diagnose: function (chosen) {
+        if (chosen === 1) return { label: 'A piece walked in unmultiplied',
+          your: 'that choice adds a bare ' + o + ' — it totals ' + (t * 10 * b + o) + ', because the ' + o + ' never got its × ' + b + ' box',
+          right: o + '×' + b + ' = ' + (o * b) + ' → total ' + (a2 * b) };
+        if (chosen === 2) return { label: 'Addition shape, not multiplication',
+          your: a2 + ' + ' + b + ' = ' + (a2 + b) + ' — that is one of each, not ' + b + ' rows of ' + a2,
+          right: '(' + (t * 10) + '×' + b + ') + (' + o + '×' + b + ') = ' + (a2 * b) };
+        return { label: 'Tens digit read as ones',
+          your: t + '×' + b + ' treats the ' + t + ' as plain ' + t + ' — its seat makes it worth ' + (t * 10),
+          right: (t * 10) + '×' + b + ' + ' + o + '×' + b + ' = ' + (a2 * b) };
+      } };
+  }
+
+  function genHowManyFit(hard) {
+    var pl = hard ? 4 + rnd(9) : 2 + rnd(5);
+    var fit = hard ? 6 + rnd(10) : 4 + rnd(6);
+    var rem = hard ? 1 + rnd(pl - 1) : (Math.random() < 0.5 ? 0 : 1 + rnd(pl - 1));
+    var L = fit * pl + rem;
+    var list = [];
+    for (var k = 1; k <= fit; k++) list.push(pl * k);
+    return { type: 'num', a: fit, tol: 0.4,
+      q: 'A bar of stock is <span class="num">' + L + '</span> inches long. Each part needs <span class="num">' + pl + '</span> inches. How many whole parts fit?',
+      explain: '<span class="num">' + fit + '</span> parts × ' + pl + ' = ' + (fit * pl) + ' inches used' +
+        (rem ? ' — ' + rem + ' inch' + (rem > 1 ? 'es' : '') + ' of bar left over, not enough for another part.' : ' — the bar comes out exactly even.'),
+      hint: 'Count by ' + pl + ' up the bar and stop BEFORE you pass ' + L + '. A part you cannot finish does not count.',
+      steps: '1 · Count by ' + pl + ': ' + list.join(', ') +
+        (rem ? ' — the next step would be ' + ((fit + 1) * pl) + ', past the end' : ' — exactly the end of the bar') + '<br>' +
+        '2 · ' + fit + ' parts use ' + (fit * pl) + ' in' + (rem ? ' · ' + rem + ' in left over' : '') + '<br>' +
+        '3 · <span class="res">' + fit + '</span> whole parts',
+      diagnose: function (v) {
+        if (near(v, fit + 1)) return { label: rem ? 'Rounded up — you cannot ship part of a part' : 'One part too many',
+          your: 'part ' + (fit + 1) + ' would need ' + ((fit + 1) * pl) + ' inches — the bar only has ' + L +
+            (rem ? '. The ' + rem + ' leftover inch' + (rem > 1 ? 'es' : '') + ' cannot become a whole part' : ''),
+          right: fit + ' × ' + pl + ' = ' + (fit * pl) + ' fits → ' + fit + ' parts' };
+        if (near(v, fit - 1)) return { label: 'Stopped one part early',
+          your: 'after ' + (fit - 1) + ' parts, ' + (L - (fit - 1) * pl) + ' inches remain — still room for a whole ' + pl + '-inch part',
+          right: fit + ' × ' + pl + ' = ' + (fit * pl) + ' still fits inside ' + L + ' → ' + fit };
+        if (near(v, L - pl)) return { label: 'Subtracted the part once',
+          your: L + ' − ' + pl + ' = ' + (L - pl) + ' — that removes ONE part, but the question asks how many times ' + pl + ' fits',
+          right: 'count by ' + pl + ' up to ' + L + ' → ' + fit + ' parts' };
+        if (near(v, L * pl)) return { label: 'Multiplied instead of fitting',
+          your: L + ' × ' + pl + ' = ' + (L * pl) + ' — fitting is the reverse question: how many ' + pl + 's live inside ' + L + '?',
+          right: fit + ' parts (' + (fit * pl) + ' in used' + (rem ? ', ' + rem + ' in left' : '') + ')' };
+        return { label: 'Fit slip',
+          your: 'check it: ' + S.fmtExact(v) + ' × ' + pl + ' = ' + (Math.round(v * pl * 100) / 100) + ' — compare that to the ' + L + '-inch bar',
+          right: fit + ' × ' + pl + ' = ' + (fit * pl) + (rem ? ' with ' + rem + ' left over' : ' exactly') + ' → ' + fit };
+      } };
+  }
+
+  var GENS = { tableFact: genTableFact, tableMissing: genTableMissing, areaMultiply: genAreaMultiply,
+    partialPick: genPartialPick, howManyFit: genHowManyFit };
+  var HARD = false;
+  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 3'; return q; }
+
+  function makeSet(kinds, hard) {
+    HARD = !!hard;
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    HARD = false;
+    return S.shuffle(out);
+  }
+  function gameQs() {
+    return makeSet(['tableFact', 'tableFact', 'tableFact', 'tableMissing', 'tableMissing',
+      'areaMultiply', 'areaMultiply', 'partialPick', 'howManyFit', 'howManyFit'], false);
+  }
+  function bossQs() {
+    return makeSet(['tableFact', 'tableFact', 'tableFact', 'tableMissing', 'areaMultiply',
+      'areaMultiply', 'areaMultiply', 'partialPick', 'howManyFit', 'howManyFit'], true);
+  }
+
+  S.levelPage('l3', {
+    explainer: EXPLAINER,
+    playground: playground,
+    gameQs: gameQs,
+    bossQs: bossQs,
+  });
+})();
+</script>
+</body>
+</html>
