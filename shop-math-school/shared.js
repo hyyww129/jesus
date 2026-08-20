@@ -23,11 +23,11 @@
       desc: 'Division as sharing, then long division digit by digit — 3÷8 becomes 0.375 in front of you.' },
     { id: 'l5',  n: 5,  w: 1, title: 'Fractions', file: 'levels/l05-fractions.html', built: true,
       desc: 'What a fraction IS, equivalents, adding halves through sixteenths. Pie and ruler side by side.' },
-    { id: 'l6',  n: 6,  w: 1, title: 'Fractions ↔ Decimals', file: 'levels/l06-frac-decimals.html', built: false,
+    { id: 'l6',  n: 6,  w: 1, title: 'Fractions ↔ Decimals', file: 'levels/l06-frac-decimals.html', built: true,
       desc: 'Every 64th, with the machinist landmarks: .125, .250, .375, .500, .625, .750, .875.' },
-    { id: 'l7',  n: 7,  w: 1, title: 'Negative Numbers', file: 'levels/l07-negatives.html', built: false,
+    { id: 'l7',  n: 7,  w: 1, title: 'Negative Numbers', file: 'levels/l07-negatives.html', built: true,
       desc: 'The number line, why left/down is minus, adding signed numbers. Predict the crane.' },
-    { id: 'l8',  n: 8,  w: 1, title: 'Percents & Ratios', file: 'levels/l08-percents.html', built: false,
+    { id: 'l8',  n: 8,  w: 1, title: 'Percents & Ratios', file: 'levels/l08-percents.html', built: true,
       desc: 'Percent as per-hundred, finding 10% fast, scaling a feed by a ratio.' },
     { id: 'l9',  n: 9,  w: 2, title: 'Reading a Ruler', file: 'levels/l09-ruler.html', built: false,
       desc: 'Inches to 1/16 and 1/32 on a zoomable ruler. Find 2-5/16 against the clock.' },
@@ -809,6 +809,223 @@
         return { label: 'The wholes got lost in the recut',
           your: v + ' is not wholes × bottom + top',
           right: w + ' × ' + d3 + ' + ' + n3 + ' = ' + a3 };
+      } };
+  };
+
+  BANKS.l6 = function () {
+    var LMD = 0.0625;
+    function gcd2(a, b) { while (b) { var t = a % b; a = b; b = t; } return a; }
+    function fr(n, d) { var g = gcd2(n, d) || 1; return (n / g) + '/' + (d / g); }
+    function fd(v) { return fmtExact(v, 3); }
+    var kind = pick(['f2d', 'f2d', 'whichBigger', 'stack']);
+    if (kind === 'f2d') {
+      var n16 = pick([1, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14, 15]);
+      var a = n16 * LMD;
+      var fs = fr(n16, 16);
+      var parts = fs.split('/');
+      var n = parseInt(parts[0], 10), d = parseInt(parts[1], 10);
+      return { type: 'num', a: a, tol: 0.0005, from: 'Level 6',
+        q: 'What is <span class="num">' + fs + '</span> as a decimal?',
+        explain: fs + ' = ' + n + ' ÷ ' + d + ' = <span class="num">' + fd(a) + '</span>.',
+        hint: 'The bar means divide: do ' + n + ' ÷ ' + d + ' — or stack landmarks: every 16th is 0.0625, every 8th is 0.125.',
+        steps: '1 · ' + fs + ' means <span class="num">' + n + '</span> ÷ <span class="num">' + d + '</span><br>' +
+          '2 · = <span class="res">' + fd(a) + '</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - d / n) < 0.011 && Math.abs(d / n - a) > 0.02) return { label: 'Inverted the division',
+            your: d + ' ÷ ' + n + ' ≈ ' + fd(d / n) + ' is bigger than 1 — but ' + fs + ' is a piece of ONE inch',
+            right: 'top ÷ bottom: ' + n + ' ÷ ' + d + ' = ' + fd(a) };
+          if (Math.abs(v - a * 10) < 0.005 || Math.abs(v - a / 10) < 0.0006) return { label: 'Decimal slipped one seat',
+            your: fmtExact(v) + ' is the right digits with the point in the wrong seat',
+            right: fs + ' = ' + fd(a) };
+          return { label: 'Division slip',
+            your: fmtExact(v) + ' is not ' + n + ' ÷ ' + d,
+            right: fs + ' = ' + fd(a) };
+        } };
+    }
+    if (kind === 'whichBigger') {
+      var pairs = [[5, '0.3'], [6, '0.4'], [10, '0.6'], [12, '0.7'], [7, '0.45'], [9, '0.56'], [3, '0.19'], [11, '0.69']];
+      var p = pick(pairs);
+      var n2 = p[0], fs2 = fr(n2, 16), fv = n2 * LMD, dvs = p[1], dv = parseFloat(dvs);
+      var bigger = fv > dv ? 0 : 1;
+      var win = bigger === 0 ? fs2 : dvs;
+      return { type: 'mc', a: bigger, choices: [fs2, dvs], from: 'Level 6',
+        q: 'Which is larger: <span class="num">' + fs2 + '</span> or <span class="num">' + dvs + '</span>?',
+        explain: fs2 + ' = ' + fv.toFixed(4) + ' vs ' + dv.toFixed(4) + ' → <span class="num">' + win + '</span>.',
+        hint: 'Turn the fraction into its decimal first (top ÷ bottom), pad both to the same places, then compare seat by seat.',
+        steps: '1 · ' + fs2 + ' = <span class="num">' + fd(fv) + '</span><br>' +
+          '2 · Pad: ' + fv.toFixed(4) + ' vs ' + dv.toFixed(4) + '<br>' +
+          '3 · <span class="res">' + win + '</span> is larger',
+        diagnose: function () {
+          return { label: 'Compared the writing, not the value',
+            your: 'symbols side by side fool the eye until both speak decimal',
+            right: fv.toFixed(4) + ' vs ' + dv.toFixed(4) + ' → ' + win };
+        } };
+    }
+    var units = [['1/2', 0.5, 2], ['1/4', 0.25, 4], ['1/8', 0.125, 8], ['1/16', 0.0625, 16]];
+    var idx = shuffle([0, 1, 2, 3]).slice(0, 2).sort();
+    var t1 = units[idx[0]], t2 = units[idx[1]];
+    var a3 = t1[1] + t2[1];
+    var tb = 2 / (t1[2] + t2[2]);
+    return { type: 'num', a: a3, tol: 0.0005, from: 'Level 6',
+      q: 'Stack the landmarks: <span class="num">' + t1[0] + '</span> + <span class="num">' + t2[0] + '</span> = ? (answer as a decimal)',
+      explain: t1[0] + ' + ' + t2[0] + ' = ' + fd(t1[1]) + ' + ' + fd(t2[1]) + ' = <span class="num">' + fd(a3) + '</span>.',
+      hint: 'Turn each landmark into its decimal first (1/2 = .500, 1/4 = .250, 1/8 = .125, 1/16 = .0625), then add the decimals.',
+      steps: '1 · ' + t1[0] + ' = ' + fd(t1[1]) + ' · ' + t2[0] + ' = ' + fd(t2[1]) + '<br>' +
+        '2 · Add: <span class="res">' + fd(a3) + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - tb) < 0.006) return { label: 'Added tops and bottoms',
+          your: '2/' + (t1[2] + t2[2]) + ' ≈ ' + fmtExact(Math.round(tb * 1000) / 1000) + ' — different-sized pieces don\'t add by counts',
+          right: fd(t1[1]) + ' + ' + fd(t2[1]) + ' = ' + fd(a3) };
+        if (Math.abs(v - a3 * 10) < 0.005 || Math.abs(v - a3 / 10) < 0.0006) return { label: 'Decimal slipped one seat',
+          your: fmtExact(v) + ' has the point in the wrong seat',
+          right: fd(a3) };
+        return { label: 'Stack slip',
+          your: fmtExact(v) + ' is not the sum of those two landmark decimals',
+          right: fd(t1[1]) + ' + ' + fd(t2[1]) + ' = ' + fd(a3) };
+      } };
+  };
+  BANKS.l7 = function () {
+    function rnd(n) { return Math.floor(Math.random() * n); }
+    function ri(lo, hi) { return lo + rnd(hi - lo + 1); }
+    function nf(v) { return fmtExact(v).replace('-', '−'); }
+    function sg(v) { return (v < 0 ? '−' : '+') + fmtExact(Math.abs(v)); }
+    var kind = pick(['slide', 'slide', 'subNeg', 'compare']);
+    if (kind === 'slide') {
+      var s = 0, m = 0, t;
+      for (t = 0; t < 50; t++) {
+        s = ri(-8, 8); m = ri(-9, 9);
+        if (m !== 0 && Math.abs(s + m) <= 10) break;
+      }
+      var a = s + m;
+      return { type: 'num', a: a, tol: 0.4, from: 'Level 7',
+        q: 'The hook sits at <span class="num">' + nf(s) + '</span>. The crane moves <span class="num">' + sg(m) +
+          '</span>. Where does the hook land?',
+        explain: 'A ' + (m < 0 ? 'minus' : 'plus') + ' move slides ' + (m < 0 ? 'DOWN' : 'UP') + ' ' + Math.abs(m) +
+          ': ' + nf(s) + (m < 0 ? ' − ' : ' + ') + Math.abs(m) + ' = <span class="num">' + nf(a) + '</span>.',
+        hint: 'The sign on the move is a direction: plus slides UP the line, minus slides DOWN. Zero is just another stop on the way, not a wall.',
+        steps: '1 · Start at <span class="num">' + nf(s) + '</span><br>' +
+          '2 · Slide ' + (m < 0 ? 'DOWN' : 'UP') + ' <span class="num">' + Math.abs(m) + '</span><br>' +
+          '3 · Land: <span class="res">' + nf(a) + '</span>',
+        diagnose: function (v) {
+          if (a !== 0 && Math.abs(v + a) <= 0.4) return { label: 'Dropped the sign',
+            your: 'right distance from zero, wrong side of it',
+            right: 'the slide ends ' + (a < 0 ? 'BELOW' : 'ABOVE') + ' zero: ' + nf(a) };
+          if (Math.abs(v - (s - m)) <= 0.4 && s - m !== a) return { label: 'Moved the wrong way',
+            your: nf(v) + ' is start MINUS move — the sign said go ' + (m < 0 ? 'down' : 'up'),
+            right: nf(s) + (m < 0 ? ' − ' : ' + ') + Math.abs(m) + ' = ' + nf(a) };
+          return { label: 'Lost on the line',
+            your: nf(v) + ' is not where the slide ends',
+            right: nf(s) + (m < 0 ? ' − ' : ' + ') + Math.abs(m) + ' = ' + nf(a) };
+        } };
+    }
+    if (kind === 'subNeg') {
+      var s2 = ri(1, 9), b = ri(1, 9);
+      var a2 = s2 + b;
+      return { type: 'num', a: a2, tol: 0.4, from: 'Level 7',
+        q: '<span class="num">' + s2 + '</span> − (<span class="num">−' + b + '</span>) = ?',
+        explain: 'Subtracting a negative removes a debt — you end up UP: ' + s2 + ' + ' + b +
+          ' = <span class="num">' + a2 + '</span>.',
+        hint: 'Minus a minus flips the direction twice. Taking a debt AWAY leaves you better off — this move goes UP the line.',
+        steps: '1 · The thing subtracted is <span class="num">−' + b + '</span> — on its own, a slide DOWN<br>' +
+          '2 · SUBTRACTING it flips it: go UP ' + b + '<br>' +
+          '3 · ' + s2 + ' + ' + b + ' = <span class="res">' + a2 + '</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - (s2 - b)) <= 0.4) return { label: 'Subtracted straight through the minus',
+            your: s2 + ' − ' + b + ' = ' + (s2 - b) + ' — but the thing being removed is NEGATIVE ' + b,
+            right: 'minus a minus goes UP: ' + s2 + ' + ' + b + ' = ' + a2 };
+          return { label: 'The flip got lost',
+            your: fmtExact(v) + ' is not ' + s2 + ' with a −' + b + ' removed',
+            right: 'subtracting a negative ADDS: ' + s2 + ' + ' + b + ' = ' + a2 };
+        } };
+    }
+    var pairs = [[-7, -2], [-9, -4], [-1, -8], [2, -7], [-3, -5], [0, -6], [-2, -10], [1, -9]];
+    var p = pick(pairs);
+    var win = p[0] > p[1] ? 0 : 1;
+    var wv = p[win], lv = p[1 - win];
+    return { type: 'mc', a: win, choices: [nf(p[0]), nf(p[1])], from: 'Level 7',
+      q: 'Which is the <b>larger</b> number — the one further UP the line?',
+      explain: nf(wv) + ' sits ABOVE ' + nf(lv) + ' on the line — further below zero is always smaller.',
+      hint: 'Put both on the line. Larger means further UP, closer to the plus side. Compare positions, not digit sizes.',
+      steps: '1 · <span class="num">' + nf(wv) + '</span> sits higher than <span class="num">' + nf(lv) + '</span><br>' +
+        '2 · Higher = larger → <span class="res">' + nf(wv) + '</span>',
+      diagnose: function () {
+        return { label: 'Magnitude trap',
+          your: nf(lv) + ' LOOKS bigger because its digits are — but every one of those steps goes downward',
+          right: 'position beats size: ' + nf(wv) + ' is larger' };
+      } };
+  };
+  BANKS.l8 = function () {
+    function r2(v) { return Math.round(v * 100) / 100; }
+    function nf(v) { return fmtExact(v); }
+    var kind = pick(['pctOf', 'pctOf', 'pct2dec', 'ratioScale']);
+    if (kind === 'pctOf') {
+      var pct = pick([10, 20, 25, 50, 75, 5, 15]);
+      var base = pick([20, 30, 40, 60, 80, 120, 200]);
+      var a = r2(base * pct / 100);
+      var dec = pct / 100;
+      return { type: 'num', a: a, tol: 0.005, from: 'Level 8',
+        q: 'What is <span class="num">' + pct + '%</span> of <span class="num">' + base + '</span>?',
+        explain: pct + '% = ' + nf(dec) + ', and "of" means multiply: ' + nf(dec) + ' × ' + base +
+          ' = <span class="num">' + nf(a) + '</span>.',
+        hint: 'Slide the percent two seats left to make it a plain number, then multiply. Or the shortcut: 10% of ' +
+          base + ' is ' + nf(base / 10) + ' — build from there.',
+        steps: '1 · ' + pct + '% = <span class="num">' + nf(dec) + '</span> (two seats left)<br>' +
+          '2 · ' + nf(dec) + ' × ' + base + ' = <span class="res">' + nf(a) + '</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - base * pct) < Math.max(0.5, base * pct * 0.001)) return { label: 'The percent went in raw',
+            your: pct + ' × ' + base + ' = ' + nf(base * pct) + ' — the two-seat slide never happened',
+            right: pct + '% = ' + nf(dec) + ' → ' + nf(a) };
+          if (Math.abs(v - a * 10) < 0.05) return { label: 'Slid one seat, not two',
+            your: 'per-CENT is per hundred — one slide only divides by ten',
+            right: nf(dec) + ' × ' + base + ' = ' + nf(a) };
+          return { label: 'Percent slip',
+            your: nf(v) + ' is not ' + pct + ' hundredths of ' + base,
+            right: nf(dec) + ' × ' + base + ' = ' + nf(a) };
+        } };
+    }
+    if (kind === 'pct2dec') {
+      var p2 = pick([25, 50, 7, 45, 90, 5, 150, 12.5]);
+      var a2 = r2(p2 / 100);
+      return { type: 'num', a: a2, tol: 0.0005, from: 'Level 8',
+        q: 'Write <span class="num">' + nf(p2) + '%</span> as a plain number (a decimal).',
+        explain: nf(p2) + '% = ' + nf(p2) + ' ÷ 100 = <span class="num">' + nf(a2) + '</span>.',
+        hint: 'Percent means ÷ 100 — slide the point two seats LEFT. Percents under 10 need a leading zero (7% → 0.07).',
+        steps: '1 · ' + nf(p2) + '% = ' + nf(p2) + ' per hundred<br>' +
+          '2 · Two seats left: <span class="res">' + nf(a2) + '</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - p2 / 10) < 0.0005) return { label: 'Slid one seat, not two',
+            your: nf(p2 / 10) + ' only divides by ten — percent divides by a hundred',
+            right: nf(p2) + ' ÷ 100 = ' + nf(a2) };
+          if (Math.abs(v - p2) < 0.0005) return { label: 'No slide at all',
+            your: nf(p2) + ' is still wearing its % sign',
+            right: nf(p2) + '% = ' + nf(a2) };
+          return { label: 'Slide slip',
+            your: nf(v) + ' is not ' + nf(p2) + ' ÷ 100',
+            right: nf(a2) };
+        } };
+    }
+    var ratios = [[3, 2], [2, 1], [4, 3], [5, 2], [3, 1]];
+    var r = pick(ratios);
+    var sc = pick([2, 3, 4, 5]);
+    var A = r[0] * sc, B = r[1] * sc;
+    return { type: 'num', a: B, tol: 0.005, from: 'Level 8',
+      q: 'A <span class="num">' + r[0] + ' : ' + r[1] + '</span> mix gets scaled up until the left side is ' +
+        '<span class="num">' + A + '</span>. What does the right side become?',
+      explain: 'The multiplier is ' + A + ' ÷ ' + r[0] + ' = ' + sc + '. Both sides ride it: ' + r[1] + ' × ' + sc +
+        ' = <span class="num">' + B + '</span>.',
+      hint: 'Find the multiplier first: what × ' + r[0] + ' = ' + A + '? The right side takes the exact same ride.',
+      steps: '1 · multiplier = ' + A + ' ÷ ' + r[0] + ' = <span class="num">' + sc + '</span><br>' +
+        '2 · ' + r[1] + ' × ' + sc + ' = <span class="res">' + B + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - r[1]) < 0.005) return { label: 'Scaled only one side',
+          your: 'the right side stayed ' + r[1] + ' while the left grew — a different recipe now',
+          right: 'both sides × ' + sc + ': ' + r[1] + ' × ' + sc + ' = ' + B };
+        if (Math.abs(v - A) < 0.005 && A !== B) return { label: 'Copied the left side',
+          your: A + ' : ' + A + ' is a 1:1 mix — the recipe was ' + r[0] + ':' + r[1],
+          right: r[1] + ' × ' + sc + ' = ' + B };
+        return { label: 'Recipe slip',
+          your: nf(v) + ' breaks the ' + r[0] + ':' + r[1] + ' proportion',
+          right: r[1] + ' × ' + sc + ' = ' + B };
       } };
   };
 

@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level 8 · Percents &amp; Ratios</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+.pctbar-wrap { border: 1.5px solid var(--line); border-radius: 6px; background: #fff; padding: 12px; }
+.dotrow { display: flex; gap: 4px; flex-wrap: wrap; align-items: center; min-height: 26px; }
+.dotrow i { width: 16px; height: 16px; border-radius: 50%; display: inline-block; }
+.dotrow.a i { background: var(--blue); }
+.dotrow.b i { background: var(--orange); }
+.dotlbl { font-family: var(--mono); font-size: 11px; color: var(--soft); margin: 6px 0 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← SKILL TREE</a>
+    <div class="eyebrow">Level 08 · World 1 · Shop Math School</div>
+    <h1>Percents <span class="b">&amp; Ratios</span></h1>
+    <p class="sub">Percent means "per hundred" — that's the entire word. Learn the two-seat slide and
+      the 10% shortcut, and every override dial and coolant mix in the shop reads itself.</p>
+  </header>
+  <div id="sms-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function r2(v) { return Math.round(v * 100) / 100; }
+  function nf(v) { return S.fmtExact(v); }
+  function nsp(s) { return '<span class="num">' + s + '</span>'; }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p><span class="term">Percent = per hundred.</span> 25% means "25 out of every 100". ' +
+  'As a number, that\'s 25 ÷ 100 — and dividing by 100 is Level 1 work: ' +
+  '<b>slide the decimal point two seats left</b>. 25% = <b>0.25</b>. 7% = 0.07. 150% = 1.50. ' +
+  'That one slide is the whole conversion.</p>' +
+  '<p><span class="term">"Of" means multiply.</span> 25% <b>of</b> 80 = 0.25 × 80 = <b>20</b>. ' +
+  'Convert, then multiply — two moves, every time.</p>' +
+  '<p>Now the fast lane: <span class="term">the 10% shortcut</span>. 10% is one seat\'s slide, so ' +
+  '10% of anything is instant: 10% of 62 is 6.2. From there you build the rest with halves and doubles. ' +
+  'Work one all the way — <b>15% of 60</b>, both roads:</p>' +
+  '<div class="worked">SHORTCUT: 10% of 60 = <span class="num">6</span> · half of that is 5% = <span class="num">3</span>' +
+  ' · 15% = 6 + 3 = <span class="res">9</span><br>' +
+  'STRAIGHT: 15% = 0.15 · 0.15 × 60 = <span class="res">9</span> — same place, both roads</div>' +
+  '<table class="ref"><tr><th>you want</th><th>the shortcut</th></tr>' +
+  '<tr><td>10%</td><td>slide one seat</td></tr>' +
+  '<tr><td>5%</td><td>half of 10%</td></tr>' +
+  '<tr><td>20%</td><td>double 10%</td></tr>' +
+  '<tr><td>1%</td><td>slide two seats</td></tr>' +
+  '<tr><td>15%</td><td>10% + 5%</td></tr></table>' +
+  '<p style="margin-top:10px"><span class="term">Ratios are recipes.</span> A 3:2 coolant mix means ' +
+  '"3 parts water for every 2 parts concentrate" — it\'s a shape, not a size. To make MORE of the same ' +
+  'recipe, multiply <b>both</b> sides by the same number: 3:2 scaled ×4 is <b>12:8</b>. Scale only one ' +
+  'side and it\'s a different recipe — too rich or too thin.</p>' +
+  '<p>Where you\'ll meet all this on the mill: the <span class="term">feed override</span> dial. Running at ' +
+  '80% override with the program calling 11.5 IPM? 0.80 × 11.5 = <b>9.2 IPM</b> actually reaches the table. ' +
+  'Now open the <b>Playground</b> and drag the percent around.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — a percent you can drag</h2><div class="body">' +
+      '<div class="btnrow" id="modeRow" style="margin-bottom:10px">' +
+      '<button data-mode="pct" class="on">PERCENT BAR</button>' +
+      '<button data-mode="ratio">RATIO RECIPE</button></div>' +
+      '<div id="pctPane">' +
+      '<div class="slider-row"><span class="name">AMOUNT</span>' +
+      '<input type="range" id="baseSlide" min="10" max="200" step="5" value="60" aria-label="the base amount">' +
+      '<span class="out" id="baseOut"></span></div>' +
+      '<div class="slider-row"><span class="name">PERCENT</span>' +
+      '<input type="range" id="pctSlide" min="0" max="150" step="5" value="25" aria-label="the percent">' +
+      '<span class="out" id="pctOut"></span></div>' +
+      '<div class="pctbar-wrap"><svg id="barView" width="100%" height="64" viewBox="0 0 600 64" preserveAspectRatio="none" role="img" aria-label="percent bar"></svg></div>' +
+      '<p class="hint">Slide past 100% and watch the bar overflow — more than the whole thing is a real ' +
+      'setting (a 120% override runs FASTER than programmed).</p></div>' +
+      '<div id="ratioPane" style="display:none">' +
+      '<div class="slider-row"><span class="name">RECIPE A : B</span>' +
+      '<input type="range" id="raSlide" min="1" max="6" step="1" value="3" aria-label="ratio left side">' +
+      '<span class="out" id="raOut"></span></div>' +
+      '<div class="slider-row"><span class="name">&nbsp;</span>' +
+      '<input type="range" id="rbSlide" min="1" max="6" step="1" value="2" aria-label="ratio right side">' +
+      '<span class="out" id="rbOut"></span></div>' +
+      '<div class="slider-row"><span class="name">SCALE ×</span>' +
+      '<input type="range" id="scSlide" min="1" max="6" step="1" value="4" aria-label="scale factor">' +
+      '<span class="out" id="scOut"></span></div>' +
+      '<div class="pctbar-wrap"><div class="dotlbl" id="dlA"></div><div class="dotrow a" id="drA"></div>' +
+      '<div class="dotlbl" id="dlB"></div><div class="dotrow b" id="drB"></div></div>' +
+      '<p class="hint">Both sides ride the same multiplier — that\'s what keeps the recipe the same ' +
+      'recipe, just bigger.</p></div>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var mode = 'pct', base = 60, pct = 25, ra = 3, rb = 2, sc = 4;
+    var eqBody = card.querySelector('#eqBody');
+    var droCtl = S.dro(card.querySelector('#droBox'), 'OUT');
+
+    function drawBar() {
+      var svg = card.querySelector('#barView');
+      var full = 400;                                  /* 100% width in viewBox units */
+      var w = Math.min(full * pct / 100, full);
+      var over = Math.max(0, full * pct / 100 - full);
+      var s = '<rect x="10" y="18" width="' + full + '" height="28" style="fill:var(--paper);stroke:var(--ink);stroke-width:1.5"/>';
+      if (w > 0) s += '<rect x="10" y="18" width="' + w + '" height="28" style="fill:var(--blue)"/>';
+      if (over > 0) s += '<rect x="' + (10 + full) + '" y="18" width="' + Math.min(over, 180) + '" height="28" style="fill:var(--orange)"/>';
+      s += '<line x1="' + (10 + full) + '" y1="10" x2="' + (10 + full) + '" y2="54" style="stroke:var(--ink);stroke-width:1.5" stroke-dasharray="4 3"/>';
+      s += '<text x="' + (10 + full) + '" y="9" text-anchor="middle" style="font-family:var(--mono);font-size:10px;fill:var(--soft)">100% = ' + base + '</text>';
+      s += '<text x="12" y="60" style="font-family:var(--mono);font-size:10px;fill:var(--soft)">0</text>';
+      svg.innerHTML = s;
+    }
+    function dots(el, n) {
+      var h = '';
+      for (var k = 0; k < n; k++) h += '<i></i>';
+      el.innerHTML = h;
+    }
+    function update() {
+      card.querySelector('#pctPane').style.display = mode === 'pct' ? '' : 'none';
+      card.querySelector('#ratioPane').style.display = mode === 'ratio' ? '' : 'none';
+      card.querySelectorAll('#modeRow button').forEach(function (b) {
+        b.classList.toggle('on', b.getAttribute('data-mode') === mode);
+      });
+      if (mode === 'pct') {
+        var dec = pct / 100, out = r2(base * dec);
+        var ten = r2(base / 10);
+        card.querySelector('#baseOut').textContent = String(base);
+        card.querySelector('#pctOut').textContent = pct + '%';
+        eqBody.innerHTML =
+          nsp(pct + '%') + ' = ' + pct + ' ÷ 100 = ' + nsp(nf(dec)) + ' <span class="dim">(two seats left)</span><br>' +
+          nsp(nf(dec)) + ' × ' + nsp(String(base)) + ' = <span class="res">' + nf(out) + '</span><br>' +
+          '<span class="dim">shortcut: 10% is ' + nf(ten) + ' → ' + pct + '% = ' + nf(ten) + ' × ' + nf(pct / 10) +
+          ' = ' + nf(out) + '</span>';
+        droCtl.set(nf(out),
+          (pct > 100 ? '<b>More than the whole thing</b> — ' + pct + '% overshoots 100% by ' + (pct - 100) + '%. '
+                     : pct === 100 ? '<b>The whole thing exactly.</b> ' : '') +
+          nf(out) + ' is ' + pct + ' hundredths of ' + base + ' — ' + S.placeWords(out) + '.');
+        drawBar();
+      } else {
+        var A = ra * sc, B = rb * sc;
+        card.querySelector('#raOut').textContent = ra + ' : ' + rb;
+        card.querySelector('#rbOut').textContent = '';
+        card.querySelector('#scOut').textContent = '× ' + sc;
+        card.querySelector('#dlA').textContent = 'A: ' + ra + ' × ' + sc + ' = ' + A;
+        card.querySelector('#dlB').textContent = 'B: ' + rb + ' × ' + sc + ' = ' + B;
+        dots(card.querySelector('#drA'), A);
+        dots(card.querySelector('#drB'), B);
+        eqBody.innerHTML =
+          'recipe ' + nsp(ra + ' : ' + rb) + ' scaled ' + nsp('× ' + sc) + '<br>' +
+          'BOTH sides ride the multiplier:<br>' +
+          ra + ' × ' + sc + ' = ' + nsp(String(A)) + ' &nbsp;·&nbsp; ' + rb + ' × ' + sc + ' = ' + nsp(String(B)) +
+          '<br>= <span class="res">' + A + ' : ' + B + '</span> <span class="dim">— same recipe, ' + sc + '× the batch</span>';
+        droCtl.set(A + ':' + B,
+          'Still ' + ra + ' for every ' + rb + ' — ' + A + ' and ' + B + ' sit in the same proportion, just ' +
+          S.intWords(sc) + ' times as much of each.');
+      }
+    }
+    card.querySelectorAll('#modeRow button').forEach(function (b) {
+      b.addEventListener('click', function () { mode = b.getAttribute('data-mode'); update(); });
+    });
+    card.querySelector('#baseSlide').addEventListener('input', function () { base = Number(this.value); update(); });
+    card.querySelector('#pctSlide').addEventListener('input', function () { pct = Number(this.value); update(); });
+    card.querySelector('#raSlide').addEventListener('input', function () { ra = Number(this.value); update(); });
+    card.querySelector('#rbSlide').addEventListener('input', function () { rb = Number(this.value); update(); });
+    card.querySelector('#scSlide').addEventListener('input', function () { sc = Number(this.value); update(); });
+
+    update();
+    window.__l8 = {
+      set: function (o) {
+        o = o || {};
+        if (o.mode) mode = o.mode;
+        if (typeof o.base === 'number') { base = o.base; card.querySelector('#baseSlide').value = o.base; }
+        if (typeof o.pct === 'number') { pct = o.pct; card.querySelector('#pctSlide').value = o.pct; }
+        if (typeof o.ra === 'number') { ra = o.ra; card.querySelector('#raSlide').value = o.ra; }
+        if (typeof o.rb === 'number') { rb = o.rb; card.querySelector('#rbSlide').value = o.rb; }
+        if (typeof o.sc === 'number') { sc = o.sc; card.querySelector('#scSlide').value = o.sc; }
+        update();
+      },
+      info: function () { return { mode: mode, base: base, pct: pct, out: r2(base * pct / 100), ra: ra, rb: rb, sc: sc }; }
+    };
+  }
+
+  /* ============ question generators (game + boss) ============ */
+  var BASES = [20, 30, 40, 50, 60, 80, 90, 120, 150, 200];
+
+  function genPctOf(hard) {
+    var base, pct, a;
+    if (hard) {
+      var picks = [[15, 60], [15, 80], [35, 40], [15, 40], [35, 20], [65, 20], [15, 120], [45, 40], [7.5, 40], [12.5, 80]];
+      var p = S.pick(picks);
+      pct = p[0]; base = p[1];
+    } else {
+      pct = S.pick([10, 20, 25, 50, 75, 5]);
+      base = S.pick(BASES);
+    }
+    a = r2(base * pct / 100);
+    var dec = pct / 100;
+    var raw = base * pct;
+    return { type: 'num', a: a, tol: 0.005,
+      q: 'What is ' + nsp(nf(pct) + '%') + ' of ' + nsp(String(base)) + '?',
+      explain: nf(pct) + '% = ' + nf(dec) + ', and "of" means multiply: ' + nf(dec) + ' × ' + base +
+        ' = <span class="num">' + nf(a) + '</span>.',
+      hint: 'Two moves: slide the percent two seats left to make it a plain number (' + nf(pct) +
+        '% → ' + nf(dec) + '), then multiply by the ' + base + '. Or take the 10% shortcut: 10% of ' +
+        base + ' is ' + nf(base / 10) + ' — build from there.',
+      steps: '1 · ' + nf(pct) + '% = ' + nf(pct) + ' ÷ 100 = <span class="num">' + nf(dec) + '</span><br>' +
+        '2 · "of" = × : ' + nf(dec) + ' × <span class="num">' + base + '</span><br>' +
+        '3 · = <span class="res">' + nf(a) + '</span>' +
+        '<br>4 · Shortcut check: 10% is ' + nf(base / 10) + ' → × ' + nf(pct / 10) + ' = ' + nf(a) + ' ✓',
+      diagnose: function (v) {
+        if (Math.abs(v - raw) < Math.max(0.5, raw * 0.001)) return { label: 'The percent went in raw',
+          your: nf(pct) + ' × ' + base + ' = ' + nf(raw) + ' — the two-seat slide never happened, so the answer is 100× too big',
+          right: nf(pct) + '% = ' + nf(dec) + ' → ' + nf(dec) + ' × ' + base + ' = ' + nf(a) };
+        if (Math.abs(v - a * 10) < 0.05) return { label: 'Slid one seat, not two',
+          your: 'per-CENT is per hundred — one slide only divides by ten, landing on ' + nf(a * 10),
+          right: 'two seats: ' + nf(pct) + '% = ' + nf(dec) + ' → ' + nf(a) };
+        if (Math.abs(v - a / 10) < 0.05 && a / 10 !== a) return { label: 'Slid three seats',
+          your: nf(v) + ' divided by a thousand — percent only asks for two seats',
+          right: nf(dec) + ' × ' + base + ' = ' + nf(a) };
+        if (Math.abs(v - (base - a)) < 0.05 && Math.abs(base - a - a) > 0.1) return { label: 'Found what\'s LEFT, not the part',
+          your: nf(base - a) + ' is the other ' + nf(100 - pct) + '% — the question asked for the ' + nf(pct) + '% piece itself',
+          right: nf(dec) + ' × ' + base + ' = ' + nf(a) };
+        return { label: 'Percent slip',
+          your: nf(v) + ' is not ' + nf(pct) + ' hundredths of ' + base,
+          right: nf(dec) + ' × ' + base + ' = ' + nf(a) };
+      } };
+  }
+
+  function genTenShortcut(hard) {
+    var base = hard ? S.pick([46, 62, 84, 12.5, 37, 55, 230, 11.5]) : S.pick(BASES);
+    var pct = hard ? S.pick([5, 20, 1, 15, 30]) : S.pick([10, 5, 20, 1]);
+    var a = r2(base * pct / 100);
+    var ten = r2(base / 10);
+    var road = pct === 10 ? '10% = one slide: <span class="res">' + nf(a) + '</span>'
+      : pct === 5 ? '10% is ' + nf(ten) + ' → half it: <span class="res">' + nf(a) + '</span>'
+      : pct === 20 ? '10% is ' + nf(ten) + ' → double it: <span class="res">' + nf(a) + '</span>'
+      : pct === 1 ? '1% = two slides: <span class="res">' + nf(a) + '</span>'
+      : pct === 15 ? '10% is ' + nf(ten) + ' + half of that ' + nf(r2(ten / 2)) + ' = <span class="res">' + nf(a) + '</span>'
+      : '10% is ' + nf(ten) + ' → × 3: <span class="res">' + nf(a) + '</span>';
+    return { type: 'num', a: a, tol: 0.005,
+      q: 'Quick — no long multiplying: ' + nsp(pct + '%') + ' of ' + nsp(nf(base)) + '?',
+      explain: 'Shortcut road: ' + road,
+      hint: 'Start from 10% — just slide ' + nf(base) + ' one seat to ' + nf(ten) + '. Then: 5% is half of that, ' +
+        '20% is double, 1% is another slide, 15% is 10% plus its half.',
+      steps: '1 · 10% of ' + nf(base) + ' = <span class="num">' + nf(ten) + '</span> (one seat left)<br>' +
+        '2 · ' + road,
+      diagnose: function (v) {
+        if (pct === 5 && Math.abs(v - ten * 2) < 0.02) return { label: 'Doubled instead of halved',
+          your: nf(ten * 2) + ' is 20% — five percent is HALF of ten, not double',
+          right: nf(ten) + ' ÷ 2 = ' + nf(a) };
+        if (pct === 20 && Math.abs(v - ten / 2) < 0.02) return { label: 'Halved instead of doubled',
+          your: nf(ten / 2) + ' is 5% — twenty percent DOUBLES the 10%',
+          right: nf(ten) + ' × 2 = ' + nf(a) };
+        if (Math.abs(v - a * 10) < 0.05 || (a / 10 > 0.001 && Math.abs(v - a / 10) < 0.02)) return { label: 'Seat slip',
+          your: nf(v) + ' is a slide too few or too many',
+          right: '10% of ' + nf(base) + ' = ' + nf(ten) + ' → ' + pct + '% = ' + nf(a) };
+        return { label: 'Shortcut slip',
+          your: nf(v) + ' is not built from the 10% of ' + nf(ten),
+          right: road.replace(/<[^>]*>/g, '') };
+      } };
+  }
+
+  function genPct2Dec(hard) {
+    var pct = hard ? S.pick([7.5, 2.5, 110, 0.5, 12.5, 175]) : S.pick([25, 50, 7, 45, 90, 5, 100, 150]);
+    var a = r2(pct / 100);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'Write ' + nsp(nf(pct) + '%') + ' as a plain number (a decimal).',
+      explain: nf(pct) + '% = ' + nf(pct) + ' ÷ 100 = <span class="num">' + nf(a) + '</span>' +
+        (pct > 100 ? ' — more than 1, because it\'s more than the whole thing.' : '.'),
+      hint: 'Percent means ÷ 100, and dividing by 100 slides the point two seats LEFT. Watch for percents under 10 — they need a leading zero (7% → 0.07).',
+      steps: '1 · ' + nf(pct) + '% means ' + nf(pct) + ' per hundred = ' + nf(pct) + ' ÷ 100<br>' +
+        '2 · Slide two seats left: <span class="res">' + nf(a) + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - pct / 10) < 0.0005) return { label: 'Slid one seat, not two',
+          your: nf(pct / 10) + ' is ' + nf(pct) + ' ÷ 10 — percent divides by a HUNDRED',
+          right: nf(pct) + ' ÷ 100 = ' + nf(a) };
+        if (Math.abs(v - pct) < 0.0005) return { label: 'No slide at all',
+          your: nf(pct) + ' is the percent still wearing its % sign — as a plain number it must shrink 100×',
+          right: nf(pct) + '% = ' + nf(a) };
+        if (Math.abs(v - pct / 1000) < 0.0005) return { label: 'Slid three seats',
+          your: nf(pct / 1000) + ' went one seat too far',
+          right: nf(pct) + ' ÷ 100 = ' + nf(a) };
+        return { label: 'Slide slip',
+          your: nf(v) + ' is not ' + nf(pct) + ' ÷ 100',
+          right: nf(a) };
+      } };
+  }
+
+  function genRatioScale(hard) {
+    var ratios = [[3, 2], [2, 1], [4, 3], [5, 2], [3, 1], [5, 3]];
+    var r = S.pick(ratios);
+    var sc = hard ? S.pick([2.5, 3.5, 6, 7, 1.5]) : S.pick([2, 3, 4, 5]);
+    var A = r2(r[0] * sc), B = r2(r[1] * sc);
+    return { type: 'num', a: B, tol: 0.005,
+      q: 'A ' + nsp(r[0] + ' : ' + r[1]) + ' mix gets scaled up until the left side is ' + nsp(nf(A)) +
+        '. What does the right side become?',
+      explain: 'The left went ' + r[0] + ' → ' + nf(A) + ', so the multiplier is ' + nf(sc) +
+        '. BOTH sides ride it: ' + r[1] + ' × ' + nf(sc) + ' = <span class="num">' + nf(B) + '</span>.',
+      hint: 'Find the multiplier first: what × ' + r[0] + ' = ' + nf(A) + '? Then the right side takes the exact same ride. Same recipe = same multiplier on both sides.',
+      steps: '1 · multiplier = ' + nf(A) + ' ÷ ' + r[0] + ' = <span class="num">' + nf(sc) + '</span><br>' +
+        '2 · right side takes the same ride: ' + r[1] + ' × ' + nf(sc) + '<br>' +
+        '3 · = <span class="res">' + nf(B) + '</span> → the mix is ' + nf(A) + ' : ' + nf(B),
+      diagnose: function (v) {
+        if (Math.abs(v - r[1]) < 0.005) return { label: 'Scaled only one side',
+          your: 'the right side stayed ' + r[1] + ' while the left grew — that\'s a different recipe now, way too strong on the left',
+          right: 'both sides × ' + nf(sc) + ': ' + r[1] + ' × ' + nf(sc) + ' = ' + nf(B) };
+        if (Math.abs(v - (A - (r[0] - r[1]))) < 0.005 && Math.abs((A - (r[0] - r[1])) - B) > 0.01) return { label: 'Added instead of multiplied',
+          your: 'you kept the DIFFERENCE (' + (r[0] - r[1]) + ' apart) — recipes scale by multiplying, not by keeping gaps',
+          right: r[1] + ' × ' + nf(sc) + ' = ' + nf(B) };
+        if (Math.abs(v - A) < 0.005 && Math.abs(A - B) > 0.01) return { label: 'Copied the left side',
+          your: nf(A) + ' : ' + nf(A) + ' is a 1:1 mix — the recipe was ' + r[0] + ':' + r[1],
+          right: r[1] + ' × ' + nf(sc) + ' = ' + nf(B) };
+        return { label: 'Recipe slip',
+          your: nf(v) + ' breaks the ' + r[0] + ':' + r[1] + ' proportion',
+          right: 'multiplier ' + nf(sc) + ' on both sides → ' + nf(B) };
+      } };
+  }
+
+  function genWhatPct(hard) {
+    var picks = hard
+      ? [[9, 60], [21, 60], [14, 40], [33, 44], [27, 90], [18, 24], [26, 40]]
+      : [[15, 60], [20, 80], [10, 40], [30, 60], [45, 90], [25, 50], [40, 80], [12, 48]];
+    var p = S.pick(picks);
+    var part = p[0], whole = p[1];
+    var a = r2(part / whole * 100);
+    var choices = [nf(a) + '%'], vals = [a], cands = [a * 2, a / 2, r2(whole / part * 10), a + 10, a - 10], k;
+    for (k = 0; k < cands.length && choices.length < 4; k++) {
+      var c = r2(cands[k]);
+      if (c > 0 && c <= 200 && vals.indexOf(c) < 0) { choices.push(nf(c) + '%'); vals.push(c); }
+    }
+    return { type: 'mc', a: 0, choices: choices,
+      q: nsp(String(part)) + ' out of ' + nsp(String(whole)) + ' — what percent is that?',
+      explain: part + ' ÷ ' + whole + ' = ' + nf(r2(part / whole)) + ', and × 100 puts it back in percent: <span class="num">' +
+        nf(a) + '%</span>.',
+      hint: 'Percent asks "out of a hundred". Divide the part by the whole (' + part + ' ÷ ' + whole +
+        ') to get the plain number, then slide two seats RIGHT to speak percent again.',
+      steps: '1 · part ÷ whole = ' + part + ' ÷ ' + whole + ' = <span class="num">' + nf(r2(part / whole)) + '</span><br>' +
+        '2 · × 100 (two seats right): <span class="res">' + nf(a) + '%</span><br>' +
+        '3 · Check: ' + nf(a) + '% of ' + whole + ' = ' + nf(r2(a / 100 * whole)) + ' ✓',
+      diagnose: function (chosen) {
+        var cv = vals[chosen];
+        if (Math.abs(cv - r2(whole / part * 10)) < 0.01) return { label: 'Divided the wrong way',
+          your: nf(cv) + '% comes from whole ÷ part — the PART goes on top',
+          right: part + ' ÷ ' + whole + ' × 100 = ' + nf(a) + '%' };
+        if (Math.abs(cv - a * 2) < 0.01 || Math.abs(cv - a / 2) < 0.01) return { label: 'Halved or doubled on the way',
+          your: nf(cv) + '% is the right idea with a stray ×2 or ÷2 in it',
+          right: part + ' ÷ ' + whole + ' = ' + nf(r2(part / whole)) + ' → ' + nf(a) + '%' };
+        return { label: 'Percent slip',
+          your: nf(cv) + '% of ' + whole + ' would be ' + nf(r2(cv / 100 * whole)) + ', not ' + part,
+          right: part + ' ÷ ' + whole + ' × 100 = ' + nf(a) + '%' };
+      } };
+  }
+
+  function genOverride(hard) {
+    var picks = hard ? [[80, 11.5], [90, 12.4], [75, 8.4], [120, 9.5], [60, 14.5]]
+                     : [[50, 12], [80, 10], [75, 8], [110, 10], [90, 20]];
+    var p = S.pick(picks);
+    var pct = p[0], ipm = p[1];
+    var a = r2(ipm * pct / 100);
+    return { type: 'num', a: a, tol: 0.005, unit: 'ipm',
+      q: 'The program calls ' + nsp(nf(ipm) + ' IPM') + ' but the feed override dial sits at ' +
+        nsp(pct + '%') + '. What feed actually reaches the table?',
+      explain: pct + '% = ' + nf(pct / 100) + ' → ' + nf(pct / 100) + ' × ' + nf(ipm) +
+        ' = <span class="num">' + nf(a) + '</span> IPM' + (pct > 100 ? ' — over 100% runs FASTER than programmed.' : '.'),
+      hint: 'The override is a percent OF the programmed feed: slide it two seats to a decimal, multiply by the ' +
+        nf(ipm) + '. (10% of ' + nf(ipm) + ' is ' + nf(r2(ipm / 10)) + ' if you want the shortcut road.)',
+      steps: '1 · ' + pct + '% = <span class="num">' + nf(pct / 100) + '</span><br>' +
+        '2 · ' + nf(pct / 100) + ' × ' + nf(ipm) + ' = <span class="res">' + nf(a) + ' IPM</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - ipm) < 0.005 && Math.abs(ipm - a) > 0.01) return { label: 'Ignored the dial',
+          your: nf(ipm) + ' is the PROGRAMMED feed — the override changes what actually happens',
+          right: nf(pct / 100) + ' × ' + nf(ipm) + ' = ' + nf(a) };
+        if (Math.abs(v - r2(ipm - pct / 100)) < 0.005) return { label: 'Subtracted the percent',
+          your: 'you took ' + nf(pct / 100) + ' AWAY — a percent multiplies, it doesn\'t subtract',
+          right: nf(pct / 100) + ' × ' + nf(ipm) + ' = ' + nf(a) };
+        if (Math.abs(v - a * 10) < 0.05 || Math.abs(v - a / 10) < 0.01) return { label: 'Seat slip on the percent',
+          your: nf(v) + ' is a decimal slide off',
+          right: pct + '% = ' + nf(pct / 100) + ' → ' + nf(a) };
+        return { label: 'Override slip',
+          your: nf(v) + ' is not ' + pct + '% of ' + nf(ipm),
+          right: nf(pct / 100) + ' × ' + nf(ipm) + ' = ' + nf(a) };
+      } };
+  }
+
+  var GENS = { pctOf: genPctOf, tenShortcut: genTenShortcut, pct2dec: genPct2Dec,
+    ratioScale: genRatioScale, whatPct: genWhatPct, override: genOverride };
+  var HARD = false;
+  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 8'; return q; }
+
+  function makeSet(kinds, hard) {
+    HARD = !!hard;
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    HARD = false;
+    return S.shuffle(out);
+  }
+  function gameQs() {
+    return makeSet(['pctOf', 'pctOf', 'tenShortcut', 'tenShortcut', 'pct2dec', 'pct2dec',
+      'ratioScale', 'ratioScale', 'whatPct', 'override'], false);
+  }
+  function bossQs() {
+    return makeSet(['pctOf', 'pctOf', 'tenShortcut', 'pct2dec', 'ratioScale', 'ratioScale',
+      'whatPct', 'whatPct', 'override', 'override'], true);
+  }
+
+  S.levelPage('l8', {
+    explainer: EXPLAINER,
+    playground: playground,
+    gameQs: gameQs,
+    bossQs: bossQs,
+  });
+})();
+</script>
+</body>
+</html>
