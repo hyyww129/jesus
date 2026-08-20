@@ -13,7 +13,7 @@
     <h1>Shop Math <span class="b">School</span></h1>
     <p class="sub">A complete course, taught like a game: explainer → playground → 10-round game →
       boss at 90% to unlock the next level. Every number on every screen shows its math moving live.
-      Progress lives in this browser tab only; close the tab and it resets.</p>
+      Progress saves on this device where the browser allows it — and a save code (below) carries it anywhere.</p>
   </header>
 
   <div class="rankbar" id="rankbar" role="status"></div>
@@ -25,6 +25,18 @@
         <button class="accent" id="dailyBtn">DAILY 10 — mixed review from everything you've beaten</button>
       </div>
       <p class="hint" id="dailyHint"></p>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Save &amp; restore</h2>
+    <div class="body">
+      <p class="hint" id="saveStatus" style="margin:0 0 10px;font-style:normal"></p>
+      <div class="btnrow">
+        <button id="codeBtn">COPY MY SAVE CODE</button>
+        <button id="restoreBtn">RESTORE FROM A CODE</button>
+      </div>
+      <div id="saveArea"></div>
     </div>
   </div>
 
@@ -128,6 +140,46 @@
       overlay.style.display = 'none';
       drawTree(); drawRank();
     }
+  });
+
+  /* save & restore */
+  var saveArea = document.getElementById('saveArea');
+  document.getElementById('saveStatus').innerHTML = S.durable
+    ? 'This device <b>auto-saves</b> your progress — swipe away, come back, it\'s still here. ' +
+      'The save code is your backup, and how you move progress to another device.'
+    : 'Heads up: this page can\'t use browser storage here, so progress only lasts while the tab is open. ' +
+      '<b>Copy a save code before you leave</b> and paste it under RESTORE when you\'re back.';
+  document.getElementById('codeBtn').addEventListener('click', function () {
+    var code = S.exportCode();
+    saveArea.innerHTML =
+      '<textarea id="codeOut" readonly rows="3" aria-label="your save code" ' +
+      'style="width:100%;margin-top:10px;padding:8px;font-family:var(--mono);font-size:11px;border:1.5px solid var(--ink);border-radius:5px"></textarea>' +
+      '<p class="hint" id="codeNote"></p>';
+    var ta = document.getElementById('codeOut');
+    ta.value = code;
+    ta.focus();
+    ta.select();
+    var note = document.getElementById('codeNote');
+    var manual = 'It\'s selected — copy it and keep it somewhere (notes app, text to yourself).';
+    try {
+      navigator.clipboard.writeText(code).then(
+        function () { note.textContent = 'Copied to your clipboard. Keep it somewhere safe — paste it under RESTORE to pick up where you left off.'; },
+        function () { note.textContent = manual; });
+    } catch (e) { note.textContent = manual; }
+  });
+  document.getElementById('restoreBtn').addEventListener('click', function () {
+    saveArea.innerHTML =
+      '<textarea id="codeIn" rows="3" placeholder="paste your save code here (starts with SMS1.)" aria-label="paste a save code" ' +
+      'style="width:100%;margin-top:10px;padding:8px;font-family:var(--mono);font-size:11px;border:1.5px solid var(--ink);border-radius:5px"></textarea>' +
+      '<div class="btnrow" style="margin-top:8px"><button class="primary" id="doRestore">RESTORE</button></div>' +
+      '<p class="hint" id="restoreNote"></p>';
+    document.getElementById('doRestore').addEventListener('click', function () {
+      var okr = S.importCode(document.getElementById('codeIn').value);
+      document.getElementById('restoreNote').textContent = okr
+        ? 'Restored — the skill tree below just updated.'
+        : 'That didn\'t read as a save code — make sure you pasted the whole thing (it starts with SMS1.).';
+      if (okr) { drawTree(); drawRank(); }
+    });
   });
 
   drawRank();

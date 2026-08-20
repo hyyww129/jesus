@@ -74,16 +74,62 @@
   ];
   var RANKS = ['Apprentice', 'Operator', 'Setup', 'Machinist', 'Toolmaker'];
 
-  /* ---------------- state (window.name) ---------------- */
-  function loadState() {
+  /* ---------------- state ----------------
+     Progress auto-saves to browser storage where the page is allowed to use it
+     (so swiping the app away doesn't lose anything), with window.name as the
+     in-tab fallback where storage is blocked. Save codes (below) work anywhere. */
+  var SAVE_KEY = 'sms-save-v1';
+  var durable = (function () {
     try {
-      var s = JSON.parse(window.name || '');
+      localStorage.setItem('__sms_t', '1');
+      localStorage.removeItem('__sms_t');
+      return true;
+    } catch (e) { return false; }
+  })();
+  function parseSave(json) {
+    try {
+      var s = JSON.parse(json || '');
       if (s && s.__sms === 1 && s.lv) return s;
-    } catch (e) { /* fresh tab */ }
-    return { __sms: 1, lv: {} };
+    } catch (e) { /* not a save */ }
+    return null;
+  }
+  function loadState() {
+    var fromStore = null;
+    if (durable) {
+      try { fromStore = parseSave(localStorage.getItem(SAVE_KEY)); } catch (e) {}
+    }
+    var fromTab = parseSave(window.name);
+    /* prefer whichever save has beaten more levels — covers old window.name saves */
+    function score(s) {
+      if (!s) return -1;
+      var n = 0;
+      for (var k in s.lv) if (s.lv[k] && s.lv[k].passed) n++;
+      return n;
+    }
+    var best = score(fromStore) >= score(fromTab) ? fromStore : fromTab;
+    return best || { __sms: 1, lv: {} };
   }
   var state = loadState();
-  function save() { window.name = JSON.stringify(state); }
+  function save() {
+    var json = JSON.stringify(state);
+    window.name = json;
+    if (durable) { try { localStorage.setItem(SAVE_KEY, json); } catch (e) {} }
+  }
+  save();   /* sync both homes with whichever save won on load */
+
+  /* save codes — progress you can carry in a text message */
+  function exportCode() {
+    return 'SMS1.' + btoa(unescape(encodeURIComponent(JSON.stringify(state))));
+  }
+  function importCode(code) {
+    try {
+      code = String(code).trim();
+      if (code.indexOf('SMS1.') === 0) code = code.slice(5);
+      var s = parseSave(decodeURIComponent(escape(atob(code))));
+      if (s) { state.lv = s.lv; save(); return true; }
+    } catch (e) { /* bad code */ }
+    return false;
+  }
   function rec(id) {
     if (!state.lv[id]) state.lv[id] = { passed: false, best: 0, attempts: 0, confidence: 0, bestStreak: 0, points: 0 };
     if (state.lv[id].bestStreak === undefined) state.lv[id].bestStreak = 0;
@@ -1114,6 +1160,7 @@
   window.SMS = {
     WORLDS: WORLDS, LEVELS: LEVELS, RANKS: RANKS, BANKS: BANKS,
     state: state, save: save, rec: rec,
+    durable: durable, exportCode: exportCode, importCode: importCode,
     recordBoss: recordBoss, recordGame: recordGame, nudge: nudge,
     isUnlocked: isUnlocked, worldComplete: worldComplete, rankInfo: rankInfo,
     fmt: fmt, fmtExact: fmtExact, parseNum: parseNum,

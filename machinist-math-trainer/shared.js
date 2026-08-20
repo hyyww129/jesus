@@ -39,16 +39,47 @@
     chipload: { '0.125': 0.0008, '0.1875': 0.0012, '0.25': 0.0015, '0.375': 0.002, '0.5': 0.003, '0.75': 0.004 },
   };
 
-  /* ---------------- state (window.name) ---------------- */
-  function loadState() {
+  /* ---------------- state ----------------
+     Auto-saves to browser storage where the page may use it (so leaving the
+     page or swiping the app away keeps progress); window.name stays as the
+     in-tab fallback where storage is blocked. */
+  var SAVE_KEY = 'mmt-save-v1';
+  var durable = (function () {
     try {
-      var s = JSON.parse(window.name || '');
+      localStorage.setItem('__mmt_t', '1');
+      localStorage.removeItem('__mmt_t');
+      return true;
+    } catch (e) { return false; }
+  })();
+  function parseSave(json) {
+    try {
+      var s = JSON.parse(json || '');
       if (s && s.__mmt === 1 && s.scores) return s;
-    } catch (e) { /* fresh tab */ }
-    return { __mmt: 1, scores: {} };
+    } catch (e) { /* not a save */ }
+    return null;
+  }
+  function loadState() {
+    var fromStore = null;
+    if (durable) {
+      try { fromStore = parseSave(localStorage.getItem(SAVE_KEY)); } catch (e) {}
+    }
+    var fromTab = parseSave(window.name);
+    function score(s) {
+      if (!s) return -1;
+      var n = 0;
+      for (var k in s.scores) if (s.scores[k] && s.scores[k].passed) n++;
+      return n;
+    }
+    var best = score(fromStore) >= score(fromTab) ? fromStore : fromTab;
+    return best || { __mmt: 1, scores: {} };
   }
   var state = loadState();
-  function save() { window.name = JSON.stringify(state); }
+  function save() {
+    var json = JSON.stringify(state);
+    window.name = json;
+    if (durable) { try { localStorage.setItem(SAVE_KEY, json); } catch (e) {} }
+  }
+  save();
   function rec(id) {
     if (!state.scores[id]) state.scores[id] = { best: 0, passed: false, confidence: 0, attempts: 0 };
     return state.scores[id];
