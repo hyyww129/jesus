@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level 28 · Position Tolerance Deep-Dive</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← SKILL TREE</a>
+    <div class="eyebrow">Level 28 · World 5 · Shop Math School</div>
+    <h1>Position <span class="b">Deep-Dive</span></h1>
+    <p class="sub">The ⌖ symbol runs the world's bolt holes. One formula — 2 × √(ΔX² + ΔY²) —
+      one round zone, and a bonus the hole earns by growing.</p>
+  </header>
+  <div id="sms-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  function r4(v) { return Math.round(v * 10000) / 10000; }
+  function nf(v) { return S.fmtExact(v); }
+  function d3(v) { var s = v.toFixed(3); return s.replace(/^0\./, '.'); }
+  function d4(v) { var s = v.toFixed(4); return s.replace(/^0\./, '.'); }
+  function nsp(s) { return '<span class="num">' + s + '</span>'; }
+  function posErr(dx, dy) { return 2 * Math.sqrt(dx * dx + dy * dy); }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p><span class="term">True position</span> is the exact spot the datums say a hole belongs — ' +
+  'the theoretical bullseye. Your drilled hole lands a little off in X and a little off in Y. ' +
+  'Position tolerance asks one question: <b>how far off is the center, as a diameter?</b></p>' +
+  '<div class="worked">position error &nbsp;=&nbsp; 2 × √(ΔX² + ΔY²)<br><br>' +
+  'hole lands ΔX <span class="num">.003</span>, ΔY <span class="num">.004</span> off:<br>' +
+  '√(.003² + .004²) = √(.000009 + .000016) = √.000025 = <span class="num">.005</span> — the radial miss<br>' +
+  '× 2 = <span class="res">.010 position error</span> — compare that to the frame\'s Ø zone</div>' +
+  '<p>Why the × 2? Because the zone is written as a <b>diameter</b> (Ø.010 means the center may roam a ' +
+  'circle .010 across — only <b>.005 in radius</b> from the bullseye). Radial miss doubled = diameter ' +
+  'language, apples to apples. That ×2 is the most-forgotten step in the shop.</p>' +
+  '<p><span class="term">Why a ROUND zone beats a square.</span> Old prints said "±.005 in X and Y" — ' +
+  'a square box. But a bolt doesn\'t care about X and Y; it cares about DISTANCE. A hole .005 off in ' +
+  'BOTH X and Y is .007 from the bullseye — the square calls that legal while rejecting a hole only ' +
+  '.006 off straight sideways. Backwards! The round Ø zone treats every direction the same — ' +
+  'and legalizes the square\'s corners honestly: Ø.014 covers everything ±.005-square ever allowed, ' +
+  'plus 57% more area, free.</p>' +
+  '<p><span class="term">Bonus tolerance at Ⓜ (MMC)</span>, kept simple: the frame ' +
+  '⌖ Ø.010 Ⓜ A|B|C promises .010 of zone when the hole is at its SMALLEST legal size (MMC — most metal). ' +
+  'Drill the hole BIGGER and the bolt has extra clearance — so the zone grows by exactly that extra:</p>' +
+  '<div class="worked">bonus = actual hole size − MMC size<br>' +
+  'MMC Ø<span class="num">.250</span>, drilled Ø<span class="num">.256</span> → bonus = .006<br>' +
+  'total zone = .010 + .006 = <span class="res">Ø.016</span></div>' +
+  '<p>Function over punishment: a looser hole genuinely forgives more position error, and MMC pays you ' +
+  'that forgiveness in writing. Now open the <b>Playground</b> and drag a hole around its zone.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — drag the hole, watch the zone</h2><div class="body">' +
+      '<div class="slider-row"><span class="name">ΔX (thou)</span>' +
+      '<input type="range" id="dxSlide" min="-10" max="10" step="1" value="3" aria-label="x offset in thou">' +
+      '<span class="out" id="dxOut"></span></div>' +
+      '<div class="slider-row"><span class="name">ΔY (thou)</span>' +
+      '<input type="range" id="dySlide" min="-10" max="10" step="1" value="4" aria-label="y offset in thou">' +
+      '<span class="out" id="dyOut"></span></div>' +
+      '<div class="slider-row"><span class="name">ZONE Ø (thou)</span>' +
+      '<input type="range" id="znSlide" min="4" max="20" step="1" value="10" aria-label="position zone diameter in thou">' +
+      '<span class="out" id="znOut"></span></div>' +
+      '<div class="slider-row"><span class="name">BONUS (thou)</span>' +
+      '<input type="range" id="boSlide" min="0" max="8" step="1" value="0" aria-label="MMC bonus in thou">' +
+      '<span class="out" id="boOut"></span></div>' +
+      '<div class="scrollbox"><svg id="zoneView" width="640" height="240" viewBox="0 0 640 240" role="img" aria-label="round position zone with the hole center plotted"></svg></div>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var dx = 0.003, dy = 0.004, zn = 0.010, bo = 0;
+    var eqBody = card.querySelector('#eqBody');
+    var droCtl = S.dro(card.querySelector('#droBox'), 'POS');
+
+    function draw() {
+      var cx = 320, cy = 120, SC = 11000;
+      var tot = zn + bo;
+      var s = '';
+      /* the old square (±zone/2) for contrast */
+      var half = (zn / 2) * SC;
+      s += '<rect x="' + (cx - half) + '" y="' + (cy - half) + '" width="' + (2 * half) + '" height="' + (2 * half) +
+        '" stroke-dasharray="5 4" style="fill:none;stroke:var(--soft);stroke-width:1.2"/>';
+      s += '<text x="' + (cx + half + 8) + '" y="' + (cy - half + 4) + '" style="font-family:var(--mono);font-size:9.5px;fill:var(--soft)">old ± square</text>';
+      /* stated zone */
+      s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (zn / 2) * SC + '" style="fill:var(--good-bg);stroke:var(--good-bd);stroke-width:2"/>';
+      /* bonus ring */
+      if (bo > 0) s += '<circle cx="' + cx + '" cy="' + cy + '" r="' + (tot / 2) * SC + '" stroke-dasharray="6 4" style="fill:none;stroke:var(--good-bd);stroke-width:2"/>';
+      /* true position cross */
+      s += '<line x1="' + (cx - 14) + '" y1="' + cy + '" x2="' + (cx + 14) + '" y2="' + cy + '" style="stroke:var(--ink);stroke-width:1.2"/>';
+      s += '<line x1="' + cx + '" y1="' + (cy - 14) + '" x2="' + cx + '" y2="' + (cy + 14) + '" style="stroke:var(--ink);stroke-width:1.2"/>';
+      /* actual center */
+      var hx = cx + dx * SC, hy = cy - dy * SC;
+      var err = posErr(dx, dy);
+      var okv = err <= tot + 1e-9;
+      s += '<line x1="' + cx + '" y1="' + cy + '" x2="' + hx + '" y2="' + hy + '" style="stroke:var(--blue);stroke-width:1.5"/>';
+      s += '<circle cx="' + hx + '" cy="' + hy + '" r="6" style="fill:' + (okv ? 'var(--blue)' : 'var(--orange)') + '"/>';
+      s += '<text x="20" y="24" style="font-family:var(--mono);font-size:11px;fill:' + (okv ? 'var(--good-bd)' : 'var(--orange)') + '">' +
+        (okv ? 'IN THE ZONE' : 'OUT OF THE ZONE') + '</text>';
+      card.querySelector('#zoneView').innerHTML = s;
+    }
+    function update() {
+      var err = r4(posErr(dx, dy));
+      var tot = r4(zn + bo);
+      var okv = err <= tot + 1e-9;
+      card.querySelector('#dxOut').textContent = (dx >= 0 ? '+' : '') + Math.round(dx * 1000);
+      card.querySelector('#dyOut').textContent = (dy >= 0 ? '+' : '') + Math.round(dy * 1000);
+      card.querySelector('#znOut').textContent = 'Ø' + d3(zn);
+      card.querySelector('#boOut').textContent = '+' + d3(bo);
+      eqBody.innerHTML =
+        '2 × √(ΔX² + ΔY²)<br>' +
+        '= 2 × √(' + nsp(d3(Math.abs(dx))) + '² + ' + nsp(d3(Math.abs(dy))) + '²)<br>' +
+        '= 2 × √' + (dx * dx + dy * dy).toFixed(6).replace(/^0\./, '.') + ' = 2 × ' + d4(r4(Math.sqrt(dx * dx + dy * dy))) + '<br>' +
+        '= <span class="res">' + d4(err) + '</span> position error<br>' +
+        'zone = ' + d3(zn) + (bo > 0 ? ' + bonus ' + d3(bo) + ' = ' + nsp('Ø' + d3(tot)) : '') +
+        ' → ' + (okv ? '<span class="res">PASS</span>' : '<span class="res">FAIL</span> <span class="dim">over by ' + d4(r4(err - tot)) + '</span>');
+      droCtl.set(d4(err),
+        'The center sits ' + d4(r4(Math.sqrt(dx * dx + dy * dy))) + '" from the bullseye — doubled to diameter language, ' +
+        d4(err) + ' against a Ø' + d3(tot) + ' zone. ' +
+        (okv ? 'Inside — the bolt will find its hole.' : 'Outside — that bolt is going to fight.'));
+      draw();
+    }
+    ['dx', 'dy', 'zn', 'bo'].forEach(function (k) {
+      card.querySelector('#' + k + 'Slide').addEventListener('input', function () {
+        var v = Number(this.value) / 1000;
+        if (k === 'dx') dx = v; else if (k === 'dy') dy = v; else if (k === 'zn') zn = v; else bo = v;
+        update();
+      });
+    });
+    update();
+    window.__l28 = {
+      set: function (o) {
+        o = o || {};
+        if (typeof o.dx === 'number') { dx = o.dx; card.querySelector('#dxSlide').value = Math.round(o.dx * 1000); }
+        if (typeof o.dy === 'number') { dy = o.dy; card.querySelector('#dySlide').value = Math.round(o.dy * 1000); }
+        if (typeof o.zn === 'number') { zn = o.zn; card.querySelector('#znSlide').value = Math.round(o.zn * 1000); }
+        if (typeof o.bo === 'number') { bo = o.bo; card.querySelector('#boSlide').value = Math.round(o.bo * 1000); }
+        update();
+      },
+      info: function () { return { dx: dx, dy: dy, zone: zn, bonus: bo, err: r4(posErr(dx, dy)), pass: posErr(dx, dy) <= zn + bo + 1e-9 }; }
+    };
+  }
+
+  /* ============ question generators (game + boss) ============ */
+  var TRIPLES = [[0.003, 0.004, 0.005], [0.006, 0.008, 0.010], [0.0015, 0.002, 0.0025]];
+
+  function genPosError(hard) {
+    var t = S.pick(hard ? TRIPLES : [TRIPLES[0], TRIPLES[1]]);
+    var flip = Math.random() < 0.5;
+    var dx = flip ? t[1] : t[0], dy = flip ? t[0] : t[1];
+    var a = r4(2 * t[2]);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'A hole lands ' + nsp('ΔX ' + d4(dx)) + ' and ' + nsp('ΔY ' + d4(dy)) + ' from true position. ' +
+        'What is its <b>position error</b> (diameter language)?',
+      explain: '2 × √(' + d4(dx) + '² + ' + d4(dy) + '²) = 2 × ' + d4(t[2]) + ' = <span class="num">' + d4(a) + '</span>.',
+      hint: 'Pythagoras first — √(ΔX² + ΔY²) is the straight-line miss. Then DOUBLE it, because the zone is written as a diameter. The ×2 is the step everyone forgets.',
+      steps: '1 · radial miss = √(' + d4(dx) + '² + ' + d4(dy) + '²) = √' + d4(r4(dx * dx + dy * dy)) + ' = <span class="num">' + d4(t[2]) + '</span><br>' +
+        '2 · diameter language: × 2<br>' +
+        '3 · <span class="res">' + d4(a) + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - t[2]) < 0.0004) return { label: 'Forgot the ×2',
+          your: d4(t[2]) + ' is the RADIAL miss — the frame speaks in diameters, so it doubles',
+          right: '2 × ' + d4(t[2]) + ' = ' + d4(a) };
+        if (Math.abs(v - r4(dx + dy)) < 0.0005 && Math.abs(r4(dx + dy) - a) > 0.001) return { label: 'Added the offsets',
+          your: d4(dx) + ' + ' + d4(dy) + ' walks the two legs — the miss cuts across the corner',
+          right: '2 × √(ΔX² + ΔY²) = ' + d4(a) };
+        if (Math.abs(v - r4(2 * (dx + dy))) < 0.0005) return { label: 'Doubled the added legs',
+          your: 'the ×2 was right but the inside should be √(ΔX² + ΔY²), not ΔX + ΔY',
+          right: '2 × ' + d4(t[2]) + ' = ' + d4(a) };
+        return { label: 'Position-formula slip',
+          your: d4(v) + ' is not 2 × √(ΔX² + ΔY²)',
+          right: d4(a) };
+      } };
+  }
+
+  function genInZone(hard) {
+    var t = S.pick(TRIPLES);
+    var flip = Math.random() < 0.5;
+    var dx = flip ? t[1] : t[0], dy = flip ? t[0] : t[1];
+    var err = r4(2 * t[2]);
+    var zone = Math.random() < 0.5 ? err : (Math.random() < 0.5 ? r4(err + 0.004) : r4(Math.max(0.004, err - 0.004)));
+    var pass = err <= zone + 1e-9;
+    var CH = ['PASS — inside the zone', 'FAIL — outside the zone'];
+    return { type: 'mc', a: pass ? 0 : 1, choices: CH,
+      q: 'Frame: ' + nsp('⌖ Ø' + d3(zone) + ' A|B|C') + '. The hole lands ' + nsp('ΔX ' + d4(dx)) + ', ' +
+        nsp('ΔY ' + d4(dy)) + '. Verdict?',
+      explain: 'error = 2 × √(ΔX² + ΔY²) = ' + d4(err) + ' vs Ø' + d3(zone) + ' → <span class="num">' +
+        CH[pass ? 0 : 1] + '</span>' + (err === zone ? ' (dead on the zone counts as in).' : '.'),
+      hint: 'Compute 2 × √(ΔX² + ΔY²) first, then one compare against the Ø. Equal counts as in.',
+      steps: '1 · error = 2 × √(' + d4(dx) + '² + ' + d4(dy) + '²) = <span class="num">' + d4(err) + '</span><br>' +
+        '2 · vs zone Ø' + d3(zone) + '<br>' +
+        '3 · <span class="res">' + CH[pass ? 0 : 1] + '</span>',
+      diagnose: function () {
+        if (err === zone) return { label: 'Failed a dead-on hole',
+          your: 'exactly on the zone is legal — inclusive, like every limit',
+          right: CH[0] };
+        return { label: 'Zone compare slip',
+          your: 'error ' + d4(err) + ' vs Ø' + d3(zone) + ' — one compare decides it',
+          right: CH[pass ? 0 : 1] };
+      } };
+  }
+
+  function genBonus(hard) {
+    var mmc = S.pick([0.250, 0.266, 0.375]);
+    var grow = S.pick(hard ? [0.003, 0.007, 0.009] : [0.004, 0.006, 0.008]);
+    var actual = r4(mmc + grow);
+    var stated = S.pick([0.010, 0.014]);
+    var a = r4(stated + grow);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'Frame: ' + nsp('⌖ Ø' + d3(stated) + ' Ⓜ A|B|C') + ' on a hole whose MMC size is ' + nsp('Ø' + d3(mmc)) +
+        '. You drilled it ' + nsp('Ø' + d3(actual)) + '. What TOTAL position zone do you get?',
+      explain: 'bonus = actual − MMC = ' + d3(actual) + ' − ' + d3(mmc) + ' = ' + d3(grow) +
+        ' → total = ' + d3(stated) + ' + ' + d3(grow) + ' = <span class="num">Ø' + d3(a) + '</span>.',
+      hint: 'The Ⓜ pays you the hole\'s growth: bonus = actual size − MMC size. Add that bonus to the stated zone — a looser hole honestly forgives more position error.',
+      steps: '1 · bonus = actual − MMC = ' + d3(actual) + ' − ' + d3(mmc) + ' = <span class="num">' + d3(grow) + '</span><br>' +
+        '2 · total zone = stated + bonus = ' + d3(stated) + ' + ' + d3(grow) + '<br>' +
+        '3 · <span class="res">Ø' + d3(a) + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - stated) < 0.0005) return { label: 'Left the bonus on the table',
+          your: d3(stated) + ' is only the stated zone — the Ⓜ grows it as the hole grows',
+          right: d3(stated) + ' + ' + d3(grow) + ' = ' + d3(a) };
+        if (Math.abs(v - grow) < 0.0005) return { label: 'Answered the bonus alone',
+          your: d3(grow) + ' is just the growth — it ADDS to the stated ' + d3(stated),
+          right: 'Ø' + d3(a) };
+        if (Math.abs(v - r4(stated - grow)) < 0.0005) return { label: 'Subtracted the bonus',
+          your: 'a bigger hole gives MORE room, not less — the bonus adds',
+          right: d3(stated) + ' + ' + d3(grow) + ' = ' + d3(a) };
+        return { label: 'Bonus slip',
+          your: d4(v) + ' is not stated + (actual − MMC)',
+          right: 'Ø' + d3(a) };
+      } };
+  }
+
+  function genRadial(hard) {
+    var zone = S.pick(hard ? [0.008, 0.012, 0.016] : [0.010, 0.014, 0.020]);
+    var a = r4(zone / 2);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'A frame allows ' + nsp('⌖ Ø' + d3(zone)) + '. How far may the hole\'s center actually sit from true position?',
+      explain: 'The Ø is a diameter — the center may roam HALF that from the bullseye: <span class="num">' + d4(a) + '</span>.',
+      hint: 'Ø describes the whole circle the center may roam. Distance from the bullseye to the circle\'s edge is the radius — half.',
+      steps: '1 · zone Ø' + d3(zone) + ' = a circle ' + d3(zone) + ' across, centered on true position<br>' +
+        '2 · center-to-edge = ' + d3(zone) + ' ÷ 2 = <span class="res">' + d4(a) + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - zone) < 0.0005) return { label: 'Read the diameter as the reach',
+          your: d3(zone) + ' spans the whole zone — the center only reaches HALF that from the bullseye',
+          right: d3(zone) + ' ÷ 2 = ' + d4(a) };
+        if (Math.abs(v - zone * 2) < 0.0005) return { label: 'Doubled instead of halved',
+          your: d4(zone * 2) + ' went the wrong way',
+          right: d4(a) };
+        return { label: 'Radius slip',
+          your: d4(v) + ' is not half the Ø zone',
+          right: d4(a) };
+      } };
+  }
+
+  function genWhyRound(hard) {
+    var vars = [
+      { q: 'Why does a round Ø position zone beat the old ±X/±Y square?',
+        a: 'A bolt cares about DISTANCE, not direction — the circle treats every direction the same',
+        o: ['Circles are easier to draw', 'The square allows more total error', 'It\'s the same thing renamed'] },
+      { q: 'A hole sits .005 off in X AND .005 off in Y. How far is its center from true position?',
+        a: 'About .007 — the diagonal, √(.005² + .005²)',
+        o: ['.005 — the bigger of the two', '.010 — the two added', 'Zero — they cancel'] },
+      { q: 'Compared to a ±.005 square, the equivalent round zone Ø.014…',
+        a: 'covers the square\'s corners legally and adds ~57% more usable area',
+        o: ['is tighter in every direction', 'only works with MMC', 'rejects diagonal misses'] },
+    ];
+    var v = S.pick(vars);
+    return { type: 'mc', a: 0, choices: [v.a].concat(v.o),
+      q: v.q,
+      explain: '<span class="num">' + v.a + '</span>.',
+      hint: 'Think like the bolt: it needs the hole\'s center within a DISTANCE, any direction. Diagonals combine by Pythagoras, not by picking the bigger leg.',
+      steps: '1 · <span class="res">' + v.a + '</span>',
+      diagnose: function (chosen) {
+        return { label: 'Round-zone logic slip',
+          your: '"' + [v.a].concat(v.o)[chosen] + '" misses what the bolt actually needs',
+          right: v.a };
+      } };
+  }
+
+  var GENS = { posError: genPosError, inZone: genInZone, bonus: genBonus, radial: genRadial, whyRound: genWhyRound };
+  var HARD = false;
+  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 28'; return q; }
+
+  function makeSet(kinds, hard) {
+    HARD = !!hard;
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    HARD = false;
+    return S.shuffle(out);
+  }
+  function gameQs() {
+    return makeSet(['posError', 'posError', 'posError', 'inZone', 'inZone', 'bonus',
+      'bonus', 'radial', 'radial', 'whyRound'], false);
+  }
+  function bossQs() {
+    return makeSet(['posError', 'posError', 'posError', 'inZone', 'inZone', 'bonus',
+      'bonus', 'bonus', 'radial', 'whyRound'], true);
+  }
+
+  S.levelPage('l28', {
+    explainer: EXPLAINER,
+    playground: playground,
+    gameQs: gameQs,
+    bossQs: bossQs,
+  });
+})();
+</script>
+</body>
+</html>

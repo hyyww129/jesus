@@ -61,15 +61,15 @@
       desc: 'X = Xc + R·cos θ, Y = Yc + R·sin θ. Place the holes before the machine does.' },
     { id: 'l24', n: 24, w: 5, title: 'Blueprint Basics', file: 'levels/l24-blueprint-basics.html', built: true, open: true,
       desc: 'Title block, views, line types, scale — what each line on the page means. Opened early for blueprint day.' },
-    { id: 'l25', n: 25, w: 5, title: 'Dimensions & Callouts', file: 'levels/l25-dimensions.html', built: false,
+    { id: 'l25', n: 25, w: 5, title: 'Dimensions & Callouts', file: 'levels/l25-dimensions.html', built: true,
       desc: 'Dimension lines, Ø vs R, hole callouts, THRU vs depth.' },
-    { id: 'l26', n: 26, w: 5, title: 'Tolerances', file: 'levels/l26-tolerances.html', built: false,
+    { id: 'l26', n: 26, w: 5, title: 'Tolerances', file: 'levels/l26-tolerances.html', built: true,
       desc: 'Nominal ± tolerance, limits, MAX and MIN material. Accept / rework / scrap.' },
-    { id: 'l27', n: 27, w: 5, title: 'Intro to GD&T', file: 'levels/l27-gdt-intro.html', built: false,
+    { id: 'l27', n: 27, w: 5, title: 'Intro to GD&T', file: 'levels/l27-gdt-intro.html', built: true,
       desc: 'Feature control frames, datums, and the big symbols — each with a pass part and a fail part.' },
-    { id: 'l28', n: 28, w: 5, title: 'Position Tolerance Deep-Dive', file: 'levels/l28-position.html', built: false,
+    { id: 'l28', n: 28, w: 5, title: 'Position Tolerance Deep-Dive', file: 'levels/l28-position.html', built: true,
       desc: 'True position, round zones vs square, bonus tolerance at MMC kept simple.' },
-    { id: 'l29', n: 29, w: 5, title: 'FINAL BOSS: Read a Real Print', file: 'levels/l29-final-print.html', built: false,
+    { id: 'l29', n: 29, w: 5, title: 'FINAL BOSS: Read a Real Print', file: 'levels/l29-final-print.html', built: true,
       desc: 'A complete blueprint — views, holes, a bolt circle, tolerances, GD&T. Pass it: Toolmaker.' },
   ];
   var RANKS = ['Apprentice', 'Operator', 'Setup', 'Machinist', 'Toolmaker'];
@@ -1130,6 +1130,175 @@
           your: 'that is the paper size — the scale changes it',
           right: fmtExact(a2) };
         return { label: 'Scale slip', your: fmtExact(v) + ' is not paper × ' + sc[1] + ' ÷ ' + sc[0], right: fmtExact(a2) };
+      } };
+  };
+
+  BANKS.l25 = function () {
+    if (Math.random() < 0.5) {
+      var toDia = Math.random() < 0.5;
+      var r = pick([0.125, 0.250, 0.375, 0.0625, 0.1875]);
+      var a = toDia ? r * 2 : r / 2;
+      var shown = fmtExact(toDia ? r : r * 2, 3).replace(/^0\./, '.');
+      return { type: 'num', a: Math.round(a * 100000) / 100000, tol: 0.0005, from: 'Level 25',
+        q: toDia ? 'A rounded corner is labeled <span class="num">R' + shown + '</span>. What <b>diameter</b> circle is that arc a piece of?'
+                 : 'A hole is called out <span class="num">Ø' + shown + '</span>. What is its <b>radius</b>?',
+        explain: (toDia ? 'Ø = 2 × R: ' : 'R = Ø ÷ 2: ') + '<span class="num">' + fmtExact(Math.round(a * 100000) / 100000) + '</span>.',
+        hint: 'R is center-to-edge, Ø is edge-to-edge through the center — one is exactly double the other.',
+        steps: '1 · ' + (toDia ? 'Ø = 2 × R' : 'R = Ø ÷ 2') + '<br>2 · <span class="res">' + fmtExact(Math.round(a * 100000) / 100000) + '</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - (toDia ? r : r * 2)) < 0.0005) return { label: 'Handed the number back',
+            your: 'that is the value on the print — the question asked for its partner',
+            right: fmtExact(Math.round(a * 100000) / 100000) };
+          return { label: 'R↔Ø slip', your: fmtExact(v) + ' is not double/half', right: fmtExact(Math.round(a * 100000) / 100000) };
+        } };
+    }
+    var n = pick([2, 3, 4, 6]);
+    var d = pick(['.250', '.266', '.375']);
+    return { type: 'num', a: n, tol: 0.4, from: 'Level 25',
+      q: 'Callout: <span class="num">' + n + 'X Ø' + d + ' THRU</span>. How many holes do you drill?',
+      explain: 'The number before X is the count: <span class="num">' + n + '</span>.',
+      hint: 'nX in front = n identical copies. The Ø number is size, not count.',
+      steps: '1 · ' + n + 'X → <span class="res">' + n + ' holes</span>',
+      diagnose: function (v) {
+        return { label: 'Count slip', your: v + ' is not the number riding the X', right: String(n) };
+      } };
+  };
+
+  BANKS.l26 = function () {
+    var nom = pick([0.750, 1.000, 1.250, 1.500, 2.000]);
+    var tol = pick([0.005, 0.010]);
+    var up = Math.round((nom + tol) * 10000) / 10000, lo = Math.round((nom - tol) * 10000) / 10000;
+    if (Math.random() < 0.5) {
+      var wantUpper = Math.random() < 0.5;
+      var a = wantUpper ? up : lo;
+      return { type: 'num', a: a, tol: 0.0005, from: 'Level 26',
+        q: 'The print calls <span class="num">' + fmtExact(nom, 3) + ' ± ' + fmtExact(tol, 3) + '</span>. What is the <b>' + (wantUpper ? 'upper' : 'lower') + '</b> limit?',
+        explain: fmtExact(nom, 3) + (wantUpper ? ' + ' : ' − ') + fmtExact(tol, 3) + ' = <span class="num">' + fmtExact(a, 3) + '</span>.',
+        hint: 'Add the ± for the top of the band, subtract it for the bottom.',
+        steps: '1 · ' + fmtExact(nom, 3) + (wantUpper ? ' + ' : ' − ') + fmtExact(tol, 3) + ' = <span class="res">' + fmtExact(a, 3) + '</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - (wantUpper ? lo : up)) < 0.0009) return { label: 'Went the wrong way',
+            your: 'that is the other limit', right: fmtExact(a, 3) };
+          return { label: 'Limit slip', your: fmtExact(v) + ' is not nominal ± tol', right: fmtExact(a, 3) };
+        } };
+    }
+    var isOD = Math.random() < 0.5;
+    var roll = Math.random();
+    var offs = roll < 0.4 ? tol * 0.5 * (Math.random() < 0.5 ? 1 : -1) : (tol + 0.004) * (roll < 0.7 ? 1 : -1);
+    var meas = Math.round((nom + offs) * 10000) / 10000;
+    var inB = meas >= lo - 1e-9 && meas <= up + 1e-9;
+    var CH = ['ACCEPT', 'REWORK', 'SCRAP'];
+    var right = inB ? 0 : (isOD ? (meas > up ? 1 : 2) : (meas < lo ? 1 : 2));
+    return { type: 'mc', a: right, choices: CH, from: 'Level 26',
+      q: (isOD ? 'An OUTSIDE width' : 'A HOLE') + ' calls <span class="num">' + fmtExact(nom, 3) + ' ± ' + fmtExact(tol, 3) +
+        '</span>. Your mic reads <span class="num">' + fmt(meas, 4) + '</span>. Verdict?',
+      explain: 'Limits ' + fmtExact(lo, 3) + '–' + fmtExact(up, 3) + '. ' + (inB ? 'Inside → ACCEPT.' :
+        'Outside on ' + (isOD ? 'an outside cut' : 'a hole') + ' → ' + CH[right] + '.'),
+      hint: 'In or out first (limits inclusive). If out: can metal still come OFF to fix it? Outside cuts fix oversize; holes fix undersize.',
+      steps: '1 · limits ' + fmtExact(lo, 3) + ' to ' + fmtExact(up, 3) + '<br>2 · <span class="res">' + CH[right] + '</span>',
+      diagnose: function (chosen) {
+        if (inB && chosen !== 0) return { label: 'Scrapped a good part', your: 'it is inside the limits', right: 'ACCEPT' };
+        if (!inB && chosen === 0) return { label: 'Passed a bad part', your: 'it is outside the limits', right: CH[right] };
+        return { label: 'Rework and scrap swapped',
+          your: (isOD ? 'outside cut: oversize reworks, undersize scraps' : 'hole: undersize reworks, oversize scraps'),
+          right: CH[right] };
+      } };
+  };
+
+  BANKS.l27 = function () {
+    var SY = [['⏥', 'flatness', 'a surface must be FLAT within a zone, judged against itself'],
+      ['⟂', 'perpendicularity', 'a face must sit SQUARE to a datum within a zone'],
+      ['∥', 'parallelism', 'a face must stay PARALLEL to a datum within a zone'],
+      ['⌖', 'position', 'a feature center must land on its true spot within a round zone']];
+    if (Math.random() < 0.5) {
+      var si = Math.floor(Math.random() * SY.length);
+      var x = SY[si];
+      var choices = [x[0] + '  ' + x[1]];
+      for (var k = 0; k < SY.length; k++) if (k !== si) choices.push(SY[k][0] + '  ' + SY[k][1]);
+      return { type: 'mc', a: 0, choices: choices, from: 'Level 27',
+        q: 'Which GD&T symbol orders that ' + x[2] + '?',
+        explain: '<span class="num">' + x[0] + ' ' + x[1] + '</span>.',
+        hint: 'Form controls (flat) judge a surface against itself; square/parallel compare to a datum; position locates.',
+        steps: '1 · <span class="res">' + x[0] + ' ' + x[1] + '</span>',
+        diagnose: function () {
+          return { label: 'Symbols mixed up', your: 'that symbol has a different job', right: x[0] + ' ' + x[1] };
+        } };
+    }
+    var zone = pick([0.002, 0.003, 0.005]);
+    var err = Math.random() < 0.4 ? zone * 0.5 : (Math.random() < 0.6 ? zone : zone + 0.002);
+    err = Math.round(err * 10000) / 10000;
+    var pass = err <= zone + 1e-9;
+    return { type: 'mc', a: pass ? 0 : 1, choices: ['PASS', 'FAIL'], from: 'Level 27',
+      q: 'A frame calls <span class="num">⏥ flatness within ' + fmtExact(zone, 3) + '</span>. The check measures <span class="num">' +
+        fmtExact(err, 3) + '</span> of error. Verdict?',
+      explain: fmtExact(err, 3) + ' vs ' + fmtExact(zone, 3) + ' → <span class="num">' + (pass ? 'PASS' : 'FAIL') + '</span>' +
+        (err === zone ? ' — dead on the zone counts as in.' : '.'),
+      hint: 'One compare: error ≤ zone passes. Equal counts as in — zones are limits.',
+      steps: '1 · ' + fmtExact(err, 3) + (pass ? ' ≤ ' : ' > ') + fmtExact(zone, 3) + '<br>2 · <span class="res">' + (pass ? 'PASS' : 'FAIL') + '</span>',
+      diagnose: function () {
+        if (err === zone) return { label: 'Failed a dead-on check', your: 'exactly on the zone is legal', right: 'PASS' };
+        return { label: 'Compare flipped', your: 'error vs zone, one compare', right: pass ? 'PASS' : 'FAIL' };
+      } };
+  };
+
+  BANKS.l28 = function () {
+    if (Math.random() < 0.6) {
+      var t = pick([[0.003, 0.004, 0.005], [0.006, 0.008, 0.010]]);
+      var a = Math.round(2 * t[2] * 10000) / 10000;
+      return { type: 'num', a: a, tol: 0.0005, from: 'Level 28',
+        q: 'A hole lands <span class="num">ΔX ' + fmt(t[0], 4).replace('0.', '.') + '</span> and <span class="num">ΔY ' +
+          fmt(t[1], 4).replace('0.', '.') + '</span> from true position. What is its position error?',
+        explain: '2 × √(ΔX² + ΔY²) = 2 × ' + fmt(t[2], 4).replace('0.', '.') + ' = <span class="num">' + fmt(a, 4).replace('0.', '.') + '</span>.',
+        hint: 'Pythagoras for the radial miss, then DOUBLE it — the zone speaks in diameters.',
+        steps: '1 · radial = √(ΔX² + ΔY²) = <span class="num">' + fmt(t[2], 4).replace('0.', '.') + '</span><br>' +
+          '2 · × 2 = <span class="res">' + fmt(a, 4).replace('0.', '.') + '</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - t[2]) < 0.0004) return { label: 'Forgot the ×2',
+            your: 'that is the radial miss — the frame speaks in diameters',
+            right: '2 × ' + fmt(t[2], 4) + ' = ' + fmt(a, 4) };
+          return { label: 'Position-formula slip', your: fmtExact(v) + ' is not 2 × √(ΔX² + ΔY²)', right: fmt(a, 4) };
+        } };
+    }
+    var zone = pick([0.010, 0.014, 0.020]);
+    var a2 = zone / 2;
+    return { type: 'num', a: a2, tol: 0.0005, from: 'Level 28',
+      q: 'A frame allows <span class="num">⌖ Ø' + fmtExact(zone, 3) + '</span>. How far may the hole\'s center sit from true position?',
+      explain: 'The Ø is a diameter — the center roams HALF that: <span class="num">' + fmt(a2, 4).replace('0.', '.') + '</span>.',
+      hint: 'The zone Ø describes the whole circle; bullseye-to-edge is the radius.',
+      steps: '1 · ' + fmtExact(zone, 3) + ' ÷ 2 = <span class="res">' + fmt(a2, 4).replace('0.', '.') + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - zone) < 0.0005) return { label: 'Read the diameter as the reach',
+          your: 'the center only reaches half the Ø', right: fmt(a2, 4) };
+        return { label: 'Radius slip', your: fmtExact(v) + ' is not half the zone', right: fmt(a2, 4) };
+      } };
+  };
+
+  BANKS.l29 = function () {
+    if (Math.random() < 0.5) {
+      var three = Math.random() < 0.5;
+      var dim = three ? '.500' : '2.50';
+      var a = three ? 0.005 : 0.01;
+      return { type: 'num', a: a, tol: 0.0005, from: 'Level 29',
+        q: 'The ADAPTER PLATE\'s defaults: <span class="num">.XX ±.01 · .XXX ±.005</span>. What ± owns its <span class="num">' +
+          dim + '</span> dimension?',
+        explain: dim + ' shows ' + (three ? 'three' : 'two') + ' places → <span class="num">± ' + fmtExact(a) + '</span>.',
+        hint: 'Count the decimal places as written — the count picks the default line.',
+        steps: '1 · ' + dim + ' → ' + (three ? 'three' : 'two') + ' places<br>2 · <span class="res">± ' + fmtExact(a) + '</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - (three ? 0.01 : 0.005)) < 0.0005) return { label: 'Wrong default line',
+            your: 'count the places in ' + dim, right: '± ' + fmtExact(a) };
+          return { label: 'Default slip', your: fmtExact(v) + ' is not a block default', right: '± ' + fmtExact(a) };
+        } };
+    }
+    return { type: 'num', a: 1.000, tol: 0.0005, from: 'Level 29',
+      q: 'The ADAPTER PLATE\'s four holes sit on a <span class="num">Ø2.000 B.C.</span> How far is each hole\'s center from the plate\'s center?',
+      explain: 'B.C. Ø2.000 → radius 2.000 ÷ 2 = <span class="num">1.000</span>.',
+      hint: 'A bolt circle is named by its diameter; each hole stands one RADIUS out.',
+      steps: '1 · 2.000 ÷ 2 = <span class="res">1.000</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - 2) < 0.0005) return { label: 'Used the B.C. diameter',
+          your: '2.000 spans hole to opposite hole', right: '2.000 ÷ 2 = 1.000' };
+        return { label: 'B.C. slip', your: fmtExact(v) + ' is not half the bolt circle', right: '1.000' };
       } };
   };
 

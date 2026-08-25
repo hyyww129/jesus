@@ -203,13 +203,18 @@
       } };
   }
 
+  function rd(v) {
+    /* radius display: exact, never rounded away — .0625 stays .0625 */
+    var s = S.fmtExact(v, 3);
+    return s.replace(/^0\./, '.');
+  }
   function genRadDia(hard) {
     var toDia = Math.random() < 0.5;
     if (toDia) {
-      var r = S.pick(hard ? [0.0625, 0.09375, 0.1875, 0.3125] : [0.125, 0.250, 0.375, 0.500]);
+      var r = S.pick(hard ? [0.0625, 0.1875, 0.3125, 0.4375] : [0.125, 0.250, 0.375, 0.500]);
       var a = Math.round(r * 2 * 10000) / 10000;
       return { type: 'num', a: a, tol: 0.0005,
-        q: 'A rounded corner is labeled ' + nsp('R' + d3(r)) + '. What <b>diameter</b> circle is that arc a piece of?',
+        q: 'A rounded corner is labeled ' + nsp('R' + rd(r)) + '. What <b>diameter</b> circle is that arc a piece of?',
         explain: 'R is half, Ø is the whole: ' + nf(r) + ' × 2 = <span class="num">' + nf(a) + '</span>.',
         hint: 'R measures center-to-edge; Ø measures edge-to-edge through the center. One is exactly double the other — which way does this question go?',
         steps: '1 · Ø = 2 × R<br>2 · 2 × <span class="num">' + nf(r) + '</span> = <span class="res">' + nf(a) + '</span>',
@@ -226,9 +231,9 @@
         } };
     }
     var d = S.pick(hard ? [0.266, 0.4375, 0.5625, 0.201] : [0.250, 0.500, 0.750, 0.375]);
-    var a2 = Math.round(d / 2 * 10000) / 10000;
+    var a2 = Math.round(d / 2 * 100000) / 100000;
     return { type: 'num', a: a2, tol: 0.0005,
-      q: 'A hole is called out ' + nsp('Ø' + d3(d)) + '. What is its <b>radius</b> — center out to the wall?',
+      q: 'A hole is called out ' + nsp('Ø' + rd(d)) + '. What is its <b>radius</b> — center out to the wall?',
       explain: 'R is half of Ø: ' + nf(d) + ' ÷ 2 = <span class="num">' + nf(a2) + '</span>.',
       hint: 'Ø spans the whole hole through the center; the radius only goes from the center to one wall. Half.',
       steps: '1 · R = Ø ÷ 2<br>2 · <span class="num">' + nf(d) + '</span> ÷ 2 = <span class="res">' + nf(a2) + '</span>',

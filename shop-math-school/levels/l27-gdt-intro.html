@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level 27 · Intro to GD&amp;T</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+.fcf { display: inline-flex; border: 2px solid var(--ink); font-family: var(--mono); font-size: 20px; font-weight: 700; }
+.fcf span { padding: 6px 12px; border-right: 2px solid var(--ink); }
+.fcf span:last-child { border-right: none; }
+.fcf .sym { font-size: 22px; }
+.symrow button { font-size: 19px; min-width: 52px; }
+.pf-lbl { font-family: var(--mono); font-size: 10px; letter-spacing: .12em; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← SKILL TREE</a>
+    <div class="eyebrow">Level 27 · World 5 · Shop Math School</div>
+    <h1>Intro to <span class="b">GD&amp;T</span></h1>
+    <p class="sub">Those little boxed symbols aren't decoration — they're one sentence each about
+      SHAPE, not size. Learn to read the box out loud and the mystery is over.</p>
+  </header>
+  <div id="sms-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  function nf(v) { return S.fmtExact(v); }
+  function d3(v) { var s = v.toFixed(3); return s.replace(/^0\./, '.'); }
+  function nsp(s) { return '<span class="num">' + s + '</span>'; }
+
+  var SYMS = [
+    { sym: '⏥', name: 'flatness', datum: false, fam: 'form',
+      say: 'the whole surface must be flat within the zone — judged against itself, no datum',
+      pass: 'a surface that checks .001 high-to-low against a .003 zone',
+      fail: 'a surface bowed .006 high-to-low against a .003 zone' },
+    { sym: '⏤', name: 'straightness', datum: false, fam: 'form',
+      say: 'each line element must be straight within the zone — no datum needed',
+      pass: 'an edge that wanders .001 over its length, zone .002',
+      fail: 'an edge bowed .005 over its length, zone .002' },
+    { sym: '○', name: 'circularity', datum: false, fam: 'form',
+      say: 'every cross-section must be round within the zone — the circle judged against itself',
+      pass: 'a pin whose section is out-of-round .0005, zone .001',
+      fail: 'a lobed pin out-of-round .003, zone .001' },
+    { sym: '⟂', name: 'perpendicularity', datum: true, fam: 'orientation',
+      say: 'the feature must sit square to the DATUM within the zone',
+      pass: 'a wall leaning .002 from square to A, zone .005',
+      fail: 'a wall leaning .008 from square to A, zone .005' },
+    { sym: '∥', name: 'parallelism', datum: true, fam: 'orientation',
+      say: 'the feature must stay parallel to the DATUM within the zone',
+      pass: 'a top face tapering .002 relative to A, zone .004',
+      fail: 'a top face tapering .009 relative to A, zone .004' },
+    { sym: '∠', name: 'angularity', datum: true, fam: 'orientation',
+      say: 'the feature must hold its called angle to the DATUM within the zone',
+      pass: 'a 30° face off by the thickness of .002, zone .005',
+      fail: 'a 30° face off by .012, zone .005' },
+    { sym: '⌖', name: 'position', datum: true, fam: 'location',
+      say: 'the feature\'s center must land inside a zone centered on its TRUE position from the datums',
+      pass: 'a hole .003 off true position, zone Ø.010',
+      fail: 'a hole .012 off true position, zone Ø.010' },
+    { sym: '↗', name: 'circular runout', datum: true, fam: 'spin',
+      say: 'spun about the DATUM axis, the dial must not swing more than the zone',
+      pass: 'a shoulder that swings the needle .002, zone .005',
+      fail: 'a wobbling face that swings .011, zone .005' },
+    { sym: '⌓', name: 'profile of a surface', datum: true, fam: 'shape',
+      say: 'the whole surface must stay inside a zone that follows its TRUE curved shape',
+      pass: 'a contour off its true shape by .002, zone .006',
+      fail: 'a contour off by .010, zone .006' },
+  ];
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>Plain tolerances control <b>size</b>. GD&T controls <b>shape and position</b> — flat, square, ' +
+  'round, in-the-right-spot. Every GD&T order comes in the same box, the ' +
+  '<span class="term">feature control frame</span>, and it reads left to right like a sentence:</p>' +
+  '<div class="worked"><span class="fcf"><span class="sym">⟂</span><span>.005</span><span>A</span></span><br>' +
+  'symbol · zone size · datum &nbsp;→&nbsp; <span class="res">"square to datum A within .005"</span></div>' +
+  '<p><span class="term">Datums are the part\'s handshake with reality</span> — the surfaces it sits ' +
+  'against while being measured. <b>A</b> is primary: the face the part RESTS on. <b>B</b>: the edge it ' +
+  'slides against. <b>C</b>: the stop that pins it. Rest, slide, stop — set a part on a surface plate ' +
+  'against two rails and you\'ve built the datum system with your hands.</p>' +
+  '<p><span class="term">Who needs a datum?</span> Ask what the feature is compared TO. ' +
+  '<b>Form</b> controls — flatness ⏥, straightness ⏤, circularity ○ — judge a surface against ' +
+  '<i>itself</i>: no datum in the frame. <b>Orientation and location</b> controls — perpendicularity ⟂, ' +
+  'parallelism ∥, angularity ∠, position ⌖, runout ↗ — compare the feature to something else: ' +
+  'a datum letter is required. No letter, nothing to be square TO.</p>' +
+  '<table class="ref"><tr><th>symbol</th><th>name</th><th>datum?</th><th>plain English</th></tr>' +
+  SYMS.map(function (x) {
+    return '<tr><td style="font-size:16px">' + x.sym + '</td><td>' + x.name + '</td><td>' +
+      (x.datum ? 'yes' : 'no') + '</td><td style="text-align:left">' + x.say + '</td></tr>';
+  }).join('') + '</table>' +
+  '<p style="margin-top:10px">Work one all the way: a print shows <span class="fcf" style="font-size:15px">' +
+  '<span class="sym" style="font-size:17px">⏥</span><span>.002</span></span> on a base face. ' +
+  'Set the part on a surface plate, sweep an indicator across the face: it reads .0015 high-to-low. ' +
+  'The whole surface fits in a .002-wide sandwich → <b>PASS</b>. Reads .004? The sandwich is only .002 ' +
+  'thick → <b>FAIL</b> — even if every size dimension on the part is perfect. Size and shape are ' +
+  'separate promises.</p>' +
+  '<p>Now open the <b>Playground</b> — pick each symbol, drag the error, watch pass turn to fail.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — every symbol, pass and fail</h2><div class="body">' +
+      '<div class="btnrow symrow" id="symRow"></div>' +
+      '<div style="text-align:center;margin:12px 0"><span class="fcf" id="fcfBox"></span></div>' +
+      '<div class="slider-row"><span class="name">ZONE</span>' +
+      '<input type="range" id="zoneSlide" min="1" max="10" step="1" value="5" aria-label="tolerance zone in thou">' +
+      '<span class="out" id="zoneOut"></span></div>' +
+      '<div class="slider-row"><span class="name">MEASURED ERROR</span>' +
+      '<input type="range" id="errSlide" min="0" max="15" step="1" value="3" aria-label="measured error in thou">' +
+      '<span class="out" id="errOut"></span></div>' +
+      '<div class="scrollbox"><svg id="pfView" width="640" height="170" viewBox="0 0 640 170" role="img" aria-label="a passing part and a failing part for the chosen symbol"></svg></div>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The frame, read aloud</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var si = 0, zone = 0.005, err = 0.003;
+    var eqBody = card.querySelector('#eqBody');
+    var droCtl = S.dro(card.querySelector('#droBox'), 'ERR');
+
+    var symRow = card.querySelector('#symRow');
+    SYMS.forEach(function (x, i) {
+      var b = document.createElement('button');
+      b.textContent = x.sym;
+      b.setAttribute('data-si', String(i));
+      b.setAttribute('aria-label', x.name);
+      b.title = x.name;
+      b.addEventListener('click', function () { si = i; update(); });
+      symRow.appendChild(b);
+    });
+
+    function drawPF() {
+      var x = SYMS[si];
+      var amp = Math.min(26, 4 + err * 1400);
+      var s = '';
+      function panel(ox, bad) {
+        var a = bad ? amp : 2;
+        var p = '<rect x="' + ox + '" y="18" width="280" height="134" style="fill:#fff;stroke:var(--line);stroke-width:1.5"/>';
+        p += '<text x="' + (ox + 10) + '" y="34" class="pf-lbl" style="fill:' + (bad ? 'var(--orange)' : 'var(--good-bd)') + '">' +
+          (bad ? 'FAIL — error > zone' : 'PASS — error ≤ zone') + '</text>';
+        if (x.fam === 'form' || x.fam === 'shape') {
+          var d = 'M ' + (ox + 30) + ' 110';
+          for (var k = 1; k <= 22; k++) {
+            var px = ox + 30 + k * 10;
+            var py = 110 - (k % 2 === 0 ? 0 : a);
+            d += ' L ' + px + ' ' + py;
+          }
+          p += '<rect x="' + (ox + 30) + '" y="' + (108 - a) + '" width="220" height="' + (a + 6) + '" style="fill:var(--good-bg);stroke:var(--good-bd);stroke-width:1" stroke-dasharray="4 3"/>';
+          p += '<path d="' + d + '" style="fill:none;stroke:var(--ink);stroke-width:2.2"/>';
+          p += '<rect x="' + (ox + 30) + '" y="114" width="220" height="22" style="fill:var(--panel);stroke:var(--ink);stroke-width:1.5"/>';
+        } else if (x.fam === 'orientation') {
+          p += '<rect x="' + (ox + 30) + '" y="114" width="220" height="22" style="fill:var(--panel);stroke:var(--ink);stroke-width:1.5"/>';
+          p += '<text x="' + (ox + 135) + '" y="130" class="pf-lbl" style="fill:var(--soft)">DATUM A</text>';
+          var lean = bad ? 16 : 2;
+          p += '<polygon points="' + (ox + 120) + ',114 ' + (ox + 160) + ',114 ' + (ox + 160 - lean) + ',44 ' + (ox + 120 - lean) + ',44' +
+            '" style="fill:var(--paper);stroke:var(--ink);stroke-width:2"/>';
+          p += '<line x1="' + (ox + 120) + '" y1="114" x2="' + (ox + 120) + '" y2="40" stroke-dasharray="4 3" style="stroke:var(--blue);stroke-width:1.2"/>';
+        } else if (x.fam === 'location') {
+          p += '<rect x="' + (ox + 60) + '" y="44" width="160" height="92" style="fill:var(--paper);stroke:var(--ink);stroke-width:2"/>';
+          var cx = ox + 140, cy = 90;
+          p += '<circle cx="' + cx + '" cy="' + cy + '" r="14" stroke-dasharray="4 3" style="fill:none;stroke:var(--good-bd);stroke-width:1.5"/>';
+          var off = bad ? 20 : 5;
+          p += '<circle cx="' + (cx + off) + '" cy="' + (cy - off / 2) + '" r="11" style="fill:#fff;stroke:var(--ink);stroke-width:2"/>';
+          p += '<line x1="' + cx + '" y1="' + (cy - 20) + '" x2="' + cx + '" y2="' + (cy + 20) + '" stroke-dasharray="8 3 2 3" style="stroke:var(--blue);stroke-width:1"/>';
+          p += '<line x1="' + (cx - 20) + '" y1="' + cy + '" x2="' + (cx + 20) + '" y2="' + cy + '" stroke-dasharray="8 3 2 3" style="stroke:var(--blue);stroke-width:1"/>';
+        } else {
+          var wob = bad ? 10 : 2;
+          p += '<ellipse cx="' + (ox + 140) + '" cy="90" rx="52" ry="' + (30 + wob) + '" style="fill:var(--paper);stroke:var(--ink);stroke-width:2" transform="rotate(' + (bad ? 6 : 1) + ' ' + (ox + 140) + ' 90)"/>';
+          p += '<line x1="' + (ox + 60) + '" y1="90" x2="' + (ox + 220) + '" y2="90" stroke-dasharray="8 3 2 3" style="stroke:var(--blue);stroke-width:1.2"/>';
+          p += '<text x="' + (ox + 228) + '" y="94" class="pf-lbl" style="fill:var(--blue)">AXIS A</text>';
+        }
+        return p;
+      }
+      s += panel(20, false);
+      s += panel(340, true);
+      card.querySelector('#pfView').innerHTML = s;
+    }
+
+    function update() {
+      var x = SYMS[si];
+      symRow.querySelectorAll('button').forEach(function (b, i) { b.classList.toggle('on', i === si); });
+      card.querySelector('#fcfBox').innerHTML =
+        '<span class="sym">' + x.sym + '</span><span>' + d3(zone) + '</span>' + (x.datum ? '<span>A</span>' : '');
+      card.querySelector('#zoneOut').textContent = d3(zone);
+      card.querySelector('#errOut').textContent = d3(err);
+      var pass = err <= zone + 1e-9;
+      eqBody.innerHTML =
+        '<b>' + x.sym + ' ' + x.name.toUpperCase() + '</b>' + (x.datum ? ' · datum A required' : ' · no datum — judged against itself') + '<br>' +
+        '"' + x.say + '"<br>' +
+        'zone ' + nsp(d3(zone)) + ' vs measured ' + nsp(d3(err)) + ' → ' +
+        (pass ? '<span class="res">PASS</span> <span class="dim">(equal counts as pass)</span>'
+              : '<span class="res">FAIL</span> <span class="dim">— over by ' + nf(Math.round((err - zone) * 1000) / 1000) + '</span>');
+      droCtl.set(d3(err),
+        (pass ? '<b>PASS.</b> ' : '<b>FAIL.</b> ') + 'The ' + x.name + ' error is ' + d3(err) +
+        ' against a ' + d3(zone) + ' zone' +
+        (pass ? ' — the whole feature fits inside its zone.' : ' — the feature pokes out of its zone. Size can be perfect and this still fails.'));
+      drawPF();
+    }
+    card.querySelector('#zoneSlide').addEventListener('input', function () { zone = Number(this.value) / 1000; update(); });
+    card.querySelector('#errSlide').addEventListener('input', function () { err = Number(this.value) / 1000; update(); });
+    update();
+    window.__l27 = {
+      set: function (o) {
+        o = o || {};
+        if (typeof o.si === 'number') si = o.si;
+        if (typeof o.zone === 'number') { zone = o.zone; card.querySelector('#zoneSlide').value = Math.round(o.zone * 1000); }
+        if (typeof o.err === 'number') { err = o.err; card.querySelector('#errSlide').value = Math.round(o.err * 1000); }
+        update();
+      },
+      info: function () { return { sym: SYMS[si].name, zone: zone, err: err, pass: err <= zone + 1e-9 }; }
+    };
+  }
+
+  /* ============ question generators (game + boss) ============ */
+  function rnd(n) { return Math.floor(Math.random() * n); }
+
+  function genMatchSymbol(hard) {
+    var pool = hard ? SYMS : SYMS.slice(0, 7);
+    var si = rnd(pool.length);
+    var x = pool[si];
+    var asks = {
+      flatness: 'a surface must be FLAT within', straightness: 'an edge must be STRAIGHT within',
+      circularity: 'every cross-section must be ROUND within', perpendicularity: 'a face must sit SQUARE to a datum within',
+      parallelism: 'a face must stay PARALLEL to a datum within', angularity: 'a face must hold its ANGLE to a datum within',
+      position: 'a hole\'s center must land ON ITS TRUE SPOT within', 'circular runout': 'spun on its axis, a face must not SWING the dial more than',
+      'profile of a surface': 'a curved surface must follow its TRUE SHAPE within' };
+    var choices = [x.sym + '  ' + x.name];
+    var others = S.shuffle(SYMS.filter(function (y) { return y.name !== x.name; })).slice(0, 3);
+    for (var k = 0; k < others.length; k++) choices.push(others[k].sym + '  ' + others[k].name);
+    return { type: 'mc', a: 0, choices: choices,
+      q: 'Which symbol orders that ' + nsp(asks[x.name]) + ' a zone?',
+      explain: x.sym + ' ' + x.name + ' — ' + x.say + '.',
+      hint: 'Sort by family first: form (flat/straight/round) judges a feature against itself; orientation (square/parallel/angle) compares to a datum; position locates; runout spins.',
+      steps: '1 · The ask: ' + asks[x.name] + ' a zone<br>' +
+        '2 · That is the job of <span class="res">' + x.sym + ' ' + x.name + '</span>',
+      diagnose: function (chosen) {
+        var picked = choices[chosen];
+        var py = null;
+        for (var j = 0; j < SYMS.length; j++) if (picked.indexOf(SYMS[j].name) >= 0) py = SYMS[j];
+        return { label: 'Symbols mixed up',
+          your: (py ? py.sym + ' ' + py.name + ' orders: ' + py.say : 'that symbol has a different job'),
+          right: x.sym + ' ' + x.name + ' — ' + x.say };
+      } };
+  }
+
+  function genDecodeFrame(hard) {
+    var withDatum = SYMS.filter(function (x) { return x.datum; });
+    var x = S.pick(withDatum);
+    var zone = S.pick([0.002, 0.005, 0.010]);
+    var isPos = x.name === 'position';
+    var datums = hard && isPos ? 'A|B' : 'A';
+    var frame = '|' + x.sym + '|' + (isPos ? 'Ø' : '') + d3(zone) + '|' + datums + '|';
+    var reads = {
+      perpendicularity: 'square to datum ', parallelism: 'parallel to datum ',
+      angularity: 'holding its called angle to datum ', position: 'centered on its true position from datum ',
+      'circular runout': 'swinging the dial no more than the zone, spun on datum ',
+      'profile of a surface': 'holding its true shape relative to datum ' };
+    var right = x.name + ': ' + reads[x.name] + datums.replace('|', ' then ') + ', within ' + (isPos ? 'a Ø' : '') + d3(zone);
+    var oth = S.shuffle(withDatum.filter(function (y) { return y.name !== x.name; })).slice(0, 2);
+    var choices = [right,
+      oth[0].name + ': ' + reads[oth[0].name] + 'A, within ' + d3(zone),
+      x.name + ': ' + reads[x.name] + datums.replace('|', ' then ') + ', within ' + (isPos ? 'a Ø' : '') + d3(zone * 2),
+      oth[1].name + ': ' + reads[oth[1].name] + 'A, within ' + d3(zone)];
+    return { type: 'mc', a: 0, choices: choices,
+      q: 'Read this feature control frame out loud: ' + nsp(frame),
+      explain: frame + ' → <span class="num">' + right + '</span>.',
+      hint: 'Left to right, three boxes: WHAT (the symbol), HOW MUCH (the zone — Ø means the zone is a cylinder), and COMPARED TO WHAT (the datums, in order of priority).',
+      steps: '1 · ' + x.sym + ' = ' + x.name + '<br>' +
+        '2 · ' + (isPos ? 'Ø' : '') + d3(zone) + ' = the zone' + (isPos ? ' (a round zone)' : '') + '<br>' +
+        '3 · ' + datums.replace('|', ' then ') + ' = the datum reference' + (datums.length > 1 ? 's, in order' : '') + '<br>' +
+        '4 · <span class="res">' + right + '</span>',
+      diagnose: function (chosen) {
+        var picked = choices[chosen];
+        if (picked.indexOf(x.name) !== 0) return { label: 'Symbol misread',
+          your: 'the first box is ' + x.sym + ' — that is ' + x.name + ', not ' + picked.split(':')[0],
+          right: right };
+        return { label: 'Zone misread',
+          your: 'the middle box says ' + d3(zone) + ' — the zone size came out wrong',
+          right: right };
+      } };
+  }
+
+  function genNeedsDatum(hard) {
+    var noD = SYMS.filter(function (x) { return !x.datum; });
+    var yesD = SYMS.filter(function (x) { return x.datum && x.name !== 'profile of a surface'; });
+    var a = S.pick(noD), b = S.pick(yesD);
+    var askNeeds = Math.random() < 0.5;
+    var right = askNeeds
+      ? b.sym + ' ' + b.name + ' — it compares the feature to something else'
+      : a.sym + ' ' + a.name + ' — it judges the surface against itself';
+    var wrong = askNeeds
+      ? a.sym + ' ' + a.name + ' — it compares the feature to something else'
+      : b.sym + ' ' + b.name + ' — it judges the surface against itself';
+    return { type: 'mc', a: 0, choices: [right, wrong],
+      q: 'Between ' + nsp(a.sym + ' ' + a.name) + ' and ' + nsp(b.sym + ' ' + b.name) +
+        ', which one ' + (askNeeds ? '<b>REQUIRES</b> a datum letter in its frame' : 'needs <b>NO</b> datum') + ' — and why?',
+      explain: (askNeeds
+        ? b.name + ' compares the feature to a datum — no letter, nothing to be ' + (b.name === 'parallelism' ? 'parallel' : 'referenced') + ' to.'
+        : a.name + ' is a FORM control: the surface is judged against itself, so no datum.'),
+      hint: 'One question decides it: judged against ITSELF (form: flat, straight, round → no datum) or compared to SOMETHING ELSE (square, parallel, angled, located, spun → datum required)?',
+      steps: '1 · ' + a.sym + ' ' + a.name + ' = form → self-judged → no datum<br>' +
+        '2 · ' + b.sym + ' ' + b.name + ' = compares to a reference → datum required<br>' +
+        '3 · <span class="res">' + right + '</span>',
+      diagnose: function () {
+        return { label: 'Form vs reference flipped',
+          your: 'a form control never needs a datum — a comparison control always does',
+          right: right };
+      } };
+  }
+
+  function genPassFail(hard) {
+    var x = S.pick(hard ? SYMS : SYMS.slice(0, 7));
+    var zone = S.pick([0.002, 0.003, 0.005, 0.010]);
+    var roll = Math.random();
+    var err;
+    if (roll < 0.3) err = Math.round(zone * S.pick([0.3, 0.5, 0.7]) * 10000) / 10000;
+    else if (roll < 0.45) err = zone;   /* dead on — passes */
+    else err = Math.round((zone + S.pick([0.001, 0.002, 0.004, 0.006])) * 10000) / 10000;
+    var pass = err <= zone + 1e-9;
+    var CH = ['PASS', 'FAIL'];
+    return { type: 'mc', a: pass ? 0 : 1, choices: CH,
+      q: 'The frame calls ' + nsp(x.sym + ' ' + x.name + ' within ' + d3(zone)) +
+        (x.datum ? ' to datum A' : '') + '. The check measures <b>' + d3(err) + '</b> of ' + x.name + ' error. Verdict?',
+      explain: d3(err) + ' vs a ' + d3(zone) + ' zone → <span class="num">' + CH[pass ? 0 : 1] + '</span>' +
+        (err === zone ? ' — dead on the zone counts as IN, same as any limit.' : '.'),
+      hint: 'One compare: does the measured error fit inside the zone? Equal-to counts as in — zones are limits, and limits are inclusive.',
+      steps: '1 · zone = ' + d3(zone) + ' · measured = ' + d3(err) + '<br>' +
+        '2 · ' + d3(err) + (err > zone ? ' > ' : ' ≤ ') + d3(zone) + '<br>' +
+        '3 · <span class="res">' + CH[pass ? 0 : 1] + '</span>',
+      diagnose: function () {
+        if (err === zone) return { label: 'Failed a dead-on part',
+          your: 'exactly ON the zone is legal — inclusive, like every limit',
+          right: 'PASS' };
+        return { label: 'Compare flipped',
+          your: 'the only test is error ≤ zone: ' + d3(err) + ' vs ' + d3(zone),
+          right: CH[pass ? 0 : 1] };
+      } };
+  }
+
+  function genDatumRole(hard) {
+    var vars = [
+      { q: 'The part RESTS on one face while everything is measured. Which datum is that face?', a: 'A — the primary', o: ['B — the secondary', 'C — the tertiary', 'Whichever is largest'] },
+      { q: 'Rest, slide, stop — the edge the part SLIDES against is which datum?', a: 'B — the secondary', o: ['A — the primary', 'C — the tertiary', 'No datum — edges aren\'t datums'] },
+      { q: 'The small stop that pins the part from sliding endways is which datum?', a: 'C — the tertiary', o: ['A — the primary', 'B — the secondary', 'D — the quaternary'] },
+      { q: 'A frame lists datums |A|B|. What does the ORDER promise?', a: 'Seat on A first, then align to B — priority order', o: ['B is more important than A', 'Either order works', 'A and B are the same surface'] },
+    ];
+    var v = S.pick(vars);
+    return { type: 'mc', a: 0, choices: [v.a].concat(v.o),
+      q: v.q,
+      explain: '<span class="num">' + v.a + '</span> — rest (A), slide (B), stop (C), in that order.',
+      hint: 'Build it with your hands: set the part down (that face is A), slide it against a rail (B), push it to a stop (C). The frame lists them in seating order.',
+      steps: '1 · A = rest · B = slide · C = stop<br>2 · <span class="res">' + v.a + '</span>',
+      diagnose: function (chosen) {
+        return { label: 'Datum roles scrambled',
+          your: '"' + [v.a].concat(v.o)[chosen] + '" breaks the rest-slide-stop order',
+          right: v.a };
+      } };
+  }
+
+  var GENS = { matchSymbol: genMatchSymbol, decodeFrame: genDecodeFrame, needsDatum: genNeedsDatum,
+    passFail: genPassFail, datumRole: genDatumRole };
+  var HARD = false;
+  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 27'; return q; }
+
+  function makeSet(kinds, hard) {
+    HARD = !!hard;
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    HARD = false;
+    return S.shuffle(out);
+  }
+  function gameQs() {
+    return makeSet(['matchSymbol', 'matchSymbol', 'decodeFrame', 'decodeFrame', 'needsDatum',
+      'needsDatum', 'passFail', 'passFail', 'datumRole', 'datumRole'], false);
+  }
+  function bossQs() {
+    return makeSet(['matchSymbol', 'matchSymbol', 'decodeFrame', 'decodeFrame', 'needsDatum',
+      'passFail', 'passFail', 'passFail', 'datumRole', 'datumRole'], true);
+  }
+
+  S.levelPage('l27', {
+    explainer: EXPLAINER,
+    playground: playground,
+    gameQs: gameQs,
+    bossQs: bossQs,
+  });
+})();
+</script>
+</body>
+</html>

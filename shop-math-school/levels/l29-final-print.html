@@ -1,0 +1,412 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level 29 · FINAL BOSS: Read a Real Print</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+.bp-hot { cursor: pointer; }
+.mono9 { font-family: var(--mono); font-size: 9px; fill: var(--ink); }
+.mono10 { font-family: var(--mono); font-size: 10px; fill: var(--ink); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← SKILL TREE</a>
+    <div class="eyebrow">Level 29 · World 5 · Shop Math School · FINAL BOSS</div>
+    <h1>Read a <span class="b">Real Print</span></h1>
+    <p class="sub">One plate, one sheet, everything you've learned: views, callouts, defaults,
+      feeds and speeds, and three GD&amp;T frames. Beat this boss and you read prints.</p>
+  </header>
+  <div id="sms-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  function r4(v) { return Math.round(v * 10000) / 10000; }
+  function nf(v) { return S.fmtExact(v); }
+  function d3(v) { var s = v.toFixed(3); return s.replace(/^0\./, '.'); }
+  function d4(v) { var s = v.toFixed(4); return s.replace(/^0\./, '.'); }
+  function nsp(s) { return '<span class="num">' + s + '</span>'; }
+
+  /* THE PRINT — one source of truth for playground and questions */
+  var P = {
+    name: 'ADAPTER PLATE', no: '1042-A', rev: 'B', matl: '6061-T6 AL', scale: '1:1',
+    L: 4.00, W: 2.50, TH: 0.500,
+    boreD: 1.000, boreDeep: 0.250,
+    holeN: 4, holeD: 0.266, bc: 2.000,
+    flatZone: 0.003, perpZone: 0.005, posZone: 0.014,
+    sfmAlu: 250, rpmMax: 4200,
+  };
+  var DRILL_RPM = Math.round(P.sfmAlu * 3.82 / P.holeD);   /* 3590 */
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>The final walk — how you read ANY print</h2><div class="body prose">' +
+  '<p>This level is one drawing: the <b>' + P.name + '</b>. The playground holds the whole sheet — ' +
+  'walk it exactly the way you\'ll walk tomorrow\'s print:</p>' +
+  '<p><span class="term">① Title block.</span> ' + P.name + ', NO. ' + P.no + ' REV ' + P.rev + ', material ' +
+  '<b>' + P.matl + '</b>, SCALE ' + P.scale + ', defaults <b>.XX ±.01 · .XXX ±.005</b>. Twenty seconds, ' +
+  'and you know what you\'re making, from what, and how honest to be.</p>' +
+  '<p><span class="term">② Views and envelope.</span> Front view + right side view, third angle. Overall: ' +
+  '<b>' + P.L.toFixed(2) + ' × ' + P.W.toFixed(2) + '</b>, thickness <b>' + d3(P.TH) + '</b>. ' +
+  'Notice the thickness is written with THREE places — the block\'s ±.005 line owns it.</p>' +
+  '<p><span class="term">③ Features.</span> A center bore <b>Ø' + d3(P.boreD) + ' ↧ ' + d3(P.boreDeep) + '</b> ' +
+  '(blind — the side view shows its dashed bottom), and <b>' + P.holeN + 'X Ø' + d3(P.holeD) + ' THRU</b> on a ' +
+  '<b>Ø' + d3(P.bc) + ' B.C.</b> — each hole ' + d3(P.bc / 2) + ' from center, Level 23\'s bolt-circle math ' +
+  'waiting for you when Worlds 2–4 fill in.</p>' +
+  '<p><span class="term">④ The GD&T frames.</span> Three promises: ⏥ ' + d3(P.flatZone) + ' — the bottom face ' +
+  '(datum A) flat within ' + d3(P.flatZone) + '. ⟂ ' + d3(P.perpZone) + ' | A — the left edge (datum B) square ' +
+  'to A. ⌖ Ø' + d3(P.posZone) + ' | A B C — every bolt hole\'s center inside a Ø' + d3(P.posZone) + ' zone.</p>' +
+  '<p><span class="term">⑤ Making chips.</span> Drilling the Ø' + d3(P.holeD) + ' holes, HSS in aluminum at ' +
+  P.sfmAlu + ' SFM: RPM = ' + P.sfmAlu + ' × 3.82 ÷ ' + d3(P.holeD) + ' ≈ <b>' + DRILL_RPM + '</b> — under the ' +
+  P.rpmMax + ' cap, so run it. The print and the machine finally shake hands.</p>' +
+  '<div class="worked">The boss asks about THIS print, from every level you\'ve passed:<br>' +
+  'fields · defaults · callouts · bolt circle · verdicts · frames · position math · RPM<br>' +
+  '<span class="res">90% and the sheet holds no more secrets.</span></div>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND (the print itself) ============ */
+  var SPOTS = {
+    title: { name: 'TITLE BLOCK', txt: P.name + ' · NO. ' + P.no + ' REV ' + P.rev + ' · ' + P.matl + ' · SCALE ' + P.scale + ' · defaults .XX ±.01, .XXX ±.005. Read this corner first, every print, every time.' },
+    front: { name: 'FRONT VIEW', txt: 'The plate face-on: ' + P.L.toFixed(2) + ' wide, ' + P.W.toFixed(2) + ' tall. The bore, the bolt circle and all four holes show as circles here.' },
+    side: { name: 'RIGHT SIDE VIEW', txt: 'The plate edge-on: ' + d3(P.TH) + ' thick. The bore\'s walls and its BLIND bottom at ' + d3(P.boreDeep) + ' deep show dashed — hidden metal.' },
+    bore: { name: 'CENTER BORE', txt: 'Ø' + d3(P.boreD) + ' ↧ ' + d3(P.boreDeep) + ': a one-inch pocket, quarter deep, NOT through. The ↧ hook is the giveaway.' },
+    bc: { name: 'BOLT CIRCLE', txt: P.holeN + 'X Ø' + d3(P.holeD) + ' THRU on Ø' + d3(P.bc) + ' B.C. — four through-holes, each sitting ' + d3(P.bc / 2) + ' (the RADIUS) from the plate\'s center.' },
+    flat: { name: '⏥ ' + d3(P.flatZone) + ' — FLATNESS', txt: 'The bottom face must be flat within ' + d3(P.flatZone) + ', judged against itself. That face is datum A — everything else measures from it.' },
+    perp: { name: '⟂ ' + d3(P.perpZone) + ' | A — PERPENDICULARITY', txt: 'The left edge (datum B) must sit square to datum A within ' + d3(P.perpZone) + '. Orientation control → datum required.' },
+    pos: { name: '⌖ Ø' + d3(P.posZone) + ' | A B C — POSITION', txt: 'Each bolt-hole center must land in a Ø' + d3(P.posZone) + ' round zone centered on true position. Error = 2 × √(ΔX² + ΔY²).' },
+  };
+
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>The print — tap every region</h2><div class="body">' +
+      '<div class="scrollbox"><svg id="printView" width="660" height="360" viewBox="0 0 660 360" role="img" aria-label="the complete adapter plate blueprint"></svg></div>' +
+      '<div class="slider-row" style="margin-top:12px"><span class="name">YOUR MIC ON THE ' + d3(P.TH) + ' THICKNESS</span>' +
+      '<input type="range" id="thSlide" min="-12" max="12" step="1" value="0" aria-label="measured thickness offset in thou">' +
+      '<span class="out" id="thOut"></span></div>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The decode, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var picked = null, thOffs = 0;
+    var eqBody = card.querySelector('#eqBody');
+    var droCtl = S.dro(card.querySelector('#droBox'), 'READ');
+
+    function draw() {
+      var s = '<rect x="4" y="4" width="652" height="352" style="fill:none;stroke:var(--ink);stroke-width:2"/>';
+      function hot(id, inner) { return '<g class="bp-hot" data-r="' + id + '">' + inner + '</g>'; }
+      var on = function (id, base) { return picked === id ? 'var(--orange)' : base; };
+      /* FRONT view: 4.00 x 2.50 plate at 75px/inch */
+      var fx = 40, fy = 40, PPI = 62;
+      var fw = P.L * PPI, fh = P.W * PPI;
+      var cx = fx + fw / 2, cy = fy + fh / 2;
+      s += hot('front', '<rect x="' + fx + '" y="' + fy + '" width="' + fw + '" height="' + fh +
+        '" style="fill:var(--paper);stroke:' + on('front', 'var(--ink)') + ';stroke-width:2"/>');
+      /* bore */
+      s += hot('bore', '<circle cx="' + cx + '" cy="' + cy + '" r="' + (P.boreD / 2 * PPI) +
+        '" style="fill:#fff;stroke:' + on('bore', 'var(--ink)') + ';stroke-width:2"/>' +
+        '<text x="' + cx + '" y="' + (fy - 16) + '" text-anchor="middle" class="mono10" style="fill:' + on('bore', 'var(--ink)') + '">Ø' + d3(P.boreD) + ' ↧ ' + d3(P.boreDeep) + '</text>' +
+        '<line x1="' + cx + '" y1="' + (fy - 12) + '" x2="' + cx + '" y2="' + (cy - P.boreD / 2 * PPI) + '" style="stroke:var(--soft);stroke-width:1"/>');
+      /* bolt circle + 4 holes at 45,135,225,315 */
+      var bcr = P.bc / 2 * PPI;
+      s += hot('bc', '<circle cx="' + cx + '" cy="' + cy + '" r="' + bcr +
+        '" stroke-dasharray="10 3 3 3" style="fill:none;stroke:' + on('bc', 'var(--blue)') + ';stroke-width:1.4"/>' +
+        [45, 135, 225, 315].map(function (ang) {
+          var hx = cx + bcr * Math.cos(ang * Math.PI / 180), hy = cy - bcr * Math.sin(ang * Math.PI / 180);
+          return '<circle cx="' + hx + '" cy="' + hy + '" r="' + (P.holeD / 2 * PPI) + '" style="fill:#fff;stroke:var(--ink);stroke-width:1.8"/>';
+        }).join('') +
+        '<text x="' + (cx + bcr * 0.74) + '" y="' + (cy - bcr * 0.86) + '" class="mono9" style="fill:' + on('bc', 'var(--blue)') + '">' + P.holeN + 'X Ø' + d3(P.holeD) + ' THRU · Ø' + d3(P.bc) + ' B.C.</text>');
+      /* envelope dims */
+      s += '<line x1="' + fx + '" y1="' + (fy + fh + 18) + '" x2="' + (fx + fw) + '" y2="' + (fy + fh + 18) + '" style="stroke:var(--soft);stroke-width:1"/>' +
+        '<text x="' + (fx + fw / 2) + '" y="' + (fy + fh + 32) + '" text-anchor="middle" class="mono10">' + P.L.toFixed(2) + '</text>' +
+        '<line x1="' + (fx - 16) + '" y1="' + fy + '" x2="' + (fx - 16) + '" y2="' + (fy + fh) + '" style="stroke:var(--soft);stroke-width:1"/>' +
+        '<text x="' + (fx - 22) + '" y="' + (fy + fh / 2) + '" text-anchor="middle" class="mono10" transform="rotate(-90 ' + (fx - 22) + ' ' + (fy + fh / 2) + ')">' + P.W.toFixed(2) + '</text>';
+      /* SIDE view */
+      var sx = fx + fw + 60, sw = P.TH * PPI * 2.2, sh = fh;
+      s += hot('side', '<rect x="' + sx + '" y="' + fy + '" width="' + sw + '" height="' + sh +
+        '" style="fill:var(--paper);stroke:' + on('side', 'var(--ink)') + ';stroke-width:2"/>' +
+        /* bore hidden lines from top, stopping at depth */
+        '<line x1="' + (sx + 4) + '" y1="' + (fy + sh / 2 - P.boreD / 2 * PPI) + '" x2="' + (sx + sw * (P.boreDeep / P.TH)) + '" y2="' + (fy + sh / 2 - P.boreD / 2 * PPI) + '" stroke-dasharray="5 4" style="stroke:var(--ink);stroke-width:1.4"/>' +
+        '<line x1="' + (sx + 4) + '" y1="' + (fy + sh / 2 + P.boreD / 2 * PPI) + '" x2="' + (sx + sw * (P.boreDeep / P.TH)) + '" y2="' + (fy + sh / 2 + P.boreD / 2 * PPI) + '" stroke-dasharray="5 4" style="stroke:var(--ink);stroke-width:1.4"/>' +
+        '<line x1="' + (sx + sw * (P.boreDeep / P.TH)) + '" y1="' + (fy + sh / 2 - P.boreD / 2 * PPI) + '" x2="' + (sx + sw * (P.boreDeep / P.TH)) + '" y2="' + (fy + sh / 2 + P.boreD / 2 * PPI) + '" stroke-dasharray="5 4" style="stroke:var(--ink);stroke-width:1.4"/>' +
+        '<text x="' + (sx + sw / 2) + '" y="' + (fy - 8) + '" text-anchor="middle" class="mono10">' + d3(P.TH) + '</text>');
+      /* GD&T frames, bottom-left row */
+      function frame(id, x, sym, zone, datums) {
+        var w = 34 + zone.length * 8 + datums.length * 16;
+        return hot(id,
+          '<rect x="' + x + '" y="298" width="' + w + '" height="24" style="fill:#fff;stroke:' + on(id, 'var(--ink)') + ';stroke-width:1.6"/>' +
+          '<text x="' + (x + 8) + '" y="315" class="mono10" style="font-size:13px;fill:' + on(id, 'var(--ink)') + '">' + sym + ' ' + zone +
+          (datums.length ? ' | ' + datums.join(' | ') : '') + '</text>');
+      }
+      s += frame('flat', 30, '⏥', d3(P.flatZone), []);
+      s += frame('perp', 130, '⟂', d3(P.perpZone), ['A']);
+      s += frame('pos', 250, '⌖', 'Ø' + d3(P.posZone), ['A', 'B', 'C']);
+      /* title block */
+      s += hot('title',
+        '<rect x="416" y="286" width="236" height="66" style="fill:var(--panel);stroke:' + on('title', 'var(--ink)') + ';stroke-width:2"/>' +
+        '<text x="424" y="302" class="mono10">' + P.name + ' · NO. ' + P.no + ' REV ' + P.rev + '</text>' +
+        '<text x="424" y="318" class="mono10">MATL: ' + P.matl + ' · SCALE ' + P.scale + '</text>' +
+        '<text x="424" y="334" class="mono9">.XX ±.01 · .XXX ±.005 · IN</text>' +
+        '<text x="424" y="348" class="mono9">DRAWN T.C. · SHOP MATH SCHOOL</text>');
+      card.querySelector('#printView').innerHTML = s;
+      card.querySelectorAll('.bp-hot').forEach(function (g) {
+        g.addEventListener('click', function () { picked = g.getAttribute('data-r'); update(); });
+      });
+    }
+
+    function update() {
+      var meas = r4(P.TH + thOffs / 1000);
+      var up = r4(P.TH + 0.005), lo = r4(P.TH - 0.005);
+      var v = meas > up ? 'REWORK' : meas < lo ? 'SCRAP' : 'ACCEPT';
+      card.querySelector('#thOut').textContent = S.fmt(meas, 4) + '"';
+      var spot = picked ? SPOTS[picked] : null;
+      eqBody.innerHTML =
+        (spot ? '<span class="dim">tapped:</span> <b>' + spot.name + '</b><br>' + spot.txt
+              : '<span class="dim">tap the print — every region decodes itself. Meanwhile, your mic:</span>') +
+        '<br><br>thickness ' + d3(P.TH) + ' (three places → ±.005): limits ' + nsp(d3(lo)) + '–' + nsp(d3(up)) + '<br>' +
+        'mic reads ' + nsp(S.fmt(meas, 4)) + ' → <span class="res">' + v + '</span>' +
+        (v === 'REWORK' ? ' <span class="dim">— outside cut, metal\'s still there</span>' :
+         v === 'SCRAP' ? ' <span class="dim">— under on an outside cut; gone</span>' : '');
+      droCtl.set(S.fmt(meas, 4), spot ? spot.txt :
+        'Verdict drill on the ' + d3(P.TH) + ' thickness: ' + v + '. Every skill on this sheet came from a level you beat.');
+    }
+    card.querySelector('#thSlide').addEventListener('input', function () { thOffs = Number(this.value); update(); });
+    draw();
+    update();
+    window.__l29 = {
+      set: function (o) { o = o || {}; if (o.pick !== undefined) picked = o.pick; if (typeof o.thOffs === 'number') { thOffs = o.thOffs; card.querySelector('#thSlide').value = o.thOffs; } draw(); update(); },
+      info: function () { return { picked: picked, print: P, drillRpm: DRILL_RPM }; }
+    };
+  }
+
+  /* ============ question generators — everything, on THIS print ============ */
+  function rnd(n) { return Math.floor(Math.random() * n); }
+
+  function genField(hard) {
+    var fields = [['material', P.matl, ['1018 STEEL', '304 SS', 'BRASS 360']],
+      ['scale', P.scale, ['2:1', '1:2', '4:1']],
+      ['part number', P.no, ['2210-C', '1042-B', '4210-A']],
+      ['revision', P.rev, ['A', 'C', 'D']]];
+    var f = fields[rnd(fields.length)];
+    var choices = [f[1]].concat(f[2]);
+    return { type: 'mc', a: 0, choices: choices,
+      q: 'The ' + P.name + '\'s title block: <span class="num">NO. ' + P.no + ' REV ' + P.rev + ' · MATL: ' + P.matl +
+        ' · SCALE ' + P.scale + '</span>. What is the <b>' + f[0] + '</b>?',
+      explain: 'Label match: <span class="num">' + f[1] + '</span>.',
+      hint: 'Labels, not positions: NO. = part number, REV = revision, MATL = material, SCALE = scale.',
+      steps: '1 · Find the label for the ' + f[0] + '<br>2 · <span class="res">' + f[1] + '</span>',
+      diagnose: function (chosen) {
+        return { label: 'Wrong field', your: choices[chosen] + ' answers a different label', right: f[1] };
+      } };
+  }
+
+  function genDefTol(hard) {
+    var three = Math.random() < 0.5;
+    var dim = three ? d3(P.TH) : P.W.toFixed(2);
+    var a = three ? 0.005 : 0.01;
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'Print defaults: <span class="num">.XX ±.01 · .XXX ±.005</span>. The ' + (three ? d3(P.TH) + ' thickness' : P.W.toFixed(2) + ' width') +
+        ' carries no tolerance of its own. What ± owns it?',
+      explain: dim + ' shows ' + (three ? 'three' : 'two') + ' decimal places → <span class="num">± ' + nf(a) + '</span>.',
+      hint: 'Count the decimal places in the dimension as written — that count picks the default line. Trailing zeros count.',
+      steps: '1 · ' + dim + ' → ' + (three ? 'three' : 'two') + ' places<br>2 · <span class="res">± ' + nf(a) + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - (three ? 0.01 : 0.005)) < 0.0005) return { label: 'Wrong default line',
+          your: 'that is the other line — count the places in ' + dim,
+          right: '± ' + nf(a) };
+        return { label: 'Default slip', your: nf(v) + ' is not a block default', right: '± ' + nf(a) };
+      } };
+  }
+
+  function genBore(hard) {
+    var askDeep = Math.random() < 0.6;
+    var a = askDeep ? P.boreDeep : P.boreD;
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'The center bore is called ' + nsp('Ø' + d3(P.boreD) + ' ↧ ' + d3(P.boreDeep)) + '. How ' +
+        (askDeep ? '<b>deep</b> does it go' : '<b>wide</b> is it') + '?',
+      explain: (askDeep ? 'The ↧ hook carries the depth: ' : 'The Ø carries the width: ') + '<span class="num">' + nf(a) + '</span>.' +
+        (askDeep ? ' Blind — it does NOT come through.' : ''),
+      hint: 'Two numbers, two jobs: Ø rides the width, the ↧ hook rides the depth.',
+      steps: '1 · Ø' + d3(P.boreD) + ' = width · ↧ ' + d3(P.boreDeep) + ' = depth<br>2 · <span class="res">' + nf(a) + '</span>',
+      diagnose: function (v) {
+        var other = askDeep ? P.boreD : P.boreDeep;
+        if (Math.abs(v - other) < 0.0005) return { label: 'Width and depth swapped',
+          your: nf(other) + ' rides the ' + (askDeep ? 'Ø — that\'s the width' : '↧ — that\'s the depth'),
+          right: nf(a) };
+        return { label: 'Callout misread', your: nf(v) + ' is not on this callout', right: nf(a) };
+      } };
+  }
+
+  function genBC(hard) {
+    var askR = Math.random() < 0.6;
+    var a = askR ? P.bc / 2 : P.holeN;
+    return askR
+      ? { type: 'num', a: a, tol: 0.0005,
+          q: 'The four holes sit on a ' + nsp('Ø' + d3(P.bc) + ' B.C.') + ' How far is each hole\'s <b>center from the plate\'s center</b>?',
+          explain: 'B.C. diameter ' + d3(P.bc) + ' → radius ' + d3(P.bc) + ' ÷ 2 = <span class="num">' + nf(a) + '</span>.',
+          hint: 'A bolt circle is named by its DIAMETER, but each hole stands one RADIUS from center. Halve it.',
+          steps: '1 · Ø' + d3(P.bc) + ' B.C. = the circle through the hole centers<br>' +
+            '2 · center-to-hole = ' + d3(P.bc) + ' ÷ 2 = <span class="res">' + nf(a) + '</span>',
+          diagnose: function (v) {
+            if (Math.abs(v - P.bc) < 0.0005) return { label: 'Used the B.C. diameter',
+              your: d3(P.bc) + ' spans hole to opposite hole THROUGH the center — each hole stands half that out',
+              right: d3(P.bc) + ' ÷ 2 = ' + nf(a) };
+            return { label: 'B.C. slip', your: nf(v) + ' is not half the bolt circle', right: nf(a) };
+          } }
+      : { type: 'num', a: a, tol: 0.4,
+          q: 'The pattern callout reads ' + nsp(P.holeN + 'X Ø' + d3(P.holeD) + ' THRU') + '. How many holes do you drill?',
+          explain: 'The number before X: <span class="num">' + P.holeN + '</span>.',
+          hint: 'nX in front = n identical copies. The Ø number is size, not count.',
+          steps: '1 · ' + P.holeN + 'X → <span class="res">' + P.holeN + ' holes</span>',
+          diagnose: function (v) {
+            return { label: 'Count slip', your: v + ' is not the number riding the X', right: String(P.holeN) };
+          } };
+  }
+
+  function genRPM(hard) {
+    return { type: 'num', a: DRILL_RPM, tol: 25, unit: 'rpm',
+      q: 'Drilling the ' + nsp('Ø' + d3(P.holeD)) + ' holes with an HSS drill in this aluminum: chart says ' +
+        nsp(P.sfmAlu + ' SFM') + ', the spindle maxes at ' + nsp(String(P.rpmMax)) + '. RPM = SFM × 3.82 ÷ D. What do you run?',
+      explain: P.sfmAlu + ' × 3.82 ÷ ' + d3(P.holeD) + ' = <span class="num">' + DRILL_RPM + '</span> — under ' + P.rpmMax + ', run it.',
+      hint: 'Multiply SFM by 3.82, divide by the drill diameter in inches, then cap-check against the machine max. (The built-in idea from your RPM level — the print just handed you the numbers.)',
+      steps: '1 · ' + P.sfmAlu + ' × 3.82 = ' + Math.round(P.sfmAlu * 3.82) + '<br>' +
+        '2 · ÷ ' + d3(P.holeD) + ' = <span class="num">' + DRILL_RPM + '</span><br>' +
+        '3 · under the ' + P.rpmMax + ' cap → <span class="res">run ' + DRILL_RPM + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - P.rpmMax) < 26) return { label: 'Capped a legal speed',
+          your: P.rpmMax + ' is the ceiling — the formula asks for ' + DRILL_RPM + ', which fits under it',
+          right: 'run ' + DRILL_RPM };
+        if (Math.abs(v - P.sfmAlu / P.holeD) < 30) return { label: 'Skipped the 3.82',
+          your: 'the 12 ÷ π conversion never happened',
+          right: P.sfmAlu + ' × 3.82 ÷ ' + d3(P.holeD) + ' = ' + DRILL_RPM };
+        if (Math.abs(v - DRILL_RPM * 2) < 60) return { label: 'Divided by the radius',
+          your: 'the formula wants the full diameter ' + d3(P.holeD),
+          right: String(DRILL_RPM) };
+        return { label: 'Formula slip',
+          your: v + ' is not SFM × 3.82 ÷ D',
+          right: P.sfmAlu + ' × 3.82 ÷ ' + d3(P.holeD) + ' = ' + DRILL_RPM };
+      } };
+  }
+
+  function genPosCheck(hard) {
+    var triples = hard ? [[0.003, 0.004, 0.005], [0.006, 0.008, 0.010], [0.0045, 0.006, 0.0075]] : [[0.003, 0.004, 0.005], [0.006, 0.008, 0.010]];
+    var t = triples[rnd(triples.length)];
+    var err = r4(2 * t[2]);
+    var pass = err <= P.posZone + 1e-9;
+    var CH = ['PASS', 'FAIL'];
+    return { type: 'mc', a: pass ? 0 : 1, choices: CH,
+      q: 'The holes carry ' + nsp('⌖ Ø' + d3(P.posZone) + ' | A B C') + '. One hole lands ' + nsp('ΔX ' + d4(t[0])) +
+        ', ' + nsp('ΔY ' + d4(t[1])) + '. Verdict?',
+      explain: '2 × √(' + d4(t[0]) + '² + ' + d4(t[1]) + '²) = ' + d4(err) + ' vs Ø' + d3(P.posZone) +
+        ' → <span class="num">' + CH[pass ? 0 : 1] + '</span>.',
+      hint: 'Position error = 2 × √(ΔX² + ΔY²) — Pythagoras, then double for diameter language. Then one compare against the Ø' + d3(P.posZone) + '.',
+      steps: '1 · radial = √(' + d4(t[0]) + '² + ' + d4(t[1]) + '²) = ' + d4(t[2]) + '<br>' +
+        '2 · × 2 = <span class="num">' + d4(err) + '</span><br>' +
+        '3 · vs Ø' + d3(P.posZone) + ' → <span class="res">' + CH[pass ? 0 : 1] + '</span>',
+      diagnose: function () {
+        return { label: 'Position math slip',
+          your: 'run it again: double the root of the squares, compare to the zone',
+          right: d4(err) + ' vs ' + d3(P.posZone) + ' → ' + CH[pass ? 0 : 1] };
+      } };
+  }
+
+  function genFrameCheck(hard) {
+    var isFlat = Math.random() < 0.5;
+    var zone = isFlat ? P.flatZone : P.perpZone;
+    var name = isFlat ? '⏥ ' + d3(P.flatZone) + ' flatness on datum A' : '⟂ ' + d3(P.perpZone) + ' | A on the left edge';
+    var roll = Math.random();
+    var err = roll < 0.35 ? r4(zone * 0.6) : roll < 0.5 ? zone : r4(zone + (hard ? 0.001 : 0.003));
+    var pass = err <= zone + 1e-9;
+    var CH = ['PASS', 'FAIL'];
+    return { type: 'mc', a: pass ? 0 : 1, choices: CH,
+      q: 'The print\'s frame: ' + nsp(name) + '. Your check measures <b>' + d3(err) + '</b> of error. Verdict?',
+      explain: d3(err) + ' vs a ' + d3(zone) + ' zone → <span class="num">' + CH[pass ? 0 : 1] + '</span>' +
+        (err === zone ? ' — dead on the zone counts as in.' : '.'),
+      hint: 'One compare: measured error against the zone in the frame. Equal counts as in — zones are limits.',
+      steps: '1 · zone ' + d3(zone) + ' · measured ' + d3(err) + '<br>2 · <span class="res">' + CH[pass ? 0 : 1] + '</span>',
+      diagnose: function () {
+        if (err === zone) return { label: 'Failed a dead-on check',
+          your: 'exactly on the zone is legal',
+          right: 'PASS' };
+        return { label: 'Zone compare slip',
+          your: d3(err) + ' vs ' + d3(zone) + ' — the compare flipped on you',
+          right: CH[pass ? 0 : 1] };
+      } };
+  }
+
+  function genThickJudge(hard) {
+    var offs = S.pick(hard ? [0.004, 0.005, 0.007, -0.006, -0.009, 0.009] : [0.003, 0.008, -0.003, -0.008, 0.012]);
+    var meas = r4(P.TH + offs);
+    var up = r4(P.TH + 0.005), lo = r4(P.TH - 0.005);
+    var inB = meas >= lo - 1e-9 && meas <= up + 1e-9;
+    var CH = ['ACCEPT', 'REWORK', 'SCRAP'];
+    var right = inB ? 0 : (meas > up ? 1 : 2);
+    return { type: 'mc', a: right, choices: CH,
+      q: 'The plate\'s ' + nsp(d3(P.TH)) + ' thickness (three places → ±.005) mics at ' + nsp(S.fmt(meas, 4)) +
+        '. It\'s an outside cut. Verdict?',
+      explain: 'Limits ' + d3(lo) + '–' + d3(up) + '. ' + S.fmt(meas, 4) +
+        (inB ? ' is in → <span class="num">ACCEPT</span>.'
+             : (meas > up ? ' is over → still metal to take → <span class="num">REWORK</span>.'
+                          : ' is under → the metal is gone → <span class="num">SCRAP</span>.')),
+      hint: 'Defaults give ±.005 on three places. In or out first (limits inclusive); if out, can metal still come OFF to fix it?',
+      steps: '1 · limits ' + d3(lo) + ' to ' + d3(up) + '<br>' +
+        '2 · ' + S.fmt(meas, 4) + ' → ' + (inB ? 'inside' : meas > up ? 'over — outside cuts fix oversize' : 'under — nothing puts metal back') + '<br>' +
+        '3 · <span class="res">' + CH[right] + '</span>',
+      diagnose: function (chosen) {
+        if (inB && chosen !== 0) return { label: 'Scrapped a good part', your: 'it\'s inside the limits', right: 'ACCEPT' };
+        if (!inB && chosen === 0) return { label: 'Passed a bad part', your: 'it\'s outside ' + d3(lo) + '–' + d3(up), right: CH[right] };
+        return { label: 'Rework and scrap swapped',
+          your: 'outside cut: oversize reworks, undersize scraps',
+          right: CH[right] };
+      } };
+  }
+
+  var GENS = { field: genField, defTol: genDefTol, bore: genBore, bc: genBC,
+    rpm: genRPM, posCheck: genPosCheck, frameCheck: genFrameCheck, thickJudge: genThickJudge };
+  var HARD = false;
+  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 29'; return q; }
+
+  function makeSet(kinds, hard) {
+    HARD = !!hard;
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    HARD = false;
+    return S.shuffle(out);
+  }
+  function gameQs() {
+    return makeSet(['field', 'defTol', 'bore', 'bc', 'bc', 'rpm', 'posCheck', 'frameCheck', 'thickJudge', 'defTol'], false);
+  }
+  function bossQs() {
+    return makeSet(['field', 'defTol', 'bore', 'bc', 'rpm', 'rpm', 'posCheck', 'posCheck', 'frameCheck', 'thickJudge'], true);
+  }
+
+  S.levelPage('l29', {
+    explainer: EXPLAINER,
+    playground: playground,
+    gameQs: gameQs,
+    bossQs: bossQs,
+  });
+})();
+</script>
+</body>
+</html>
