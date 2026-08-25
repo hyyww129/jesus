@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level 25 · Dimensions &amp; Callouts</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+.callout-big { font-family: var(--mono); font-size: 26px; font-weight: 800; color: var(--blue); text-align: center; padding: 10px 0 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← SKILL TREE</a>
+    <div class="eyebrow">Level 25 · World 5 · Shop Math School</div>
+    <h1>Dimensions <span class="b">&amp; Callouts</span></h1>
+    <p class="sub">Hole notes are a tiny language: Ø, R, THRU, the depth hook, 4X. Six words —
+      learn them and every hole on the sheet tells you exactly what to do.</p>
+  </header>
+  <div id="sms-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function nf(v) { return S.fmtExact(v); }
+  function d3(v) { var s = v.toFixed(3); return s.replace(/^0\./, '.'); }
+  function nsp(s) { return '<span class="num">' + s + '</span>'; }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>A <span class="term">dimension</span> is three pieces working together: two thin ' +
+  '<b>extension lines</b> reaching off the part ("measure between here and here"), a thin ' +
+  '<b>dimension line</b> with arrowheads, and the <b>number</b>. The number is the instruction; ' +
+  'everything else is pointing.</p>' +
+  '<p><span class="term">Ø means diameter</span> — the full width of something round, through its center. ' +
+  '<span class="term">R means radius</span> — half that, used for arcs and rounded corners (fillets). ' +
+  'The eternal relationship: <b>Ø = 2 × R</b>. A corner labeled R.125 belongs to a Ø.250 circle; ' +
+  'a Ø.500 hole has a .250 radius. Holes get Ø. Corners and partial arcs get R.</p>' +
+  '<p><span class="term">Hole callouts</span> read left to right like a sentence:</p>' +
+  '<table class="ref"><tr><th>the callout</th><th>what you do</th></tr>' +
+  '<tr><td>Ø.250 THRU</td><td>drill .250, all the way through</td></tr>' +
+  '<tr><td>Ø.250 ↧ .500</td><td>drill .250, stop at .500 deep (the ↧ hook = depth)</td></tr>' +
+  '<tr><td>4X Ø.266 THRU</td><td>four identical .266 holes, all through</td></tr>' +
+  '<tr><td>⌴ Ø.400 ↧ .200</td><td>counterbore: a flat-bottom pocket .400 wide, .200 deep (hides a screw head)</td></tr>' +
+  '<tr><td>⌵ Ø.400 × 82°</td><td>countersink: an 82° cone for a flat-head screw</td></tr>' +
+  '<tr><td>1/4-20 UNC</td><td>a tapped hole: 1/4" thread, 20 threads per inch</td></tr></table>' +
+  '<p style="margin-top:10px">Work one all the way — a real stacked callout:</p>' +
+  '<div class="worked">4X &nbsp;Ø.201 &nbsp;↧ .625<br>' +
+  '→ <span class="num">4X</span>: four of these, identical<br>' +
+  '→ <span class="num">Ø.201</span>: each one .201 across (a #7 drill)<br>' +
+  '→ <span class="num">↧ .625</span>: each stops .625 deep — NOT through<br>' +
+  '<span class="res">four blind holes, .201 wide, .625 deep</span></div>' +
+  '<p>Two more words you\'ll meet: <span class="term">TYP</span> ("typical") after a dimension means ' +
+  '"every feature that looks like this gets the same size." A number in <span class="term">(parentheses)</span> ' +
+  'is a <b>reference</b> — shown for convenience, already controlled elsewhere, not something you inspect to.</p>' +
+  '<p>Bench habit: read a callout OUT LOUD, left to right, before you touch a drill. ' +
+  'If any word in it doesn\'t decode, stop and ask — a guessed hole is a scrapped part. ' +
+  'Now open the <b>Playground</b> and build some callouts yourself.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  var DIAS = [0.125, 0.201, 0.250, 0.266, 0.375, 0.500];
+
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — build a callout, watch it decode</h2><div class="body">' +
+      '<div class="slider-row"><span class="name">HOW MANY</span>' +
+      '<input type="range" id="cntSlide" min="1" max="6" step="1" value="1" aria-label="hole count">' +
+      '<span class="out" id="cntOut"></span></div>' +
+      '<div class="slider-row"><span class="name">DIAMETER</span>' +
+      '<input type="range" id="diaSlide" min="0" max="5" step="1" value="2" aria-label="hole diameter pick">' +
+      '<span class="out" id="diaOut"></span></div>' +
+      '<div class="btnrow" style="margin:8px 0"><button data-thru="1" class="on">THRU</button>' +
+      '<button data-thru="0">TO A DEPTH ↧</button></div>' +
+      '<div class="slider-row" id="depRow" style="display:none"><span class="name">DEPTH</span>' +
+      '<input type="range" id="depSlide" min="10" max="100" step="5" value="50" aria-label="hole depth in hundredths">' +
+      '<span class="out" id="depOut"></span></div>' +
+      '<div class="callout-big" id="calloutBig"></div>' +
+      '<div class="scrollbox"><svg id="holeView" width="640" height="150" viewBox="0 0 640 150" role="img" aria-label="cross-section of the called-out hole"></svg></div>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The decode, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var cnt = 1, diaI = 2, thru = true, dep = 0.50;
+    var eqBody = card.querySelector('#eqBody');
+    var droCtl = S.dro(card.querySelector('#droBox'), 'Ø');
+
+    function callout() {
+      var d = DIAS[diaI];
+      return (cnt > 1 ? cnt + 'X ' : '') + 'Ø' + d3(d) + (thru ? ' THRU' : ' ↧ ' + d3(dep));
+    }
+    function draw() {
+      var d = DIAS[diaI];
+      var plateTop = 40, plateH = 80;
+      var holeW = Math.max(14, d * 140);
+      var s = '<rect x="40" y="' + plateTop + '" width="560" height="' + plateH + '" style="fill:var(--panel);stroke:var(--ink);stroke-width:2"/>';
+      var n = Math.min(cnt, 4);
+      for (var k = 0; k < n; k++) {
+        var cx = 130 + k * 130;
+        var hd = thru ? plateH : plateH * Math.min(1, dep / 1.0);
+        s += '<rect x="' + (cx - holeW / 2) + '" y="' + plateTop + '" width="' + holeW + '" height="' + hd +
+          '" style="fill:var(--paper);stroke:var(--ink);stroke-width:1.6"/>';
+        if (!thru) s += '<line x1="' + (cx - holeW / 2) + '" y1="' + (plateTop + hd) + '" x2="' + (cx + holeW / 2) + '" y2="' + (plateTop + hd) +
+          '" style="stroke:var(--orange);stroke-width:2.5"/>';
+        s += '<line x1="' + cx + '" y1="' + (plateTop - 10) + '" x2="' + cx + '" y2="' + (plateTop + plateH + 10) +
+          '" style="stroke:var(--blue);stroke-width:1" stroke-dasharray="10 3 3 3"/>';
+      }
+      if (cnt > 4) s += '<text x="580" y="90" text-anchor="end" style="font-family:var(--mono);font-size:12px;fill:var(--soft)">…×' + cnt + '</text>';
+      card.querySelector('#holeView').innerHTML = s;
+    }
+    function update() {
+      var d = DIAS[diaI];
+      card.querySelector('#cntOut').textContent = cnt + (cnt > 1 ? ' holes' : ' hole');
+      card.querySelector('#diaOut').textContent = 'Ø' + d3(d);
+      card.querySelector('#depOut').textContent = d3(dep) + ' deep';
+      card.querySelector('#depRow').style.display = thru ? 'none' : '';
+      card.querySelectorAll('[data-thru]').forEach(function (b) {
+        b.classList.toggle('on', (b.getAttribute('data-thru') === '1') === thru);
+      });
+      var co = callout();
+      card.querySelector('#calloutBig').textContent = co;
+      eqBody.innerHTML =
+        (cnt > 1 ? nsp(cnt + 'X') + ' → ' + S.intWords(cnt) + ' identical holes<br>' : '') +
+        nsp('Ø' + d3(d)) + ' → each ' + nf(d) + '" across (radius ' + nf(d / 2) + ')<br>' +
+        (thru ? nsp('THRU') + ' → all the way out the other side'
+              : nsp('↧ ' + d3(dep)) + ' → STOP at ' + nf(dep) + '" deep — a blind hole') +
+        '<br><span class="dim">read aloud: "' + (cnt > 1 ? cnt + ' holes, ' : '') + nf(d) +
+        (thru ? ' through"' : ', ' + nf(dep) + ' deep"') + '</span>';
+      droCtl.set(d3(d),
+        (cnt > 1 ? S.intWords(cnt) + ' holes' : 'One hole') + ', each <b>' + nf(d) + '"</b> across, ' +
+        (thru ? 'drilled clean through the part.' : 'stopping at <b>' + nf(dep) + '"</b> — the orange line is the blind bottom.'));
+      draw();
+    }
+    card.querySelector('#cntSlide').addEventListener('input', function () { cnt = Number(this.value); update(); });
+    card.querySelector('#diaSlide').addEventListener('input', function () { diaI = Number(this.value); update(); });
+    card.querySelector('#depSlide').addEventListener('input', function () { dep = Number(this.value) / 100; update(); });
+    card.querySelectorAll('[data-thru]').forEach(function (b) {
+      b.addEventListener('click', function () { thru = b.getAttribute('data-thru') === '1'; update(); });
+    });
+    update();
+    window.__l25 = {
+      set: function (o) {
+        o = o || {};
+        if (typeof o.cnt === 'number') { cnt = o.cnt; card.querySelector('#cntSlide').value = o.cnt; }
+        if (typeof o.diaI === 'number') { diaI = o.diaI; card.querySelector('#diaSlide').value = o.diaI; }
+        if (o.thru !== undefined) thru = !!o.thru;
+        if (typeof o.dep === 'number') { dep = o.dep; card.querySelector('#depSlide').value = Math.round(o.dep * 100); }
+        update();
+      },
+      info: function () { return { callout: callout(), dia: DIAS[diaI], cnt: cnt, thru: thru, dep: dep }; }
+    };
+  }
+
+  /* ============ question generators (game + boss) ============ */
+  function genDecode(hard) {
+    var d = S.pick(DIAS);
+    var thru = Math.random() < 0.5;
+    var dep = S.pick([0.250, 0.375, 0.500, 0.625, 0.750]);
+    while (dep === d) dep = S.pick([0.250, 0.375, 0.625, 0.750]);
+    var n = hard ? S.pick([2, 3, 4, 6]) : 1;
+    var altD = d === 0.500 ? 0.375 : 0.500;
+    var co = (n > 1 ? n + 'X ' : '') + 'Ø' + d3(d) + (thru ? ' THRU' : ' ↧ ' + d3(dep));
+    var right = (n > 1 ? n + ' holes' : 'one hole') + ', each ' + d3(d) + ' across, ' +
+      (thru ? 'all the way through' : 'stopping ' + d3(dep) + ' deep');
+    var wrongs = [
+      (n > 1 ? n + ' holes' : 'one hole') + ', each ' + d3(d) + ' across, ' +
+        (thru ? 'stopping ' + d3(altD) + ' deep' : 'all the way through'),
+      (n > 1 ? 'one hole' : (n + 1) + ' holes') + ', each ' + d3(d) + ' across, ' +
+        (thru ? 'all the way through' : 'stopping ' + d3(dep) + ' deep'),
+      (n > 1 ? n + ' holes' : 'one hole') + ', each ' + (thru ? d3(altD) : d3(dep)) + ' across, ' +
+        (thru ? 'all the way through' : d3(d) + ' deep'),
+    ];
+    return { type: 'mc', a: 0, choices: [right].concat(wrongs),
+      q: 'Read this callout: ' + nsp(co) + ' — what does it order you to make?',
+      explain: co + ' → <span class="num">' + right + '</span>.',
+      hint: 'Left to right, word by word: a count with X means that many identical holes, Ø is the width, THRU means out the other side, the ↧ hook means stop at that depth.',
+      steps: (n > 1 ? '1 · ' + n + 'X → ' + n + ' identical holes<br>' : '1 · No count → just one hole<br>') +
+        '2 · Ø' + d3(d) + ' → each ' + d3(d) + ' across<br>' +
+        '3 · ' + (thru ? 'THRU → all the way through' : '↧ ' + d3(dep) + ' → stop at ' + d3(dep) + ' deep') + '<br>' +
+        '4 · <span class="res">' + right + '</span>',
+      diagnose: function (chosen) {
+        var picked = [right].concat(wrongs)[chosen];
+        if (/stopping/.test(picked) !== !thru) return { label: 'THRU and depth swapped',
+          your: 'you read the hole as ' + (thru ? 'blind — but THRU says it exits the far side' : 'through — but the ↧ hook says stop at ' + d3(dep)),
+          right: co + ' → ' + right };
+        if (new RegExp('^' + (n > 1 ? 'one hole' : '\\d+ holes')).test(picked)) return { label: 'Count misread',
+          your: (n > 1 ? 'the ' + n + 'X in front means ' + n + ' identical holes' : 'no count in front means exactly one'),
+          right: co + ' → ' + right };
+        return { label: 'Size misread',
+          your: 'the number riding Ø is the WIDTH; the number riding ↧ is the DEPTH — they swapped on you',
+          right: co + ' → ' + right };
+      } };
+  }
+
+  function genRadDia(hard) {
+    var toDia = Math.random() < 0.5;
+    if (toDia) {
+      var r = S.pick(hard ? [0.0625, 0.09375, 0.1875, 0.3125] : [0.125, 0.250, 0.375, 0.500]);
+      var a = Math.round(r * 2 * 10000) / 10000;
+      return { type: 'num', a: a, tol: 0.0005,
+        q: 'A rounded corner is labeled ' + nsp('R' + d3(r)) + '. What <b>diameter</b> circle is that arc a piece of?',
+        explain: 'R is half, Ø is the whole: ' + nf(r) + ' × 2 = <span class="num">' + nf(a) + '</span>.',
+        hint: 'R measures center-to-edge; Ø measures edge-to-edge through the center. One is exactly double the other — which way does this question go?',
+        steps: '1 · Ø = 2 × R<br>2 · 2 × <span class="num">' + nf(r) + '</span> = <span class="res">' + nf(a) + '</span>',
+        diagnose: function (v) {
+          if (Math.abs(v - r) < 0.0005) return { label: 'Handed back the radius',
+            your: nf(r) + ' is the R itself — the DIAMETER is the full width, twice that',
+            right: '2 × ' + nf(r) + ' = ' + nf(a) };
+          if (Math.abs(v - r / 2) < 0.0005) return { label: 'Halved instead of doubled',
+            your: nf(r / 2) + ' went the wrong direction — radius is already the half',
+            right: 'Ø = 2 × R = ' + nf(a) };
+          return { label: 'R↔Ø slip',
+            your: nf(v) + ' is not 2 × ' + nf(r),
+            right: nf(a) };
+        } };
+    }
+    var d = S.pick(hard ? [0.266, 0.4375, 0.5625, 0.201] : [0.250, 0.500, 0.750, 0.375]);
+    var a2 = Math.round(d / 2 * 10000) / 10000;
+    return { type: 'num', a: a2, tol: 0.0005,
+      q: 'A hole is called out ' + nsp('Ø' + d3(d)) + '. What is its <b>radius</b> — center out to the wall?',
+      explain: 'R is half of Ø: ' + nf(d) + ' ÷ 2 = <span class="num">' + nf(a2) + '</span>.',
+      hint: 'Ø spans the whole hole through the center; the radius only goes from the center to one wall. Half.',
+      steps: '1 · R = Ø ÷ 2<br>2 · <span class="num">' + nf(d) + '</span> ÷ 2 = <span class="res">' + nf(a2) + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - d) < 0.0005) return { label: 'Handed back the diameter',
+          your: nf(d) + ' is the full width — the radius stops at the center',
+          right: nf(d) + ' ÷ 2 = ' + nf(a2) };
+        if (Math.abs(v - d * 2) < 0.0005) return { label: 'Doubled instead of halved',
+          your: nf(d * 2) + ' went the wrong direction',
+          right: 'R = Ø ÷ 2 = ' + nf(a2) };
+        return { label: 'R↔Ø slip',
+          your: nf(v) + ' is not ' + nf(d) + ' ÷ 2',
+          right: nf(a2) };
+      } };
+  }
+
+  function genHoleDepth(hard) {
+    var d = S.pick(DIAS);
+    var dep = S.pick(hard ? [0.625, 0.875, 1.125, 0.437] : [0.250, 0.500, 0.750, 0.375]);
+    var n = hard ? S.pick([1, 2, 4]) : 1;
+    var co = (n > 1 ? n + 'X ' : '') + 'Ø' + d3(d) + ' ↧ ' + d3(dep);
+    return { type: 'num', a: dep, tol: 0.0005,
+      q: 'Callout: ' + nsp(co) + '. How <b>deep</b> does each hole go?',
+      explain: 'The number riding the ↧ hook is the depth: <span class="num">' + nf(dep) + '"</span>. (The ' + d3(d) + ' riding Ø is the width.)',
+      hint: 'Two numbers, two jobs: the one glued to Ø is the width, the one glued to the ↧ hook is how far down. Which one was asked?',
+      steps: '1 · Ø' + d3(d) + ' = width, not depth<br>' +
+        '2 · ↧ ' + d3(dep) + ' = <span class="res">' + nf(dep) + '" deep</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - d) < 0.0005) return { label: 'Read the diameter as the depth',
+          your: nf(d) + ' is the hole\'s WIDTH (it rides the Ø) — depth rides the ↧ hook',
+          right: '↧ ' + d3(dep) + ' → ' + nf(dep) + ' deep' };
+        if (n > 1 && Math.abs(v - n) < 0.4) return { label: 'Read the count as the depth',
+          your: n + ' is how MANY holes (' + n + 'X) — not how deep',
+          right: nf(dep) };
+        return { label: 'Callout misread',
+          your: nf(v) + ' is not the number riding the depth hook',
+          right: '↧ ' + d3(dep) + ' → ' + nf(dep) };
+      } };
+  }
+
+  function genCountX(hard) {
+    var n = S.pick(hard ? [3, 5, 6, 8] : [2, 3, 4, 6]);
+    var d = S.pick(DIAS);
+    var co = n + 'X Ø' + d3(d) + ' THRU';
+    return { type: 'num', a: n, tol: 0.4,
+      q: 'Callout: ' + nsp(co) + '. How many holes do you drill?',
+      explain: 'The number before X is the count: <span class="num">' + n + '</span> identical holes.',
+      hint: 'The "nX" in front of a callout is a multiplier — n copies of exactly this feature. The Ø number is size, not count.',
+      steps: '1 · ' + n + 'X → <span class="res">' + n + ' identical holes</span><br>' +
+        '2 · each Ø' + d3(d) + ', all THRU',
+      diagnose: function (v) {
+        if (Math.abs(v - d) < 0.01 || Math.abs(v - d * 1000) < 0.6) return { label: 'Count and size swapped',
+          your: 'that number is the hole WIDTH — the count stands in front of the X',
+          right: n + 'X → ' + n + ' holes' };
+        if (Math.abs(v - 1) < 0.4 && n !== 1) return { label: 'Missed the multiplier',
+          your: 'without the ' + n + 'X it would be one hole — but the ' + n + 'X is right there in front',
+          right: n + ' holes' };
+        return { label: 'Count slip',
+          your: v + ' is not the number riding the X',
+          right: n + 'X → ' + n };
+      } };
+  }
+
+  function genRefDim(hard) {
+    var vars = [
+      { q: 'A dimension on the print is wrapped in parentheses: (1.250). What does that mean?',
+        a: 'Reference only — controlled elsewhere, not inspected to',
+        others: ['Extra-tight tolerance', 'Measure it twice', 'The dimension is optional to machine'] },
+      { q: 'A note reads ".125 TYP" next to one corner radius of four identical corners. What does TYP order?',
+        a: 'Every corner like this one gets R.125',
+        others: ['Only this corner gets R.125', 'The radius is approximate', 'Typical shop practice — your choice'] },
+      { q: 'A hole callout ends in THRU. What does THRU promise?',
+        a: 'The hole exits the far side — no bottom',
+        others: ['Drill only halfway', 'A rough finish is fine', 'The hole is threaded'] },
+    ];
+    var v = S.pick(vars);
+    var choices = [v.a].concat(v.others);
+    return { type: 'mc', a: 0, choices: choices,
+      q: v.q,
+      explain: '<span class="num">' + v.a + '</span>.',
+      hint: 'Print grammar: (parentheses) = reference info, TYP = "all the ones like this", THRU = out the other side. Each mark is a promise, not a suggestion.',
+      steps: '1 · <span class="res">' + v.a + '</span>',
+      diagnose: function (chosen) {
+        return { label: 'Print grammar slip',
+          your: '"' + choices[chosen] + '" is not what that mark promises',
+          right: v.a };
+      } };
+  }
+
+  function genTapTPI(hard) {
+    var taps = hard ? [['10-32 UNF', 32], ['5/16-18 UNC', 18], ['3/8-16 UNC', 16], ['1/2-13 UNC', 13]]
+                    : [['1/4-20 UNC', 20], ['10-24 UNC', 24], ['3/8-16 UNC', 16], ['5/16-18 UNC', 18]];
+    var t = S.pick(taps);
+    return { type: 'num', a: t[1], tol: 0.4,
+      q: 'A hole is tapped ' + nsp(t[0]) + '. How many <b>threads per inch</b>?',
+      explain: 'Thread callouts read size–TPI: the number after the dash is <span class="num">' + t[1] + '</span> threads per inch.',
+      hint: 'Thread grammar: [size]-[threads per inch] [series]. The first number is how big, the second is how fine.',
+      steps: '1 · ' + t[0] + ' = size <span class="num">' + t[0].split('-')[0] + '</span>, then dash, then TPI<br>' +
+        '2 · <span class="res">' + t[1] + ' threads per inch</span>',
+      diagnose: function (v) {
+        return { label: 'Thread grammar slip',
+          your: v + ' is not the number after the dash',
+          right: t[0] + ' → ' + t[1] + ' TPI' };
+      } };
+  }
+
+  var GENS = { decode: genDecode, radDia: genRadDia, holeDepth: genHoleDepth,
+    countX: genCountX, refDim: genRefDim, tapTPI: genTapTPI };
+  var HARD = false;
+  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 25'; return q; }
+
+  function makeSet(kinds, hard) {
+    HARD = !!hard;
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    HARD = false;
+    return S.shuffle(out);
+  }
+  function gameQs() {
+    return makeSet(['decode', 'decode', 'radDia', 'radDia', 'holeDepth', 'holeDepth',
+      'countX', 'countX', 'refDim', 'tapTPI'], false);
+  }
+  function bossQs() {
+    return makeSet(['decode', 'decode', 'radDia', 'radDia', 'holeDepth', 'holeDepth',
+      'countX', 'refDim', 'refDim', 'tapTPI'], true);
+  }
+
+  S.levelPage('l25', {
+    explainer: EXPLAINER,
+    playground: playground,
+    gameQs: gameQs,
+    bossQs: bossQs,
+  });
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level 26 · Tolerances</title>
+<link rel="stylesheet" href="../style.css">
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← SKILL TREE</a>
+    <div class="eyebrow">Level 26 · World 5 · Shop Math School</div>
+    <h1>Tolerances <span class="b">on the Print</span></h1>
+    <p class="sub">No part is exact — the print says how wrong is still good. Learn limits, the
+      hidden tolerances in the title block, and the three verdicts: accept, rework, scrap.</p>
+  </header>
+  <div id="sms-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function r4(v) { return Math.round(v * 10000) / 10000; }
+  function nf(v) { return S.fmtExact(v); }
+  function n3(v) { return S.fmtExact(v, 3); }
+  function nsp(s) { return '<span class="num">' + s + '</span>'; }
+  function thou(v) { return Math.round(v * 10000) / 10; }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p><span class="term">1.500 ± .005</span> unpacks into two <b>limits</b>: upper 1.505, lower 1.495. ' +
+  'Anywhere between them — <b>including exactly on them</b> — the part is legal. Some prints skip the ± ' +
+  'and write the limits stacked (<span class="num">1.505 / 1.495</span>): same thing, already unpacked.</p>' +
+  '<p><span class="term">The hidden tolerances.</span> Most dimensions carry no ± of their own. They\'re ' +
+  'covered by the title block\'s defaults, and the code is the <b>number of decimal places</b>:</p>' +
+  '<div class="worked">UNLESS OTHERWISE SPECIFIED: &nbsp;.XX = ± .01 &nbsp;·&nbsp; .XXX = ± .005<br>' +
+  'a dimension written <span class="num">1.75</span> (two places) → ± .01 → 1.74 to 1.76<br>' +
+  'the SAME size written <span class="num">1.750</span> (three places) → ± .005 → 1.745 to 1.755</div>' +
+  '<p>Read that again — <b>the extra zero is not decoration.</b> 1.75 and 1.750 are the same number but ' +
+  'different orders: the third decimal place asks for twice the care. Count the places, then check the block.</p>' +
+  '<p><span class="term">MAX and MIN material.</span> Maximum material condition (MMC) = the part with the ' +
+  'most metal still on it: the <b>biggest legal OD</b>, or the <b>smallest legal hole</b>. Minimum material ' +
+  'is the opposite. Gages and GD&T (next level) lean on this idea, so park it now.</p>' +
+  '<p><span class="term">The three verdicts.</span> When a measurement lands outside the limits, which side ' +
+  'it missed on decides everything, because <b>you can cut metal off but you can\'t put it back</b>:</p>' +
+  '<table class="ref"><tr><th>feature</th><th>too big</th><th>too small</th></tr>' +
+  '<tr><td>OUTSIDE (width, OD)</td><td>REWORK — cut more</td><td>SCRAP — metal\'s gone</td></tr>' +
+  '<tr><td>HOLE (inside)</td><td>SCRAP — can\'t shrink a hole</td><td>REWORK — open it up</td></tr></table>' +
+  '<p style="margin-top:10px">Work one: an outside width calls 1.500 ± .005 and you measure 1.512. ' +
+  'Over the 1.505 top limit by .007 — but it\'s an OUTSIDE cut, the metal is still there: ' +
+  '<b>REWORK</b>, take another .012 to land on nominal. Same miss on a HOLE would be scrap. ' +
+  'Now open the <b>Playground</b> and swing the verdicts yourself.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — measure a part, get the verdict</h2><div class="body">' +
+      '<div class="btnrow" style="margin-bottom:10px"><button data-kind="od" class="on">OUTSIDE WIDTH (OD)</button>' +
+      '<button data-kind="hole">HOLE (INSIDE)</button></div>' +
+      '<div class="slider-row"><span class="name">NOMINAL</span>' +
+      '<input type="range" id="nomSlide" min="500" max="2500" step="5" value="1500" aria-label="nominal in thou">' +
+      '<span class="out" id="nomOut"></span></div>' +
+      '<div class="slider-row"><span class="name">± TOL</span>' +
+      '<input type="range" id="tolSlide" min="1" max="15" step="1" value="5" aria-label="tolerance in thou">' +
+      '<span class="out" id="tolOut"></span></div>' +
+      '<div class="slider-row"><span class="name">MEASURED</span>' +
+      '<input type="range" id="measSlide" min="-25" max="25" step="1" value="12" aria-label="measured offset from nominal in thou">' +
+      '<span class="out" id="measOut"></span></div>' +
+      '<div class="scrollbox"><svg id="bandView" width="640" height="120" viewBox="0 0 640 120" role="img" aria-label="tolerance band with verdict zones"></svg></div>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var kind = 'od', nom = 1.500, tol = 0.005, offs = 0.012;
+    var eqBody = card.querySelector('#eqBody');
+    var droCtl = S.dro(card.querySelector('#droBox'), 'MEAS');
+
+    function verdict(meas, up, lo) {
+      if (meas >= lo - 1e-9 && meas <= up + 1e-9) return 'ACCEPT';
+      if (kind === 'od') return meas > up ? 'REWORK' : 'SCRAP';
+      return meas < lo ? 'REWORK' : 'SCRAP';
+    }
+    function draw(up, lo, meas, v) {
+      var cx = 320, S1 = 9000;
+      function PX(x) { return cx + (x - nom) * S1 / 1000 * 12; }
+      var s = '<line x1="20" y1="62" x2="620" y2="62" style="stroke:var(--line);stroke-width:2"/>';
+      /* verdict zones: left of band and right of band get their names */
+      var lz = kind === 'od' ? 'SCRAP' : 'REWORK', rz = kind === 'od' ? 'REWORK' : 'SCRAP';
+      s += '<text x="' + (PX(lo) - 10) + '" y="30" text-anchor="end" style="font-family:var(--mono);font-size:10px;fill:var(--orange)">← ' + lz + '</text>';
+      s += '<text x="' + (PX(up) + 10) + '" y="30" style="font-family:var(--mono);font-size:10px;fill:var(--orange)">' + rz + ' →</text>';
+      s += '<rect x="' + PX(lo) + '" y="40" width="' + (PX(up) - PX(lo)) + '" height="44" style="fill:var(--good-bg);stroke:var(--good-bd);stroke-width:2"/>';
+      s += '<text x="' + cx + '" y="30" text-anchor="middle" style="font-family:var(--mono);font-size:10px;fill:var(--good-bd)">ACCEPT</text>';
+      s += '<line x1="' + PX(nom) + '" y1="36" x2="' + PX(nom) + '" y2="90" stroke-dasharray="4 3" style="stroke:var(--ink);stroke-width:1.2"/>';
+      s += '<text x="' + PX(lo) + '" y="102" text-anchor="middle" style="font-family:var(--mono);font-size:10px;fill:var(--ink)">' + n3(lo) + '</text>';
+      s += '<text x="' + PX(up) + '" y="102" text-anchor="middle" style="font-family:var(--mono);font-size:10px;fill:var(--ink)">' + n3(up) + '</text>';
+      var mx = Math.max(24, Math.min(616, PX(meas)));
+      var col = v === 'ACCEPT' ? 'var(--blue)' : 'var(--orange)';
+      s += '<path d="M ' + mx + ' 16 l -7 -12 l 14 0 z" style="fill:' + col + '"/>';
+      s += '<line x1="' + mx + '" y1="16" x2="' + mx + '" y2="88" style="stroke:' + col + ';stroke-width:2.5"/>';
+      card.querySelector('#bandView').innerHTML = s;
+    }
+    function update() {
+      var up = r4(nom + tol), lo = r4(nom - tol), meas = r4(nom + offs);
+      var v = verdict(meas, up, lo);
+      card.querySelector('#nomOut').textContent = n3(nom) + '"';
+      card.querySelector('#tolOut').textContent = '± ' + n3(tol) + '"';
+      card.querySelector('#measOut').textContent = (offs >= 0 ? '+' : '') + thou(offs) + ' thou';
+      card.querySelectorAll('[data-kind]').forEach(function (b) {
+        b.classList.toggle('on', b.getAttribute('data-kind') === kind);
+      });
+      var overBy = r4(meas - up), underBy = r4(lo - meas);
+      eqBody.innerHTML =
+        'limits: ' + n3(nom) + ' ± ' + n3(tol) + ' → <span class="num">' + n3(lo) + '</span> to <span class="num">' + n3(up) + '</span><br>' +
+        'measured <span class="num">' + S.fmt(meas, 4) + '</span> → ' +
+        (v === 'ACCEPT'
+          ? '<span class="res">IN — on or between the limits</span>'
+          : (meas > up ? thou(overBy) + ' thou OVER the top limit' : thou(underBy) + ' thou UNDER the bottom limit') +
+            ' on ' + (kind === 'od' ? 'an OUTSIDE cut' : 'a HOLE') + '<br>→ <span class="res">' + v + '</span>') +
+        (v === 'REWORK' ? ' <span class="dim">— the metal to fix it is still ' + (kind === 'od' ? 'on the part' : 'in the wall') + '</span>' : '') +
+        (v === 'SCRAP' ? ' <span class="dim">— that metal is gone; nothing puts it back</span>' : '');
+      droCtl.set(S.fmt(meas, 4),
+        v === 'ACCEPT'
+          ? '<b>ACCEPT.</b> Inside ' + n3(lo) + '–' + n3(up) + ' (limits count as in). ' +
+            thou(r4(up - meas)) + ' thou of room above, ' + thou(r4(meas - lo)) + ' below.'
+          : v === 'REWORK'
+            ? '<b>REWORK.</b> ' + (kind === 'od' ? 'Oversize OD — cut ' + thou(r4(meas - nom)) + ' more thou and land mid-band.'
+                                                 : 'Undersize hole — open it up ' + thou(r4(nom - meas)) + ' thou to nominal.')
+            : '<b>SCRAP.</b> ' + (kind === 'od' ? 'Undersize OD — the width is gone.' : 'Oversize hole — a hole never shrinks.'));
+      draw(up, lo, meas, v);
+    }
+    card.querySelectorAll('[data-kind]').forEach(function (b) {
+      b.addEventListener('click', function () { kind = b.getAttribute('data-kind'); update(); });
+    });
+    card.querySelector('#nomSlide').addEventListener('input', function () { nom = Number(this.value) / 1000; update(); });
+    card.querySelector('#tolSlide').addEventListener('input', function () { tol = Number(this.value) / 1000; update(); });
+    card.querySelector('#measSlide').addEventListener('input', function () { offs = Number(this.value) / 1000; update(); });
+    update();
+    window.__l26 = {
+      set: function (o) {
+        o = o || {};
+        if (o.kind) kind = o.kind;
+        if (typeof o.nom === 'number') { nom = o.nom; card.querySelector('#nomSlide').value = Math.round(o.nom * 1000); }
+        if (typeof o.tol === 'number') { tol = o.tol; card.querySelector('#tolSlide').value = Math.round(o.tol * 1000); }
+        if (typeof o.offs === 'number') { offs = o.offs; card.querySelector('#measSlide').value = Math.round(o.offs * 1000); }
+        update();
+      },
+      info: function () {
+        var up = r4(nom + tol), lo = r4(nom - tol), meas = r4(nom + offs);
+        return { kind: kind, up: up, lo: lo, meas: meas, verdict: verdict(meas, up, lo) };
+      }
+    };
+  }
+
+  /* ============ question generators (game + boss) ============ */
+  var NOMS = [0.750, 1.000, 1.250, 1.500, 1.750, 2.000];
+
+  function genLimits(hard) {
+    var nom = S.pick(NOMS), tol = S.pick(hard ? [0.002, 0.003, 0.008] : [0.005, 0.010]);
+    var wantUpper = Math.random() < 0.5;
+    var a = r4(wantUpper ? nom + tol : nom - tol);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'The print calls ' + nsp(n3(nom) + ' ± ' + n3(tol)) + '. What is the <b>' + (wantUpper ? 'upper' : 'lower') + '</b> limit?',
+      explain: (wantUpper ? n3(nom) + ' + ' : n3(nom) + ' − ') + n3(tol) + ' = <span class="num">' + n3(a) + '</span>.',
+      hint: 'The ± counts from nominal both ways: add for the top of the band, subtract for the bottom.',
+      steps: '1 · ' + (wantUpper ? 'upper = nominal + tol' : 'lower = nominal − tol') + '<br>' +
+        '2 · ' + n3(nom) + (wantUpper ? ' + ' : ' − ') + n3(tol) + ' = <span class="res">' + n3(a) + '</span>',
+      diagnose: function (v) {
+        var flip = r4(wantUpper ? nom - tol : nom + tol);
+        if (Math.abs(v - flip) < 0.0009 && Math.abs(flip - a) > 0.002) return { label: 'Went the wrong way',
+          your: n3(flip) + ' is the ' + (wantUpper ? 'LOWER' : 'UPPER') + ' limit',
+          right: n3(a) };
+        if (Math.abs(v - nom) < 0.0009) return { label: 'Handed back the nominal',
+          your: n3(nom) + ' is the middle — the limit sits ' + n3(tol) + ' away',
+          right: n3(a) };
+        return { label: 'Limit slip', your: nf(v) + ' is not nominal ± tol', right: n3(a) };
+      } };
+  }
+
+  function genDefaultTol(hard) {
+    var three = Math.random() < 0.5;
+    var nomBase = S.pick(NOMS);
+    var dimStr = three ? nomBase.toFixed(3) : nomBase.toFixed(2);
+    var a = three ? 0.005 : 0.01;
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'Title block: <span class="num">.XX = ±.01 · .XXX = ±.005</span>. A dimension reads ' + nsp(dimStr) +
+        ' with no tolerance of its own. What ± applies?',
+      explain: dimStr + ' has ' + (three ? 'three' : 'two') + ' decimal places → the ' + (three ? '.XXX' : '.XX') +
+        ' default: <span class="num">± ' + nf(a) + '</span>.',
+      hint: 'Count the decimal places in the dimension — that count is the code that picks which default line covers it. The trailing zero counts.',
+      steps: '1 · ' + dimStr + ' → ' + (three ? 'THREE' : 'TWO') + ' decimal places<br>' +
+        '2 · ' + (three ? '.XXX' : '.XX') + ' line → <span class="res">± ' + nf(a) + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - (three ? 0.01 : 0.005)) < 0.0005) return { label: 'Wrong default line',
+          your: 'that\'s the ' + (three ? '.XX' : '.XXX') + ' default — but ' + dimStr + ' shows ' + (three ? 'three' : 'two') + ' places. The trailing digits are the code',
+          right: (three ? '.XXX' : '.XX') + ' → ± ' + nf(a) };
+        if (Math.abs(v - a * 10) < 0.005 || Math.abs(v - a / 10) < 0.0005) return { label: 'Decimal slip',
+          your: nf(v) + ' is a seat off',
+          right: '± ' + nf(a) };
+        return { label: 'Default-tol slip',
+          your: nf(v) + ' is not the block\'s default for ' + (three ? 'three' : 'two') + ' places',
+          right: '± ' + nf(a) };
+      } };
+  }
+
+  function genJudge(hard) {
+    var isOD = Math.random() < 0.5;
+    var nom = S.pick(NOMS), tol = S.pick(hard ? [0.003, 0.005] : [0.005, 0.010]);
+    var roll = Math.random();
+    var offs;
+    if (roll < 0.34) offs = (Math.random() < 0.5 ? -1 : 1) * tol * (hard ? 1 : 0.6) * (roll < 0.15 ? 1 : 0.5);
+    else if (roll < 0.67) offs = tol + S.pick([0.002, 0.004, 0.007]);
+    else offs = -(tol + S.pick([0.002, 0.004, 0.007]));
+    if (roll < 0.34 && hard && Math.random() < 0.5) offs = Math.random() < 0.5 ? tol : -tol;   /* dead on a limit */
+    var meas = r4(nom + Math.round(offs * 1000) / 1000);
+    var up = r4(nom + tol), lo = r4(nom - tol);
+    var inBand = meas >= lo - 1e-9 && meas <= up + 1e-9;
+    var CH = ['ACCEPT', 'REWORK', 'SCRAP'];
+    var right = inBand ? 0 : (isOD ? (meas > up ? 1 : 2) : (meas < lo ? 1 : 2));
+    var feat = isOD ? 'An OUTSIDE width' : 'A HOLE';
+    return { type: 'mc', a: right, choices: CH,
+      q: feat + ' calls ' + nsp(n3(nom) + ' ± ' + n3(tol)) + '. Your mic reads ' + nsp(S.fmt(meas, 4)) + '. Verdict?',
+      explain: 'Limits ' + n3(lo) + '–' + n3(up) + ' (inclusive). ' + S.fmt(meas, 4) +
+        (inBand ? ' is in → <span class="num">ACCEPT</span>.'
+          : ' is ' + (meas > up ? 'OVER' : 'UNDER') + ' on ' + (isOD ? 'an outside cut' : 'a hole') +
+            ' → <span class="num">' + CH[right] + '</span> — ' +
+            (right === 1 ? 'the fixing metal is still there.' : 'that metal is gone.')),
+      hint: 'Limits first: in or out (on the line counts as in). If out, ask "can I still remove metal to fix it?" — outside cuts fix oversize, holes fix undersize. The other direction is scrap.',
+      steps: '1 · limits: ' + n3(lo) + ' to ' + n3(up) + '<br>' +
+        '2 · ' + S.fmt(meas, 4) + ' is ' + (inBand ? 'inside (or dead on a limit — still legal)' : (meas > up ? 'over the top' : 'under the bottom')) + '<br>' +
+        (inBand ? '' : '3 · ' + (isOD ? 'outside cut: oversize reworks, undersize scraps' : 'hole: undersize reworks, oversize scraps') + '<br>') +
+        (inBand ? '3' : '4') + ' · <span class="res">' + CH[right] + '</span>',
+      diagnose: function (chosen) {
+        if (inBand && chosen !== 0) return { label: 'Scrapped a good part',
+          your: S.fmt(meas, 4) + ' sits inside (or exactly on) the limits — on the line is legal',
+          right: 'ACCEPT' };
+        if (!inBand && chosen === 0) return { label: 'Passed a bad part',
+          your: S.fmt(meas, 4) + ' is outside ' + n3(lo) + '–' + n3(up) + ' — this one escapes to a customer',
+          right: CH[right] };
+        return { label: 'Rework and scrap swapped',
+          your: 'ask the only question that matters: can metal still come OFF to fix it? ' +
+            (isOD ? 'An oversize OD can; an undersize OD is gone' : 'An undersize hole can be opened; an oversize hole never shrinks'),
+          right: CH[right] };
+      } };
+  }
+
+  function genMid(hard) {
+    var lo = S.pick([1.495, 0.995, 1.745, 1.245]);
+    var band = S.pick(hard ? [0.006, 0.008, 0.012] : [0.010, 0.020]);
+    var up = r4(lo + band);
+    var a = r4(lo + band / 2);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'A limit dimension reads ' + nsp(n3(up) + ' / ' + n3(lo)) + ' (upper over lower). What size do you <b>aim</b> for?',
+      explain: 'Aim mid-band: (' + n3(up) + ' + ' + n3(lo) + ') ÷ 2 = <span class="num">' + S.fmt(a, 4) + '</span> — wobble room both ways.',
+      hint: 'Stacked limits are already unpacked — top number is the ceiling, bottom the floor. The aim point is their average.',
+      steps: '1 · mid = (upper + lower) ÷ 2<br>' +
+        '2 · (' + n3(up) + ' + ' + n3(lo) + ') ÷ 2 = <span class="res">' + S.fmt(a, 4) + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - up) < 0.0009 || Math.abs(v - lo) < 0.0009) return { label: 'Aimed at a limit',
+          your: 'that\'s the EDGE of legal — zero room for the process to wobble',
+          right: 'mid-band: ' + S.fmt(a, 4) };
+        if (Math.abs(v - band) < 0.0009) return { label: 'Answered the band',
+          your: n3(band) + ' is the total room, not a place to aim',
+          right: '(' + n3(up) + ' + ' + n3(lo) + ') ÷ 2 = ' + S.fmt(a, 4) };
+        return { label: 'Mid slip',
+          your: nf(v) + ' is not the middle of ' + n3(lo) + '–' + n3(up),
+          right: S.fmt(a, 4) };
+      } };
+  }
+
+  function genMMC(hard) {
+    var isHole = Math.random() < 0.5;
+    var nom = S.pick([0.250, 0.375, 0.500, 1.000]);
+    var tol = S.pick([0.005, 0.010]);
+    var a = r4(isHole ? nom - tol : nom + tol);
+    var other = r4(isHole ? nom + tol : nom - tol);
+    return { type: 'num', a: a, tol: 0.0005,
+      q: 'MAX material condition: ' + (isHole ? 'a HOLE' : 'an OD') + ' of ' + nsp(n3(nom) + ' ± ' + n3(tol)) +
+        '. At MMC — the most metal left on the part — what size is the ' + (isHole ? 'hole' : 'OD') + '?',
+      explain: 'Most metal = ' + (isHole ? 'the SMALLEST legal hole: ' : 'the BIGGEST legal OD: ') +
+        '<span class="num">' + n3(a) + '</span>.',
+      hint: 'Ask where the metal is. On an OD the metal IS the part — biggest OD keeps the most. A hole is metal REMOVED — the smallest hole removed the least.',
+      steps: '1 · MMC = most metal remaining<br>' +
+        '2 · ' + (isHole ? 'small hole = little removed → lower limit' : 'big OD = most left → upper limit') + '<br>' +
+        '3 · <span class="res">' + n3(a) + '</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - other) < 0.0009) return { label: 'MMC flipped',
+          your: n3(other) + ' is LEAST material — ' + (isHole ? 'a big hole took the most metal out' : 'a small OD left the least on'),
+          right: (isHole ? 'smallest hole: ' : 'biggest OD: ') + n3(a) };
+        if (Math.abs(v - nom) < 0.0009) return { label: 'Stopped at nominal',
+          your: n3(nom) + ' is the middle — MMC lives at a LIMIT',
+          right: n3(a) };
+        return { label: 'MMC slip',
+          your: nf(v) + ' is not the most-metal limit',
+          right: n3(a) };
+      } };
+  }
+
+  var GENS = { limits: genLimits, defaultTol: genDefaultTol, judge: genJudge, mid: genMid, mmc: genMMC };
+  var HARD = false;
+  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 26'; return q; }
+
+  function makeSet(kinds, hard) {
+    HARD = !!hard;
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    HARD = false;
+    return S.shuffle(out);
+  }
+  function gameQs() {
+    return makeSet(['limits', 'limits', 'defaultTol', 'defaultTol', 'judge', 'judge',
+      'judge', 'mid', 'mmc', 'mmc'], false);
+  }
+  function bossQs() {
+    return makeSet(['limits', 'defaultTol', 'defaultTol', 'judge', 'judge',
+      'judge', 'judge', 'mid', 'mmc', 'mmc'], true);
+  }
+
+  S.levelPage('l26', {
+    explainer: EXPLAINER,
+    playground: playground,
+    gameQs: gameQs,
+    bossQs: bossQs,
+  });
+})();
+</script>
+</body>
+</html>
