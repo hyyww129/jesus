@@ -1438,9 +1438,9 @@
     }
     s += lab(160, 24, 160, 55, 'Feature Size');
     s += lab(52, 24, 74, 58, 'Arrowheads');
-    s += lab(272, 40, 226, 60, 'Dimension Line', 'start');
-    s += lab(288, 78, 262, 80, 'Extension Line', 'start');
-    s += lab(288, 108, 262, 116, 'Visible Gap', 'start');
+    s += lab(326, 40, 226, 60, 'Dimension Line', 'end');
+    s += lab(326, 86, 264, 84, 'Extension Line', 'end');
+    s += lab(326, 116, 264, 116, 'Visible Gap', 'end');
     s += '</svg>';
     return s;
   }
