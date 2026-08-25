@@ -1318,6 +1318,264 @@
     return shuffle(qs);
   }
 
+  /* ---------------- the Drafting Reference ----------------
+     A slide-in panel pinned to the RIGHT edge of every page: the alphabet of
+     lines drawn for real, the anatomy of a dimension, hole marks, the GD&T
+     quick card, and flashcards to drill it all. Open anywhere except a boss —
+     bosses stay reference-free, same as hints. */
+  function lineSVG(kind, w) {
+    w = w || 210;
+    var h = 40, y = 20, x0 = 6, x1 = w - 6;
+    function wrap(inner, hh) {
+      return '<svg width="' + w + '" height="' + (hh || h) + '" viewBox="0 0 ' + w + ' ' + (hh || h) +
+        '" role="img" aria-label="line sample" style="display:inline-block;vertical-align:middle">' + inner + '</svg>';
+    }
+    var ink = 'var(--ink)';
+    if (kind === 'visible') return wrap('<line x1="' + x0 + '" y1="' + y + '" x2="' + x1 + '" y2="' + y + '" style="stroke:' + ink + ';stroke-width:3.4"/>');
+    if (kind === 'hidden') return wrap('<line x1="' + x0 + '" y1="' + y + '" x2="' + x1 + '" y2="' + y + '" stroke-dasharray="7 4" style="stroke:' + ink + ';stroke-width:2"/>');
+    if (kind === 'center') return wrap('<line x1="' + x0 + '" y1="' + y + '" x2="' + x1 + '" y2="' + y + '" stroke-dasharray="16 4 4 4" style="stroke:' + ink + ';stroke-width:1.3"/>');
+    if (kind === 'phantom') return wrap('<line x1="' + x0 + '" y1="' + y + '" x2="' + x1 + '" y2="' + y + '" stroke-dasharray="16 4 4 4 4 4" style="stroke:' + ink + ';stroke-width:1.3"/>');
+    if (kind === 'dim') {
+      var mid = w / 2;
+      return wrap(
+        '<line x1="' + x0 + '" y1="' + y + '" x2="' + (mid - 22) + '" y2="' + y + '" style="stroke:' + ink + ';stroke-width:1.2"/>' +
+        '<line x1="' + (mid + 22) + '" y1="' + y + '" x2="' + x1 + '" y2="' + y + '" style="stroke:' + ink + ';stroke-width:1.2"/>' +
+        '<path d="M ' + x0 + ' ' + y + ' l 10 -4 l 0 8 z" style="fill:' + ink + '"/>' +
+        '<path d="M ' + x1 + ' ' + y + ' l -10 -4 l 0 8 z" style="fill:' + ink + '"/>' +
+        '<text x="' + mid + '" y="' + (y + 4) + '" text-anchor="middle" style="font-family:var(--mono);font-size:12px;font-weight:700;fill:' + ink + '">2.50</text>');
+    }
+    if (kind === 'extension') {
+      return wrap(
+        '<line x1="' + x0 + '" y1="34" x2="' + x1 + '" y2="34" style="stroke:' + ink + ';stroke-width:3.4"/>' +
+        '<line x1="30" y1="28" x2="30" y2="6" style="stroke:' + ink + ';stroke-width:1.2"/>' +
+        '<line x1="' + (w - 30) + '" y1="28" x2="' + (w - 30) + '" y2="6" style="stroke:' + ink + ';stroke-width:1.2"/>' +
+        '<text x="' + (w / 2) + '" y="16" text-anchor="middle" style="font-family:var(--sans);font-size:9px;fill:var(--soft)">gap ↓ stays visible</text>');
+    }
+    if (kind === 'leader') {
+      return wrap(
+        '<path d="M ' + (x0 + 4) + ' 32 l 10 -5 l -2 9 z" style="fill:' + ink + '"/>' +
+        '<line x1="' + (x0 + 10) + '" y1="30" x2="' + (w / 2) + '" y2="12" style="stroke:' + ink + ';stroke-width:1.2"/>' +
+        '<line x1="' + (w / 2) + '" y1="12" x2="' + (w / 2 + 26) + '" y2="12" style="stroke:' + ink + ';stroke-width:1.2"/>' +
+        '<text x="' + (w / 2 + 32) + '" y="16" style="font-family:var(--mono);font-size:11px;font-weight:700;fill:' + ink + '">Ø.250 THRU</text>');
+    }
+    if (kind === 'cutting') {
+      return wrap(
+        '<line x1="' + x0 + '" y1="' + y + '" x2="' + x1 + '" y2="' + y + '" stroke-dasharray="12 5" style="stroke:' + ink + ';stroke-width:3"/>' +
+        '<path d="M ' + (x0 + 2) + ' ' + y + ' l 0 -12 l 5 6 z" style="fill:' + ink + '"/>' +
+        '<path d="M ' + (x1 - 2) + ' ' + y + ' l 0 -12 l -5 6 z" style="fill:' + ink + '"/>');
+    }
+    if (kind === 'section') {
+      var hh = '';
+      for (var k = 0; k < 8; k++) hh += '<line x1="' + (30 + k * 20) + '" y1="34" x2="' + (46 + k * 20) + '" y2="8" style="stroke:' + ink + ';stroke-width:1"/>';
+      return wrap('<rect x="26" y="6" width="' + (w - 52) + '" height="30" style="fill:none;stroke:' + ink + ';stroke-width:2"/>' + hh);
+    }
+    if (kind === 'break') {
+      var pts = '', px = x0;
+      var seg = (w - 12) / 12;
+      for (var j = 0; j <= 12; j++) { pts += (px + j * seg) + ',' + (j % 2 ? 10 : 30) + ' '; }
+      return wrap('<polyline points="' + pts + '" style="fill:none;stroke:' + ink + ';stroke-width:1.6"/>');
+    }
+    return wrap('<line x1="' + x0 + '" y1="' + y + '" x2="' + x1 + '" y2="' + y + '" style="stroke:' + ink + ';stroke-width:2"/>');
+  }
+
+  var REF_LINES = [
+    ['visible', 'Visible (object) line', 'Thick and solid — an edge you can SEE from this side. The part\'s outline.'],
+    ['hidden', 'Hidden line', 'Medium dashes — a real edge you CAN\'T see from here: hole walls, steps behind the surface.'],
+    ['center', 'Centerline', 'Thin, long-short-long — the AXIS of a hole or the middle of a symmetric part. Not an edge.'],
+    ['dim', 'Dimension line', 'Thin, arrowheads both ends, the number in its gap — "this distance is exactly this size."'],
+    ['extension', 'Extension lines', 'Thin lines reaching off the part with a small visible gap — they mark WHAT is being measured.'],
+    ['leader', 'Leader', 'A thin arrow from a note to a feature — "this callout belongs right there."'],
+    ['phantom', 'Phantom line', 'Long-dash, dash, dash — an alternate position or moving part shown for reference.'],
+    ['cutting', 'Cutting-plane line', 'Thick dashes with end arrows — "the part is sliced HERE; the arrows point at the section view."'],
+    ['section', 'Section (hatch) lines', 'Thin diagonals filling a cut face — solid metal the imaginary saw passed through.'],
+    ['break', 'Break line', 'A zigzag — the part continues but was shortened to fit the sheet.'],
+  ];
+  var REF_MARKS = [
+    ['Ø', 'Diameter', 'the full width of a round thing, through center. Ø.250 = a quarter-inch hole.'],
+    ['R', 'Radius', 'center to edge — HALF a diameter. R.125 rounds a corner.'],
+    ['THRU', 'Through', 'the hole exits the far side. No bottom.'],
+    ['↧', 'Depth', 'stop here: Ø.250 ↧ .500 = quarter-inch hole, half-inch deep, blind.'],
+    ['⌴', 'Counterbore', 'a flat-bottomed pocket over a hole — hides a screw head.'],
+    ['⌵', 'Countersink', 'a cone over a hole — seats a flat-head screw.'],
+    ['4X', 'Count', 'this many identical features. 4X Ø.266 = four of that hole.'],
+    ['TYP', 'Typical', 'every feature that looks like this one gets the same size.'],
+    ['( )', 'Reference', 'info only — already controlled elsewhere; you don\'t inspect to it.'],
+    ['1/4-20', 'Thread callout', 'size, dash, threads per inch: a 1/4" tap at 20 TPI.'],
+  ];
+  var REF_GDT = [
+    ['⏥', 'flatness', 'no datum', 'surface flat within the zone'],
+    ['⏤', 'straightness', 'no datum', 'line element straight within the zone'],
+    ['○', 'circularity', 'no datum', 'each cross-section round within the zone'],
+    ['⟂', 'perpendicularity', 'datum req.', 'square to the datum'],
+    ['∥', 'parallelism', 'datum req.', 'parallel to the datum'],
+    ['∠', 'angularity', 'datum req.', 'holds its called angle to the datum'],
+    ['⌖', 'position', 'datum req.', 'center lands in a round zone on true position'],
+    ['↗', 'circular runout', 'datum req.', 'spun on the datum axis, dial swing stays in the zone'],
+    ['⌓', 'profile', 'usually', 'whole surface follows its true shape'],
+  ];
+
+  function refAnatomySVG() {
+    /* the labeled dimension-anatomy diagram: part, extension lines, gap,
+       dimension line, arrowheads, feature size */
+    var s = '<svg width="330" height="230" viewBox="0 0 330 230" role="img" aria-label="anatomy of a dimension">';
+    var ink = 'var(--ink)', or = 'var(--orange)';
+    s += '<rect x="70" y="120" width="190" height="90" style="fill:var(--paper);stroke:' + ink + ';stroke-width:3"/>';
+    /* extension lines with visible gap */
+    s += '<line x1="70" y1="112" x2="70" y2="52" style="stroke:' + ink + ';stroke-width:1.2"/>';
+    s += '<line x1="260" y1="112" x2="260" y2="52" style="stroke:' + ink + ';stroke-width:1.2"/>';
+    /* dimension line + arrowheads + number */
+    s += '<line x1="70" y1="62" x2="145" y2="62" style="stroke:' + ink + ';stroke-width:1.2"/>';
+    s += '<line x1="185" y1="62" x2="260" y2="62" style="stroke:' + ink + ';stroke-width:1.2"/>';
+    s += '<path d="M 70 62 l 11 -4.5 l 0 9 z" style="fill:' + ink + '"/>';
+    s += '<path d="M 260 62 l -11 -4.5 l 0 9 z" style="fill:' + ink + '"/>';
+    s += '<text x="165" y="67" text-anchor="middle" style="font-family:var(--mono);font-size:15px;font-weight:700;fill:' + ink + '">2.50</text>';
+    /* labels with leaders */
+    function lab(tx, ty, px, py, text, anchor) {
+      return '<line x1="' + tx + '" y1="' + ty + '" x2="' + px + '" y2="' + py + '" style="stroke:' + or + ';stroke-width:1.1"/>' +
+        '<path d="M ' + px + ' ' + py + ' l 7 -2 l -2 5 z" style="fill:' + or + '" transform="rotate(' +
+        (Math.atan2(py - ty, px - tx) * 180 / Math.PI) + ' ' + px + ' ' + py + ')"/>' +
+        '<text x="' + tx + '" y="' + (ty - 4) + '" text-anchor="' + (anchor || 'middle') + '" style="font-family:var(--sans);font-size:11px;font-weight:700;fill:' + or + '">' + text + '</text>';
+    }
+    s += lab(160, 24, 160, 55, 'Feature Size');
+    s += lab(52, 24, 74, 58, 'Arrowheads');
+    s += lab(272, 40, 226, 60, 'Dimension Line', 'start');
+    s += lab(288, 78, 262, 80, 'Extension Line', 'start');
+    s += lab(288, 108, 262, 116, 'Visible Gap', 'start');
+    s += '</svg>';
+    return s;
+  }
+
+  function refFlashDeck() {
+    var deck = [];
+    REF_LINES.forEach(function (l) { deck.push({ art: lineSVG(l[0], 240), name: l[1], txt: l[2] }); });
+    REF_MARKS.forEach(function (m) { deck.push({ art: '<span class="ref-bigsym">' + m[0] + '</span>', name: m[1], txt: m[2] }); });
+    REF_GDT.forEach(function (g) { deck.push({ art: '<span class="ref-bigsym">' + g[0] + '</span>', name: g[1] + ' (' + g[2] + ')', txt: g[3] }); });
+    return deck;
+  }
+
+  function refMount() {
+    if (!document.body || document.getElementById('sms-ref-fab')) return;
+    var fab = document.createElement('button');
+    fab.id = 'sms-ref-fab';
+    fab.className = 'ref-fab';
+    fab.setAttribute('aria-label', 'Open the drafting reference');
+    fab.innerHTML = '📖 DRAFTING REF';
+    var panel = document.createElement('div');
+    panel.className = 'refpanel';
+    panel.style.display = 'none';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-label', 'Drafting reference');
+
+    var deck = refFlashDeck();
+    var flashI = 0, flipped = false, sec = 'lines';
+
+    function linesHTML() {
+      return '<p class="ref-note">The alphabet of lines — every stroke on a print is one of these, saying one thing.</p>' +
+        REF_LINES.map(function (l) {
+          return '<div class="ref-item"><div class="ref-art">' + lineSVG(l[0], 210) + '</div>' +
+            '<div class="ref-lbl"><b>' + l[1] + '</b>' + l[2] + '</div></div>';
+        }).join('');
+    }
+    function dimHTML() {
+      return '<p class="ref-note">The anatomy of a dimension — five parts working together:</p>' +
+        '<div style="text-align:center">' + refAnatomySVG() + '</div>' +
+        '<p class="ref-note"><b>Extension lines</b> reach off the part (never touching — that\'s the <b>visible gap</b>), ' +
+        'the <b>dimension line</b> spans between them, <b>arrowheads</b> kiss the extension lines, and the ' +
+        '<b>feature size</b> sits in the gap. The number is the instruction; everything else is pointing.</p>';
+    }
+    function marksHTML() {
+      return '<p class="ref-note">The marks that ride dimensions and hole notes:</p>' +
+        REF_MARKS.map(function (m) {
+          return '<div class="ref-item"><div class="ref-art"><span class="ref-sym">' + m[0] + '</span></div>' +
+            '<div class="ref-lbl"><b>' + m[1] + '</b>' + m[2] + '</div></div>';
+        }).join('');
+    }
+    function gdtHTML() {
+      return '<p class="ref-note">GD&T quick card — the frame reads: symbol · zone · datums.</p>' +
+        REF_GDT.map(function (g) {
+          return '<div class="ref-item"><div class="ref-art"><span class="ref-sym">' + g[0] + '</span></div>' +
+            '<div class="ref-lbl"><b>' + g[1] + ' <span class="ref-dim">· ' + g[2] + '</span></b>' + g[3] + '</div></div>';
+        }).join('');
+    }
+    function viewsHTML() {
+      return '<p class="ref-note">Third-angle layout (the US standard): views stay lined up.</p>' +
+        '<div style="text-align:center"><svg width="240" height="210" viewBox="0 0 240 210" role="img" aria-label="third angle view layout">' +
+        '<rect x="40" y="16" width="110" height="56" style="fill:var(--paper);stroke:var(--ink);stroke-width:2"/>' +
+        '<text x="95" y="48" text-anchor="middle" style="font-family:var(--mono);font-size:11px;fill:var(--soft)">TOP</text>' +
+        '<rect x="40" y="92" width="110" height="76" style="fill:var(--paper);stroke:var(--ink);stroke-width:2.6"/>' +
+        '<text x="95" y="134" text-anchor="middle" style="font-family:var(--mono);font-size:11px;fill:var(--ink)">FRONT</text>' +
+        '<rect x="168" y="92" width="52" height="76" style="fill:var(--paper);stroke:var(--ink);stroke-width:2"/>' +
+        '<text x="194" y="134" text-anchor="middle" style="font-family:var(--mono);font-size:9.5px;fill:var(--soft)">RIGHT</text>' +
+        '<text x="95" y="196" text-anchor="middle" style="font-family:var(--sans);font-size:10px;fill:var(--soft)">TOP above · RIGHT beside · all in line</text>' +
+        '</svg></div>' +
+        '<p class="ref-note">Look FIRST at the title block (bottom-right): part, material, scale, default tolerances. ' +
+        'Then find the front view and orient. Then sizes, then the tightest tolerance on the sheet.</p>';
+    }
+    function flashHTML() {
+      var c = deck[flashI];
+      return '<p class="ref-note">Flashcards — say it before you flip it. ' + (flashI + 1) + ' / ' + deck.length + '</p>' +
+        '<button class="ref-flash" data-flip aria-label="flashcard, tap to flip">' +
+        (flipped
+          ? '<span class="ref-flash-name">' + c.name + '</span><span class="ref-flash-txt">' + c.txt + '</span>'
+          : '<span class="ref-flash-q">what is this?</span><span class="ref-flash-art">' + c.art + '</span>') +
+        '</button>' +
+        '<div class="btnrow" style="margin-top:10px">' +
+        '<button data-flip2>' + (flipped ? 'SHOW THE CARD' : 'FLIP IT') + '</button>' +
+        '<button class="primary" data-nextcard>NEXT CARD →</button></div>';
+    }
+
+    var SECS = [['lines', 'LINES'], ['dim', 'DIMENSIONS'], ['marks', 'MARKS'], ['gdt', 'GD&T'], ['views', 'VIEWS'], ['flash', 'QUIZ ME']];
+    function render() {
+      panel.innerHTML =
+        '<div class="ref-head"><span>📖 DRAFTING REFERENCE</span>' +
+        '<button data-close aria-label="Close the reference">✕</button></div>' +
+        '<div class="ref-tabs">' + SECS.map(function (s0) {
+          return '<button data-sec="' + s0[0] + '" class="' + (sec === s0[0] ? 'on' : '') + '">' + s0[1] + '</button>';
+        }).join('') + '</div>' +
+        '<div class="ref-body">' +
+        (sec === 'lines' ? linesHTML() : sec === 'dim' ? dimHTML() : sec === 'marks' ? marksHTML() :
+         sec === 'gdt' ? gdtHTML() : sec === 'views' ? viewsHTML() : flashHTML()) +
+        '</div>';
+      panel.querySelector('[data-close]').addEventListener('click', function () { setOpen(false); });
+      panel.querySelectorAll('[data-sec]').forEach(function (b) {
+        b.addEventListener('click', function () { sec = b.getAttribute('data-sec'); render(); });
+      });
+      var fl = panel.querySelector('[data-flip]');
+      if (fl) fl.addEventListener('click', function () { flipped = !flipped; render(); });
+      var fl2 = panel.querySelector('[data-flip2]');
+      if (fl2) fl2.addEventListener('click', function () { flipped = !flipped; render(); });
+      var nx = panel.querySelector('[data-nextcard]');
+      if (nx) nx.addEventListener('click', function () {
+        var was = flashI;
+        while (flashI === was && deck.length > 1) flashI = Math.floor(Math.random() * deck.length);
+        flipped = false;
+        render();
+      });
+    }
+    function setOpen(open) {
+      panel.style.display = open ? 'flex' : 'none';
+      fab.classList.toggle('on', open);
+      if (open) render();
+    }
+    fab.addEventListener('click', function () { setOpen(panel.style.display === 'none'); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && panel.style.display !== 'none') { setOpen(false); e.stopPropagation(); }
+    }, true);
+    document.body.appendChild(fab);
+    document.body.appendChild(panel);
+  }
+  function refAllow(yes) {
+    var fab = document.getElementById('sms-ref-fab');
+    if (!fab) return;
+    fab.style.display = yes ? '' : 'none';
+    if (!yes) {
+      var panel = document.querySelector('.refpanel');
+      if (panel) { panel.style.display = 'none'; fab.classList.remove('on'); }
+    }
+  }
+  if (document.body) refMount();
+  else document.addEventListener('DOMContentLoaded', refMount);
+
   /* ---------------- level page chrome ---------------- */
   function levelPage(id, parts) {
     var lvl = LEVELS[levelIndex(id)];
@@ -1338,6 +1596,7 @@
       root.querySelectorAll('.tabs button').forEach(function (b, j) {
         b.classList.toggle('on', j === k);
       });
+      refAllow(k !== 3);
       panes.innerHTML = '';
       if (k === 0) { panes.innerHTML = parts.explainer; }
       if (k === 1) { parts.playground(panes); }
@@ -1395,5 +1654,6 @@
     intWords: intWords, placeWords: placeWords,
     dro: dro, runGame: runGame, daily10Questions: daily10Questions,
     levelPage: levelPage,
+    lineSVG: lineSVG, refMount: refMount, refAllow: refAllow,
   };
 })();

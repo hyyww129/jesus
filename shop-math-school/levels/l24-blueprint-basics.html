@@ -48,13 +48,14 @@
   'the <b>TOP</b> view sits directly <b>above</b> it, and the <b>RIGHT SIDE</b> view sits to the <b>right</b>. ' +
   'They line up — a feature in one view stays in line with itself in the next. Find the front view, and the ' +
   'others fall into place.</p>' +
-  '<p><span class="term">LOOK 3 — the lines.</span> Every line style is a different sentence:</p>' +
-  '<table class="ref"><tr><th>the line</th><th>what it\'s saying</th></tr>' +
-  '<tr><td>thick solid</td><td>an edge you can SEE from this side</td></tr>' +
-  '<tr><td>dashed</td><td>a HIDDEN edge — real, but behind the surface (holes, steps)</td></tr>' +
-  '<tr><td>thin, long-short-long</td><td>a CENTERLINE — the middle of a hole or a symmetric part</td></tr>' +
-  '<tr><td>thin with arrowheads + a number</td><td>a DIMENSION — the size of something</td></tr>' +
-  '<tr><td>thin arrow pointing at a note</td><td>a LEADER — "this note belongs to that feature"</td></tr></table>' +
+  '<p><span class="term">LOOK 3 — the lines.</span> Every line style is a different sentence ' +
+  '(and the 📖 DRAFTING REF on the right edge keeps the whole alphabet one tap away):</p>' +
+  '<table class="ref"><tr><th>drawn</th><th>the line</th><th>what it\'s saying</th></tr>' +
+  '<tr><td>' + S.lineSVG('visible', 120) + '</td><td>thick solid</td><td>an edge you can SEE from this side</td></tr>' +
+  '<tr><td>' + S.lineSVG('hidden', 120) + '</td><td>dashed</td><td>a HIDDEN edge — real, but behind the surface (holes, steps)</td></tr>' +
+  '<tr><td>' + S.lineSVG('center', 120) + '</td><td>thin, long-short-long</td><td>a CENTERLINE — the middle of a hole or a symmetric part</td></tr>' +
+  '<tr><td>' + S.lineSVG('dim', 120) + '</td><td>thin with arrowheads + a number</td><td>a DIMENSION — the size of something</td></tr>' +
+  '<tr><td>' + S.lineSVG('leader', 120) + '</td><td>thin arrow pointing at a note</td><td>a LEADER — "this note belongs to that feature"</td></tr></table>' +
   '<p style="margin-top:10px"><span class="term">LOOK 4 — the scale.</span> "SCALE 2:1" means the drawing is ' +
   'twice the part\'s real size; "1:2" means half. And here is the iron rule of the trade:</p>' +
   '<div class="worked"><span class="res">NEVER measure the paper.</span> Paper stretches, copiers distort, ' +
@@ -214,7 +215,8 @@
     var others = S.shuffle(LINES.filter(function (x, i) { return i !== li; })).slice(0, 3);
     for (var k = 0; k < others.length; k++) choices.push(others[k].a);
     return { type: 'mc', a: 0, choices: choices,
-      q: 'On a print you see <b>' + line.d + '</b>. What is it telling you?',
+      q: 'On a print you see <b>' + line.d + '</b>. What is it telling you?' +
+        '<span class="q-linesample">' + S.lineSVG(line.kind, 220) + '</span>',
       explain: line.d.charAt(0).toUpperCase() + line.d.slice(1) + ' = <span class="num">' + line.a + '</span>.',
       hint: 'Weight and pattern carry the meaning: thick solid = edges you see, dashed = edges you can\'t, long-short-long = centerlines, thin with arrows = measurement talk.',
       steps: LINES.map(function (x, i) {
