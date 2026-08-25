@@ -93,7 +93,8 @@
           : 'LOCKED';
         var bottom;
         if (!unlocked) {
-          bottom = '<div class="lock-note">beat Level ' + (l.n - 1) + ' to unlock</div>';
+          var gate = S.gateFor(l.id);
+          bottom = '<div class="lock-note">beat Level ' + (gate ? gate.n : l.n - 1) + ' to unlock</div>';
         } else if (!l.built) {
           bottom = '<div class="lock-note">unlocked — this level gets built next; say the word</div>';
         } else {

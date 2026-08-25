@@ -59,8 +59,8 @@
       desc: 'SOH-CAH-TOA with a unit-circle animation. Angle + distance → X and Y.' },
     { id: 'l23', n: 23, w: 4, title: 'Bolt-Hole Circles', file: 'levels/l23-bolt-circles.html', built: false,
       desc: 'X = Xc + R·cos θ, Y = Yc + R·sin θ. Place the holes before the machine does.' },
-    { id: 'l24', n: 24, w: 5, title: 'Blueprint Basics', file: 'levels/l24-blueprint-basics.html', built: false,
-      desc: 'Title block, views, line types, scale — what each line on the page means.' },
+    { id: 'l24', n: 24, w: 5, title: 'Blueprint Basics', file: 'levels/l24-blueprint-basics.html', built: true, open: true,
+      desc: 'Title block, views, line types, scale — what each line on the page means. Opened early for blueprint day.' },
     { id: 'l25', n: 25, w: 5, title: 'Dimensions & Callouts', file: 'levels/l25-dimensions.html', built: false,
       desc: 'Dimension lines, Ø vs R, hole callouts, THRU vs depth.' },
     { id: 'l26', n: 26, w: 5, title: 'Tolerances', file: 'levels/l26-tolerances.html', built: false,
@@ -159,10 +159,19 @@
     for (var i = 0; i < LEVELS.length; i++) if (LEVELS[i].id === id) return i;
     return -1;
   }
-  function isUnlocked(id) {
+  /* the level whose boss gates this one: the nearest EARLIER BUILT level.
+     Unbuilt levels never block, and a level marked open:true has no gate. */
+  function gateFor(id) {
     var i = levelIndex(id);
-    if (i <= 0) return true;
-    return rec(LEVELS[i - 1].id).passed;
+    if (i <= 0 || LEVELS[i].open) return null;
+    for (var k = i - 1; k >= 0; k--) {
+      if (LEVELS[k].built) return LEVELS[k];
+    }
+    return null;
+  }
+  function isUnlocked(id) {
+    var g = gateFor(id);
+    return !g || rec(g.id).passed;
   }
   function worldComplete(w) {
     for (var i = 0; i < LEVELS.length; i++) {
@@ -1075,6 +1084,55 @@
       } };
   };
 
+  BANKS.l24 = function () {
+    var LINES = [
+      ['a thick solid line outlining a shape', 'a visible edge you can see from this side'],
+      ['a medium dashed line running through a view', 'a hidden edge behind the surface'],
+      ['a thin long-short-long line through a hole\'s middle', 'a centerline, the hole\'s axis'],
+      ['a thin line with arrowheads and a number in its gap', 'a dimension, the size of something']];
+    var kind = pick(['whichLine', 'scaleReal', 'scaleReal']);
+    if (kind === 'whichLine') {
+      var li = Math.floor(Math.random() * LINES.length);
+      var choices = [LINES[li][1]];
+      for (var k = 0; k < LINES.length; k++) if (k !== li) choices.push(LINES[k][1]);
+      return { type: 'mc', a: 0, choices: choices, from: 'Level 24',
+        q: 'On a print you see <b>' + LINES[li][0] + '</b>. What is it telling you?',
+        explain: LINES[li][0] + ' = <span class="num">' + LINES[li][1] + '</span>.',
+        hint: 'Thick solid = edges you see, dashed = edges you cannot, long-short-long = centerlines, thin with arrows = measurement talk.',
+        steps: LINES.map(function (x, i) {
+          return (i === li ? '<span class="res">' : '<span class="num">') + x[0] + ' → ' + x[1] + '</span>';
+        }).join('<br>'),
+        diagnose: function () {
+          return { label: 'Lines mixed up',
+            your: 'that meaning belongs to a different line style',
+            right: LINES[li][0] + ' → ' + LINES[li][1] };
+        } };
+    }
+    var scales = [[2, 1], [1, 2], [4, 1]];
+    var sc = pick(scales);
+    var paper = pick([0.5, 1.0, 1.5, 2.0, 3.0]);
+    var a2 = Math.round(paper * sc[1] / sc[0] * 1000) / 1000;
+    var scs = sc[0] + ':' + sc[1];
+    var wrong = Math.round(paper * sc[0] / sc[1] * 1000) / 1000;
+    return { type: 'num', a: a2, tol: 0.005, from: 'Level 24',
+      q: 'The title block says <span class="num">SCALE ' + scs + '</span>. A feature measures <span class="num">' +
+        fmtExact(paper) + '"</span> on the paper. How big is the <b>real</b> feature?',
+      explain: 'SCALE ' + scs + ' is paper:real → ' + fmtExact(paper) + ' × ' + sc[1] + ' ÷ ' + sc[0] +
+        ' = <span class="num">' + fmtExact(a2) + '"</span>.',
+      hint: 'Read the ratio as paper:real — real = paper × ' + sc[1] + ' ÷ ' + sc[0] + '. (And on a real print, the WRITTEN number still beats any ruler.)',
+      steps: '1 · real = paper × ' + sc[1] + ' ÷ ' + sc[0] + '<br>' +
+        '2 · ' + fmtExact(paper) + ' × ' + sc[1] + ' ÷ ' + sc[0] + ' = <span class="res">' + fmtExact(a2) + '"</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - wrong) < 0.005 && Math.abs(wrong - a2) > 0.01) return { label: 'Read the ratio backwards',
+          your: fmtExact(wrong) + ' flips paper and real',
+          right: fmtExact(paper) + ' × ' + sc[1] + ' ÷ ' + sc[0] + ' = ' + fmtExact(a2) };
+        if (Math.abs(v - paper) < 0.005 && Math.abs(paper - a2) > 0.01) return { label: 'Trusted the paper',
+          your: 'that is the paper size — the scale changes it',
+          right: fmtExact(a2) };
+        return { label: 'Scale slip', your: fmtExact(v) + ' is not paper × ' + sc[1] + ' ÷ ' + sc[0], right: fmtExact(a2) };
+      } };
+  };
+
   function daily10Questions() {
     var eligible = LEVELS.filter(function (l) { return l.built && rec(l.id).passed && BANKS[l.id]; });
     if (!eligible.length) {
@@ -1162,7 +1220,7 @@
     state: state, save: save, rec: rec,
     durable: durable, exportCode: exportCode, importCode: importCode,
     recordBoss: recordBoss, recordGame: recordGame, nudge: nudge,
-    isUnlocked: isUnlocked, worldComplete: worldComplete, rankInfo: rankInfo,
+    isUnlocked: isUnlocked, gateFor: gateFor, worldComplete: worldComplete, rankInfo: rankInfo,
     fmt: fmt, fmtExact: fmtExact, parseNum: parseNum,
     shuffle: shuffle, pick: pick, esc: esc,
     intWords: intWords, placeWords: placeWords,

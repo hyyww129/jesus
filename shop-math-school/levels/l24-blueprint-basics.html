@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Level 24 · Blueprint Basics</title>
+<link rel="stylesheet" href="../style.css">
+<style>
+.bp-hot { cursor: pointer; }
+.bp-hot:hover rect, .bp-hot:hover path { stroke-width: 2.5; }
+.bp-legend { font-family: var(--mono); font-size: 10.5px; color: var(--soft); margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header class="bar">
+    <a class="hub-link" href="../index.html">← SKILL TREE</a>
+    <div class="eyebrow">Level 24 · World 5 · Shop Math School</div>
+    <h1>Blueprint <span class="b">Basics</span></h1>
+    <p class="sub">A print is a letter from the designer to you. This level teaches you where to look
+      first, what every kind of line is saying, and why you read the numbers — never the paper.</p>
+  </header>
+  <div id="sms-root"></div>
+</div>
+
+<script src="../shared.js"></script>
+<script>
+(function () {
+  "use strict";
+  var S = window.SMS;
+
+  function rnd(n) { return Math.floor(Math.random() * n); }
+  function nf(v) { return S.fmtExact(v); }
+  function nsp(s) { return '<span class="num">' + s + '</span>'; }
+
+  /* ============ PART 1 — EXPLAINER ============ */
+  var EXPLAINER =
+  '<div class="card"><h2>60-second explainer</h2><div class="body prose">' +
+  '<p>A blueprint answers four questions: <b>what part is this, what does it look like, how big is ' +
+  'everything, and how perfect does it have to be.</b> Each question lives in a known place — reading ' +
+  'a print is mostly knowing where to look.</p>' +
+  '<p><span class="term">LOOK 1 — the title block</span>, the boxed grid in the <b>bottom-right corner</b>. ' +
+  'It holds the part name and number, the <b>material</b>, the <b>scale</b>, the revision letter, and the ' +
+  '<b>default tolerances</b> (more on those in Level 26). Every print you ever pick up: read this corner first. ' +
+  'It tells you what you\'re making, out of what, and how honest you have to be.</p>' +
+  '<p><span class="term">LOOK 2 — the views.</span> A flat drawing shows a 3D part by photographing it from ' +
+  'square-on directions. US prints use <b>third-angle projection</b>: the <b>FRONT</b> view anchors the sheet, ' +
+  'the <b>TOP</b> view sits directly <b>above</b> it, and the <b>RIGHT SIDE</b> view sits to the <b>right</b>. ' +
+  'They line up — a feature in one view stays in line with itself in the next. Find the front view, and the ' +
+  'others fall into place.</p>' +
+  '<p><span class="term">LOOK 3 — the lines.</span> Every line style is a different sentence:</p>' +
+  '<table class="ref"><tr><th>the line</th><th>what it\'s saying</th></tr>' +
+  '<tr><td>thick solid</td><td>an edge you can SEE from this side</td></tr>' +
+  '<tr><td>dashed</td><td>a HIDDEN edge — real, but behind the surface (holes, steps)</td></tr>' +
+  '<tr><td>thin, long-short-long</td><td>a CENTERLINE — the middle of a hole or a symmetric part</td></tr>' +
+  '<tr><td>thin with arrowheads + a number</td><td>a DIMENSION — the size of something</td></tr>' +
+  '<tr><td>thin arrow pointing at a note</td><td>a LEADER — "this note belongs to that feature"</td></tr></table>' +
+  '<p style="margin-top:10px"><span class="term">LOOK 4 — the scale.</span> "SCALE 2:1" means the drawing is ' +
+  'twice the part\'s real size; "1:2" means half. And here is the iron rule of the trade:</p>' +
+  '<div class="worked"><span class="res">NEVER measure the paper.</span> Paper stretches, copiers distort, ' +
+  'PDFs zoom.<br>The printed <span class="num">numbers</span> are the truth. If a size isn\'t written, ' +
+  'you ask — you don\'t scale it with a ruler.</div>' +
+  '<p>Work one: the print says SCALE 2:1 and a slot measures 1.50" long <i>on the paper</i>. ' +
+  'Real slot = 1.50 ÷ 2 = <b>0.75"</b> — but you\'d only ever do that math to sanity-check. The written ' +
+  'dimension wins, every time.</p>' +
+  '<p><b>The bench routine</b>, in order: ① title block — what, material, units, scale, default tolerances ' +
+  '② find the front view, orient yourself ③ overall envelope — the biggest length, width, thickness ' +
+  '④ features and their callouts ⑤ the tightest tolerance on the sheet — that number decides how you\'ll ' +
+  'machine and measure. Now open the <b>Playground</b> and poke a real print.</p>' +
+  '</div></div>';
+
+  /* ============ PART 2 — PLAYGROUND ============ */
+  var REGIONS = {
+    title: { name: 'TITLE BLOCK', txt: 'The print\'s ID card, always bottom-right: part name and number, material (6061-T6 aluminum here), scale, revision, and the default tolerances that cover every dimension without its own.' },
+    front: { name: 'FRONT VIEW', txt: 'The anchor view — you\'re looking straight at the part\'s face. The other views hang off this one and stay lined up with it.' },
+    top: { name: 'TOP VIEW', txt: 'Directly ABOVE the front view (third-angle, the US way): the part seen from straight overhead. Notice the hole shows as a full circle here.' },
+    side: { name: 'RIGHT SIDE VIEW', txt: 'To the RIGHT of the front view: the part seen from its right end. The through-hole you can\'t see from here shows as two DASHED lines.' },
+    hidden: { name: 'HIDDEN LINE', txt: 'Dashed = a real edge you can\'t see from this direction. These two dashes are the walls of the hole, buried inside the part.' },
+    center: { name: 'CENTERLINE', txt: 'Thin long-short-long through the hole\'s middle. Not an edge at all — it marks the AXIS everything about that hole is measured to.' },
+    dim: { name: 'DIMENSION', txt: 'Thin line, arrowheads, a number in the gap: "this distance is exactly this size." The extension lines reach out from the part to say what\'s being measured.' },
+  };
+
+  function playground(panes) {
+    var card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML =
+      '<h2>Playground — a real print, tap everything</h2><div class="body">' +
+      '<div class="scrollbox"><svg id="bpView" width="640" height="330" viewBox="0 0 640 330" role="img" aria-label="a small blueprint: top view, front view, right side view, title block"></svg></div>' +
+      '<p class="bp-legend">TAP the views, the dashed lines, the centerline, a dimension, and the title block.</p>' +
+      '<div class="slider-row" style="margin-top:12px"><span class="name">SCALE</span>' +
+      '<input type="range" id="scSel" min="0" max="3" step="1" value="2" aria-label="drawing scale">' +
+      '<span class="out" id="scOut"></span></div>' +
+      '<div class="slider-row"><span class="name">ON PAPER</span>' +
+      '<input type="range" id="paperSlide" min="25" max="300" step="25" value="150" aria-label="length measured on the paper in hundredths">' +
+      '<span class="out" id="paperOut"></span></div>' +
+      '<div class="pg-split" style="margin-top:12px">' +
+      '<div class="eq" id="eqPanel"><span class="lbl">The math, live</span><span id="eqBody"></span></div>' +
+      '<div class="pg-live"><div id="droBox"></div></div>' +
+      '</div></div>';
+    panes.appendChild(card);
+
+    var SCALES = [[1, 2, '1:2'], [1, 1, '1:1'], [2, 1, '2:1'], [4, 1, '4:1']];
+    var scI = 2, paper = 1.50, picked = null;
+    var eqBody = card.querySelector('#eqBody');
+    var droCtl = S.dro(card.querySelector('#droBox'), 'REAL');
+
+    function draw() {
+      var s = '';
+      function hot(id, inner) { return '<g class="bp-hot" data-r="' + id + '">' + inner + '</g>'; }
+      var on = function (id, base) { return picked === id ? 'var(--orange)' : base; };
+      /* border */
+      s += '<rect x="4" y="4" width="632" height="322" style="fill:none;stroke:var(--ink);stroke-width:2"/>';
+      /* TOP view: plate seen from above, hole = circle */
+      s += hot('top',
+        '<rect x="70" y="30" width="220" height="90" style="fill:var(--paper);stroke:' + on('top', 'var(--ink)') + ';stroke-width:2"/>' +
+        '<circle cx="180" cy="75" r="22" style="fill:none;stroke:var(--ink);stroke-width:2"/>' +
+        '<text x="75" y="115" style="font-family:var(--mono);font-size:9px;fill:var(--soft)">TOP</text>');
+      /* centerlines on the hole (top view) */
+      s += hot('center',
+        '<line x1="145" y1="75" x2="215" y2="75" style="stroke:' + on('center', 'var(--blue)') + ';stroke-width:1.2" stroke-dasharray="12 3 3 3"/>' +
+        '<line x1="180" y1="42" x2="180" y2="108" style="stroke:' + on('center', 'var(--blue)') + ';stroke-width:1.2" stroke-dasharray="12 3 3 3"/>');
+      /* FRONT view below */
+      s += hot('front',
+        '<rect x="70" y="160" width="220" height="60" style="fill:var(--paper);stroke:' + on('front', 'var(--ink)') + ';stroke-width:2"/>' +
+        '<text x="75" y="215" style="font-family:var(--mono);font-size:9px;fill:var(--soft)">FRONT</text>');
+      /* hidden hole walls in front view */
+      s += hot('hidden',
+        '<line x1="158" y1="160" x2="158" y2="220" style="stroke:' + on('hidden', 'var(--ink)') + ';stroke-width:1.6" stroke-dasharray="6 4"/>' +
+        '<line x1="202" y1="160" x2="202" y2="220" style="stroke:' + on('hidden', 'var(--ink)') + ';stroke-width:1.6" stroke-dasharray="6 4"/>');
+      /* RIGHT SIDE view */
+      s += hot('side',
+        '<rect x="330" y="160" width="90" height="60" style="fill:var(--paper);stroke:' + on('side', 'var(--ink)') + ';stroke-width:2"/>' +
+        '<line x1="352" y1="160" x2="352" y2="220" style="stroke:var(--ink);stroke-width:1.4" stroke-dasharray="6 4"/>' +
+        '<line x1="398" y1="160" x2="398" y2="220" style="stroke:var(--ink);stroke-width:1.4" stroke-dasharray="6 4"/>' +
+        '<text x="335" y="215" style="font-family:var(--mono);font-size:9px;fill:var(--soft)">R SIDE</text>');
+      /* dimension under the front view */
+      s += hot('dim',
+        '<line x1="70" y1="240" x2="70" y2="256" style="stroke:' + on('dim', 'var(--soft)') + ';stroke-width:1"/>' +
+        '<line x1="290" y1="240" x2="290" y2="256" style="stroke:' + on('dim', 'var(--soft)') + ';stroke-width:1"/>' +
+        '<line x1="70" y1="250" x2="160" y2="250" style="stroke:' + on('dim', 'var(--soft)') + ';stroke-width:1.2"/>' +
+        '<line x1="200" y1="250" x2="290" y2="250" style="stroke:' + on('dim', 'var(--soft)') + ';stroke-width:1.2"/>' +
+        '<path d="M 70 250 l 9 -3.5 l 0 7 z" style="fill:' + on('dim', 'var(--soft)') + '"/>' +
+        '<path d="M 290 250 l -9 -3.5 l 0 7 z" style="fill:' + on('dim', 'var(--soft)') + '"/>' +
+        '<text x="180" y="254" text-anchor="middle" style="font-family:var(--mono);font-size:12px;font-weight:700;fill:var(--ink)">4.00</text>');
+      /* title block bottom-right */
+      s += hot('title',
+        '<rect x="380" y="250" width="252" height="72" style="fill:var(--panel);stroke:' + on('title', 'var(--ink)') + ';stroke-width:2"/>' +
+        '<line x1="380" y1="274" x2="632" y2="274" style="stroke:var(--ink);stroke-width:1"/>' +
+        '<line x1="380" y1="298" x2="632" y2="298" style="stroke:var(--ink);stroke-width:1"/>' +
+        '<line x1="506" y1="250" x2="506" y2="322" style="stroke:var(--ink);stroke-width:1"/>' +
+        '<text x="386" y="266" style="font-family:var(--mono);font-size:10px;fill:var(--ink)">ADAPTER PLATE</text>' +
+        '<text x="512" y="266" style="font-family:var(--mono);font-size:10px;fill:var(--ink)">NO. 1042-A · REV B</text>' +
+        '<text x="386" y="290" style="font-family:var(--mono);font-size:10px;fill:var(--ink)">MATL: 6061-T6 AL</text>' +
+        '<text x="512" y="290" style="font-family:var(--mono);font-size:10px;fill:var(--ink)">SCALE: 1:1 · IN</text>' +
+        '<text x="386" y="314" style="font-family:var(--mono);font-size:9.5px;fill:var(--ink)">.XX ±.01 · .XXX ±.005</text>' +
+        '<text x="512" y="314" style="font-family:var(--mono);font-size:9.5px;fill:var(--ink)">DRAWN: T.C.</text>');
+      card.querySelector('#bpView').innerHTML = s;
+      card.querySelectorAll('.bp-hot').forEach(function (g) {
+        g.addEventListener('click', function () { picked = g.getAttribute('data-r'); update(); });
+      });
+    }
+
+    function update() {
+      var sc = SCALES[scI];
+      card.querySelector('#scOut').textContent = 'SCALE ' + sc[2];
+      card.querySelector('#paperOut').textContent = nf(paper) + '" on paper';
+      var real = Math.round(paper * sc[1] / sc[0] * 1000) / 1000;
+      var reg = picked ? REGIONS[picked] : null;
+      eqBody.innerHTML =
+        (reg ? '<span class="dim">tapped:</span> <b>' + reg.name + '</b><br>' : '<span class="dim">tap the print above — every piece explains itself</span><br>') +
+        'SCALE ' + nsp(sc[2]) + ' → real = paper × ' + sc[1] + ' ÷ ' + sc[0] + '<br>' +
+        nsp(nf(paper) + '"') + ' on paper × ' + sc[1] + ' ÷ ' + sc[0] + ' = <span class="res">' + nf(real) + '"</span> real' +
+        '<br><span class="dim">…and you still trust the WRITTEN number over this ruler math, every time</span>';
+      droCtl.set(nf(real), reg
+        ? reg.txt
+        : 'At SCALE ' + sc[2] + ', ' + nf(paper) + '" of paper stands for <b>' + nf(real) + '"</b> of metal. Paper lies a little; printed numbers don\'t.');
+    }
+
+    card.querySelector('#scSel').addEventListener('input', function () { scI = Number(this.value); update(); });
+    card.querySelector('#paperSlide').addEventListener('input', function () { paper = Number(this.value) / 100; update(); });
+    draw();
+    update();
+    window.__l24 = {
+      set: function (o) {
+        o = o || {};
+        if (typeof o.scale === 'number') { scI = o.scale; card.querySelector('#scSel').value = o.scale; }
+        if (typeof o.paper === 'number') { paper = o.paper; card.querySelector('#paperSlide').value = Math.round(o.paper * 100); }
+        if (o.pick !== undefined) picked = o.pick;
+        draw(); update();
+      },
+      info: function () { var sc = SCALES[scI]; return { scale: sc[2], paper: paper, real: paper * sc[1] / sc[0], picked: picked }; }
+    };
+  }
+
+  /* ============ question generators (game + boss) ============ */
+  var LINES = [
+    { d: 'a thick solid line outlining a shape', a: 'a visible edge — you can see it from this side', kind: 'visible' },
+    { d: 'a medium dashed line running through a view', a: 'a hidden edge — real, but behind the surface', kind: 'hidden' },
+    { d: 'a thin long-short-long line through a hole\'s middle', a: 'a centerline — the hole\'s axis', kind: 'center' },
+    { d: 'a thin line with arrowheads and a number in its gap', a: 'a dimension — the size of something', kind: 'dim' },
+    { d: 'a thin arrow pointing from a note to a feature', a: 'a leader — "this note belongs there"', kind: 'leader' },
+  ];
+  var FIELDS = [
+    ['MATL', 'material', ['6061-T6 AL', '1018 STEEL', '304 SS', 'BRASS 360']],
+    ['SCALE', 'scale', ['1:1', '2:1', '1:2', '4:1']],
+    ['NO.', 'part number', ['1042-A', '2210-C', '5518-B', '3307-D']],
+    ['REV', 'revision', ['A', 'B', 'C', 'D']],
+  ];
+
+  function genWhichLine(hard) {
+    var li = rnd(LINES.length);
+    var line = LINES[li];
+    var choices = [line.a];
+    var others = S.shuffle(LINES.filter(function (x, i) { return i !== li; })).slice(0, 3);
+    for (var k = 0; k < others.length; k++) choices.push(others[k].a);
+    return { type: 'mc', a: 0, choices: choices,
+      q: 'On a print you see <b>' + line.d + '</b>. What is it telling you?',
+      explain: line.d.charAt(0).toUpperCase() + line.d.slice(1) + ' = <span class="num">' + line.a + '</span>.',
+      hint: 'Weight and pattern carry the meaning: thick solid = edges you see, dashed = edges you can\'t, long-short-long = centerlines, thin with arrows = measurement talk.',
+      steps: LINES.map(function (x, i) {
+        return (i === li ? '<span class="res">' : '<span class="num">') + x.d + ' → ' + x.a + '</span>' + (i === li ? ' ← this one' : '');
+      }).join('<br>'),
+      diagnose: function (chosen) {
+        var picked = choices[chosen];
+        var pl = null;
+        for (var j = 0; j < LINES.length; j++) if (LINES[j].a === picked) pl = LINES[j];
+        return { label: 'Lines mixed up',
+          your: '"' + picked + '" belongs to ' + (pl ? pl.d : 'a different line style'),
+          right: line.d + ' → ' + line.a };
+      } };
+  }
+
+  function genTitleRead(hard) {
+    var mat = S.pick(FIELDS[0][2]), sc = S.pick(FIELDS[1][2]), no = S.pick(FIELDS[2][2]), rev = S.pick(FIELDS[3][2]);
+    var vals = { material: mat, scale: sc, 'part number': no, revision: rev };
+    var fi = rnd(4);
+    var field = FIELDS[fi][1];
+    var right = vals[field];
+    var block = 'NO. ' + no + ' · MATL: ' + mat + ' · SCALE ' + sc + ' · REV ' + rev;
+    var choices = [right];
+    var pool = [mat, sc, no, rev].filter(function (v) { return v !== right; });
+    for (var k = 0; k < pool.length && choices.length < 4; k++) choices.push(pool[k]);
+    return { type: 'mc', a: 0, choices: choices,
+      q: 'The title block reads: <span class="num">' + block + '</span>. What is the part\'s <b>' + field + '</b>?',
+      explain: 'Each label tags its value: ' + (fi === 0 ? 'MATL' : fi === 1 ? 'SCALE' : fi === 2 ? 'NO.' : 'REV') +
+        ' → <span class="num">' + right + '</span>.',
+      hint: 'Read the labels, not the positions: NO. = part number, MATL = material, SCALE = drawing scale, REV = revision letter. Find the label that matches the question.',
+      steps: '1 · NO. ' + no + ' = part number<br>2 · MATL: ' + mat + ' = material<br>' +
+        '3 · SCALE ' + sc + ' = drawing scale<br>4 · REV ' + rev + ' = revision<br>' +
+        '5 · Asked for the ' + field + ' → <span class="res">' + right + '</span>',
+      diagnose: function (chosen) {
+        var picked = choices[chosen];
+        var owner = picked === mat ? 'the material' : picked === sc ? 'the scale' : picked === no ? 'the part number' : 'the revision';
+        return { label: 'Grabbed the wrong field',
+          your: picked + ' is ' + owner + ' — the question asked for the ' + field,
+          right: 'match the label: ' + right };
+      } };
+  }
+
+  function genScaleReal(hard) {
+    var scales = hard ? [[1, 2], [4, 1], [2, 1], [1, 4]] : [[2, 1], [1, 2], [1, 1]];
+    var sc = S.pick(scales);
+    var papers = hard ? [0.75, 1.25, 2.25, 1.75, 3.50] : [1.00, 1.50, 2.00, 3.00, 0.50];
+    var paper = S.pick(papers);
+    var a = Math.round(paper * sc[1] / sc[0] * 1000) / 1000;
+    var scs = sc[0] + ':' + sc[1];
+    var wrong = Math.round(paper * sc[0] / sc[1] * 1000) / 1000;
+    return { type: 'num', a: a, tol: 0.005,
+      q: 'The title block says <span class="num">SCALE ' + scs + '</span>. A feature measures <span class="num">' +
+        nf(paper) + '"</span> on the paper. How big is the <b>real</b> feature? (sanity-check math — the written number still rules)',
+      explain: 'SCALE ' + scs + ' means ' + sc[0] + ' on paper stands for ' + sc[1] + ' real: ' + nf(paper) +
+        ' × ' + sc[1] + ' ÷ ' + sc[0] + ' = <span class="num">' + nf(a) + '"</span>.',
+      hint: 'Read the ratio as paper:real. ' + scs + ' means every ' + sc[0] + ' inch of paper stands for ' +
+        sc[1] + ' inch of metal — so real = paper × ' + sc[1] + ' ÷ ' + sc[0] + '.',
+      steps: '1 · SCALE ' + scs + ' = paper : real<br>' +
+        '2 · real = paper × ' + sc[1] + ' ÷ ' + sc[0] + ' = ' + nf(paper) + ' × ' + sc[1] + ' ÷ ' + sc[0] + '<br>' +
+        '3 · = <span class="res">' + nf(a) + '"</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - wrong) < 0.005 && Math.abs(wrong - a) > 0.01) return { label: 'Read the ratio backwards',
+          your: nf(wrong) + ' flips paper and real — at ' + scs + ' the drawing is ' +
+            (sc[0] > sc[1] ? 'BIGGER than the part (zoomed in on something small)' : 'SMALLER than the part'),
+          right: 'real = ' + nf(paper) + ' × ' + sc[1] + ' ÷ ' + sc[0] + ' = ' + nf(a) };
+        if (Math.abs(v - paper) < 0.005 && Math.abs(paper - a) > 0.01) return { label: 'Trusted the paper',
+          your: nf(paper) + ' is the PAPER size — at SCALE ' + scs + ' the part is a different size than the drawing',
+          right: nf(paper) + ' × ' + sc[1] + ' ÷ ' + sc[0] + ' = ' + nf(a) };
+        return { label: 'Scale slip',
+          your: nf(v) + ' is not paper × ' + sc[1] + ' ÷ ' + sc[0],
+          right: 'SCALE ' + scs + ' → ' + nf(a) };
+      } };
+  }
+
+  function genWhichView(hard) {
+    var vars = [
+      { q: 'You\'re looking straight DOWN on the part from overhead. Which view is that?', a: 'TOP' },
+      { q: 'You\'re looking at the part square-on, the way it faces you in the vise. Which view?', a: 'FRONT' },
+      { q: 'You\'re looking at the part from its right-hand end. Which view?', a: 'RIGHT SIDE' },
+      { q: 'In third-angle (US) projection, the view sitting directly ABOVE the front view is the…', a: 'TOP' },
+      { q: 'In third-angle (US) projection, the view sitting to the RIGHT of the front view is the…', a: 'RIGHT SIDE' },
+    ];
+    var v = S.pick(vars);
+    var CH = ['TOP', 'FRONT', 'RIGHT SIDE', 'BOTTOM'];
+    return { type: 'mc', a: CH.indexOf(v.a), choices: CH,
+      q: v.q,
+      explain: '<span class="num">' + v.a + '</span> — US prints are third-angle: top view above the front, right view to the right, all lined up.',
+      hint: 'Third-angle layout, the US standard: FRONT anchors the sheet, TOP sits directly above it, RIGHT SIDE sits to its right. The views never scatter — they line up.',
+      steps: '1 · FRONT = square-on, the anchor<br>2 · TOP = from overhead, drawn ABOVE the front<br>' +
+        '3 · RIGHT SIDE = from the right end, drawn RIGHT of the front<br>' +
+        '4 · <span class="res">' + v.a + '</span>',
+      diagnose: function (chosen) {
+        return { label: 'Views scrambled',
+          your: CH[chosen] + ' is a different vantage — picture yourself walking around the vise',
+          right: v.a + ': top above, right to the right, front square-on' };
+      } };
+  }
+
+  function genHiddenCount(hard) {
+    var holes = hard ? 1 + rnd(4) : 1 + rnd(2);
+    var a = holes * 2;
+    return { type: 'num', a: a, tol: 0.4,
+      q: nsp(String(holes)) + ' round hole' + (holes > 1 ? 's run' : ' runs') + ' straight through a block. ' +
+        'In a side view (where you can\'t see into ' + (holes > 1 ? 'them' : 'it') + '), ' +
+        (holes > 1 ? 'they show' : 'it shows') + ' as dashed lines. <b>How many dashed lines?</b>',
+      explain: 'Each hole is a tube with two walls — seen from the side, that\'s <span class="num">2</span> dashed lines per hole: ' +
+        holes + ' × 2 = <span class="num">' + a + '</span>. (Plus a thin centerline each, but that\'s not dashed-hidden.)',
+      hint: 'Picture one hole as a tunnel through the block. From the side you can\'t see the opening — you "see" its ceiling and its floor. That\'s how many lines per hole?',
+      steps: '1 · One through-hole from the side = its two walls = <span class="num">2</span> hidden lines<br>' +
+        '2 · ' + holes + ' hole' + (holes > 1 ? 's' : '') + ' × 2 = <span class="res">' + a + ' dashed lines</span>',
+      diagnose: function (v) {
+        if (Math.abs(v - holes) < 0.4) return { label: 'One line per hole',
+          your: holes + ' counts the holes — but a hole seen from the side has TWO walls, top and bottom',
+          right: holes + ' × 2 = ' + a };
+        if (Math.abs(v - holes * 3) < 0.4) return { label: 'Counted the centerline too',
+          your: 'the centerline is real but it\'s the thin long-short-long line, not a dashed HIDDEN line',
+          right: 'hidden walls only: ' + holes + ' × 2 = ' + a };
+        return { label: 'Wall count slip',
+          your: v + ' is not 2 walls per hole',
+          right: holes + ' × 2 = ' + a };
+      } };
+  }
+
+  function genFirstLook(hard) {
+    var vars = [
+      { q: 'A print you\'ve never seen lands on your bench. Where do you look FIRST?',
+        a: 'The title block — bottom-right corner',
+        others: ['The biggest view', 'The tightest tolerance', 'The hole callouts'],
+        why: 'what the part IS, its material, units, scale and default tolerances all live there — everything else needs that context' },
+      { q: 'You need to know what METAL to pull from the rack. Where does the print say it?',
+        a: 'The title block (MATL field)',
+        others: ['A leader note on the front view', 'The revision table', 'The dimension lines'],
+        why: 'material lives in the title block\'s MATL box' },
+      { q: 'A dimension on the print has no tolerance written next to it. Who decides how close you must hold it?',
+        a: 'The default tolerances in the title block',
+        others: ['You — machinist\'s choice', 'It must be dead-perfect', 'The scale note'],
+        why: 'untoleranced dimensions fall back to the title block\'s defaults (like .XX ±.01, .XXX ±.005)' },
+      { q: 'Your paper ruler says a feature is 1.9" but the printed dimension says 2.00. Which wins?',
+        a: 'The printed 2.00 — always',
+        others: ['The ruler — it\'s physical evidence', 'Split the difference', 'Whichever is smaller, to be safe'],
+        why: 'paper stretches and copies distort; the written number is the designer\'s actual instruction' },
+    ];
+    var v = S.pick(vars);
+    var choices = [v.a].concat(v.others);
+    return { type: 'mc', a: 0, choices: choices,
+      q: v.q,
+      explain: '<span class="num">' + v.a + '</span> — ' + v.why + '.',
+      hint: 'The bench routine: title block first (what/material/units/scale/defaults), then views, then sizes, then tolerances. And printed numbers always beat paper measurement.',
+      steps: '1 · Title block first, every time<br>2 · ' + v.why.charAt(0).toUpperCase() + v.why.slice(1) + '<br>' +
+        '3 · <span class="res">' + v.a + '</span>',
+      diagnose: function (chosen) {
+        return { label: 'Routine out of order',
+          your: '"' + choices[chosen] + '" matters — but not before the title block has told you what you\'re even holding',
+          right: v.a };
+      } };
+  }
+
+  var GENS = { whichLine: genWhichLine, titleRead: genTitleRead, scaleReal: genScaleReal,
+    whichView: genWhichView, hiddenCount: genHiddenCount, firstLook: genFirstLook };
+  var HARD = false;
+  function gen(kind) { var q = GENS[kind](HARD); q.kind = kind; q.from = 'Level 24'; return q; }
+
+  function makeSet(kinds, hard) {
+    HARD = !!hard;
+    var used = {}, out = [];
+    for (var i = 0; i < kinds.length; i++) {
+      var q = gen(kinds[i]);
+      for (var t = 0; t < 8; t++) {
+        var key = String(q.q).replace(/<[^>]*>/g, '');
+        if (!used[key]) break;
+        q = gen(kinds[i]);
+      }
+      used[String(q.q).replace(/<[^>]*>/g, '')] = true;
+      out.push(q);
+    }
+    HARD = false;
+    return S.shuffle(out);
+  }
+  function gameQs() {
+    return makeSet(['whichLine', 'whichLine', 'titleRead', 'titleRead', 'scaleReal', 'scaleReal',
+      'whichView', 'whichView', 'hiddenCount', 'firstLook'], false);
+  }
+  function bossQs() {
+    return makeSet(['whichLine', 'whichLine', 'titleRead', 'scaleReal', 'scaleReal',
+      'whichView', 'hiddenCount', 'hiddenCount', 'firstLook', 'firstLook'], true);
+  }
+
+  S.levelPage('l24', {
+    explainer: EXPLAINER,
+    playground: playground,
+    gameQs: gameQs,
+    bossQs: bossQs,
+  });
+})();
+</script>
+</body>
+</html>
