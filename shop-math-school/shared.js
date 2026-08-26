@@ -104,12 +104,14 @@
       if (!s) return -1;
       var n = 0;
       for (var k in s.lv) if (s.lv[k] && s.lv[k].passed) n++;
-      return n;
+      /* fraction reps break ties so a drill-only session isn't thrown away */
+      return n * 1000 + Math.min((s.frac && s.frac.reps) || 0, 999);
     }
     var best = score(fromStore) >= score(fromTab) ? fromStore : fromTab;
     return best || { __sms: 1, lv: {} };
   }
   var state = loadState();
+  if (!state.frac) state.frac = { reps: 0, best: 0 };
   function save() {
     var json = JSON.stringify(state);
     window.name = json;
@@ -126,7 +128,7 @@
       code = String(code).trim();
       if (code.indexOf('SMS1.') === 0) code = code.slice(5);
       var s = parseSave(decodeURIComponent(escape(atob(code))));
-      if (s) { state.lv = s.lv; save(); return true; }
+      if (s) { state.lv = s.lv; if (s.frac) state.frac = s.frac; save(); return true; }
     } catch (e) { /* bad code */ }
     return false;
   }
@@ -1565,16 +1567,277 @@
     document.body.appendChild(panel);
   }
   function refAllow(yes) {
+    /* governs BOTH study panels — the drafting ref (right) and the fraction
+       trainer (left). Both are cheat sheets, so both sit out the boss. */
     var fab = document.getElementById('sms-ref-fab');
-    if (!fab) return;
-    fab.style.display = yes ? '' : 'none';
-    if (!yes) {
-      var panel = document.querySelector('.refpanel');
-      if (panel) { panel.style.display = 'none'; fab.classList.remove('on'); }
+    if (fab) {
+      fab.style.display = yes ? '' : 'none';
+      if (!yes) {
+        var panel = document.querySelector('.refpanel');
+        if (panel) { panel.style.display = 'none'; fab.classList.remove('on'); }
+      }
+    }
+    var ffab = document.getElementById('sms-frac-fab');
+    if (ffab) {
+      ffab.style.display = yes ? '' : 'none';
+      if (!yes) {
+        var fpanel = document.querySelector('.fracpanel');
+        if (fpanel) { fpanel.style.display = 'none'; ffab.classList.remove('on'); }
+      }
     }
   }
-  if (document.body) refMount();
-  else document.addEventListener('DOMContentLoaded', refMount);
+
+  /* ---------------- fraction trainer — left-edge panel ----------------
+     The shop chart (64ths -> decimal -> mm), the counting trick behind it,
+     and a reps drill. All grading tolerance is .0005 — half a thou past the
+     4-place chart, tighter than the .0156 gap between neighboring 64ths. */
+  function frac4(v) {
+    /* chart-style 4 places: .015625 shows as .0156 (truncated, like shop cards) */
+    if (v >= 1) return v.toFixed(3);
+    return v.toFixed(6).slice(1, 6);
+  }
+  function fracRows() {
+    function gcd(a, b) { return b ? gcd(b, a % b) : a; }
+    var rows = [];
+    for (var n = 1; n <= 64; n++) {
+      var g = gcd(n, 64);
+      var num = n / g, den = 64 / g;
+      rows.push({
+        n: n, num: num, den: den,
+        txt: den === 1 ? '1' : num + '/' + den,
+        dec: n / 64, mm: (n / 64) * 25.4,
+      });
+    }
+    return rows;
+  }
+  var FRAC_UNIT = { 2: '.500', 4: '.250', 8: '.125', 16: '.0625', 32: '.03125', 64: '.015625' };
+  function fracSteps(row) {
+    /* the count-it-in-your-head build for one fraction */
+    if (row.den === 1) return ['1 = 1.000 on the nose (25.4 mm exactly)'];
+    var unit = FRAC_UNIT[row.den];
+    if (row.den <= 16 || row.num <= 3) {
+      return [
+        row.txt + ' = ' + row.num + ' × ' + unit,
+        '= ' + frac4(row.dec),
+      ];
+    }
+    /* 32nds and 64ths past the first few: ride the nearest eighth, add the rest */
+    var e = Math.floor(row.n / 8);            /* whole eighths inside it */
+    var r = row.n - e * 8;                    /* leftover 64ths */
+    function gcd8(a, b) { return b ? gcd8(b, a % b) : a; }
+    var g = gcd8(e, 8);
+    var anchor = (e / g) + '/' + (8 / g);     /* the eighth, reduced: 4/8 reads as 1/2 */
+    if (r === 0) return [row.txt + ' = ' + anchor + ' = ' + frac4(row.dec)];
+    return [
+      row.txt + ' = ' + anchor + ' + ' + r + '/64',
+      anchor + ' = ' + frac4(e * 0.125) + '  ·  ' + r + '/64 = ' + r + ' × ~.0156 = ' + frac4(r * 0.015625),
+      frac4(e * 0.125) + ' + ' + frac4(r * 0.015625) + ' = ' + frac4(row.dec),
+    ];
+  }
+
+  function fracMount() {
+    if (!document.body || document.getElementById('sms-frac-fab')) return;
+    var fab = document.createElement('button');
+    fab.id = 'sms-frac-fab';
+    fab.className = 'frac-fab';
+    fab.setAttribute('aria-label', 'Open the fraction trainer');
+    fab.innerHTML = '🔢 FRACTIONS';
+    var panel = document.createElement('div');
+    panel.className = 'fracpanel';
+    panel.style.display = 'none';
+    panel.setAttribute('role', 'dialog');
+    panel.setAttribute('aria-label', 'Fraction trainer');
+
+    var ROWS = fracRows();
+    var sec = 'chart';
+    var openBreak = 0;                        /* which chart row is expanded */
+
+    /* drill state */
+    var mode = 'fd';                          /* fd = fraction->decimal, df = decimal->fraction, mix */
+    var fam = 8;                              /* biggest denominator in play */
+    var queue = [], cur = null, curKind = 'fd', phase = 'ask', choices = [];
+    var streak = 0, sessionReps = 0;
+
+    function famPool() {
+      return ROWS.filter(function (r) { return r.den <= fam || r.den === 1; });
+    }
+    function refill() { queue = shuffle(famPool().slice()); }
+    function nextCard() {
+      if (!queue.length) refill();
+      cur = queue.shift();
+      curKind = mode === 'mix' ? (Math.random() < 0.5 ? 'fd' : 'df') : mode;
+      if (curKind === 'df') {
+        var pool = famPool().filter(function (r) { return r.n !== cur.n; });
+        pool.sort(function (a, b) { return Math.abs(a.dec - cur.dec) - Math.abs(b.dec - cur.dec); });
+        choices = shuffle([cur].concat(pool.slice(0, 3)));
+      }
+      phase = 'ask';
+    }
+
+    function chartHTML() {
+      var h = '<p class="ref-note">The whole shop chart. <b>Blue-edged bold rows are the eighths</b> — ' +
+        'own those eight numbers first; every other row is built from them. Tap any row to see the build.</p>' +
+        '<table class="frac-table"><tr><th>fraction</th><th>decimal</th><th>mm</th></tr>';
+      ROWS.forEach(function (r) {
+        var cls = r.den <= 8 ? 'k8' : r.den === 16 ? 'k16' : '';
+        h += '<tr class="' + cls + '" data-n="' + r.n + '"><td>' + r.txt + '</td><td>' + frac4(r.dec) +
+          '</td><td>' + r.mm.toFixed(4) + '</td></tr>';
+        if (openBreak === r.n) {
+          h += '<tr class="frac-break-row"><td colspan="3"><div class="frac-break">' +
+            fracSteps(r).join('<br>') + '</div></td></tr>';
+        }
+      });
+      h += '</table>' +
+        '<p class="ref-note">mm = inches × 25.4, exactly. Decimals here are chart-style 4 places: ' +
+        '.0156 really means .015625. Some printed shop cards multiply the rounded decimal, so their mm column ' +
+        'can differ a hair in the last digit.</p>';
+      return h;
+    }
+    function trickHTML() {
+      return '<p class="ref-note"><b>Six numbers unlock the whole chart.</b> Memorize these and you never need the card:</p>' +
+        '<div class="frac-anchors">' +
+        [['1/2', '.500'], ['1/4', '.250'], ['1/8', '.125'], ['1/16', '.0625'], ['1/32', '.0312'], ['1/64', '.0156']]
+          .map(function (a) { return '<span><b>' + a[0] + '</b>' + a[1] + '</span>'; }).join('') +
+        '</div>' +
+        '<p class="ref-note"><b>Rule 1 — the halving ladder.</b> Double the bottom, halve the decimal: ' +
+        '1/2 is .500, so 1/4 is .250, so 1/8 is .125, so 1/16 is .0625… forever. ' +
+        'That one rule generates all six anchors from just “1/2 = .500”.</p>' +
+        '<p class="ref-note"><b>Rule 2 — count the top.</b> The top number counts how many units of the bottom you have. ' +
+        '3/8 is three .125s. 5/16 is five .0625s:</p>' +
+        '<div class="frac-break">3/8 = 3 × .125 = .375<br>5/16 = 5 × .0625 = .3125<br>7/8 = 7 × .125 = .875</div>' +
+        '<p class="ref-note"><b>Rule 3 — odd 64ths ride an eighth.</b> Find the nearest eighth below, ' +
+        'then add ~.0156 per leftover 64th:</p>' +
+        '<div class="frac-break">37/64 = 32/64 + 5/64<br>= 1/2 + 5 × ~.0156<br>= .500 + .0781 = .5781</div>' +
+        '<p class="ref-note"><b>Millimeters:</b> inches × 25.4 = mm. Half an inch is 12.7 mm; ' +
+        'a quarter is 6.35 mm. Going the other way, mm ÷ 25.4 = inches.</p>' +
+        '<p class="ref-note">Now hit <b>REPS</b> and run it until the anchors answer before you think.</p>';
+    }
+    function statHTML() {
+      return '<div class="frac-stats">' +
+        '<span>SESSION <b data-sreps>' + sessionReps + '</b></span>' +
+        '<span>LIFETIME <b data-lreps>' + state.frac.reps + '</b></span>' +
+        '<span>STREAK <b>' + streak + '</b>🔥</span>' +
+        '<span>BEST <b>' + state.frac.best + '</b></span></div>';
+    }
+    function repsHTML() {
+      if (!cur) nextCard();
+      var h = statHTML() +
+        '<div class="frac-pills" data-modes>' +
+        [['fd', 'FRACTION → DECIMAL'], ['df', 'DECIMAL → FRACTION'], ['mix', 'MIX']].map(function (m) {
+          return '<button data-mode="' + m[0] + '" class="' + (mode === m[0] ? 'on' : '') + '">' + m[1] + '</button>';
+        }).join('') + '</div>' +
+        '<div class="frac-pills" data-fams>' +
+        [[8, 'EIGHTHS'], [16, '16THS'], [32, '32NDS'], [64, '64THS']].map(function (f) {
+          return '<button data-fam="' + f[0] + '" class="' + (fam === f[0] ? 'on' : '') + '">' + f[1] + '</button>';
+        }).join('') + '</div>';
+      var prompt = curKind === 'fd' ? cur.txt : frac4(cur.dec);
+      h += '<div class="frac-card"><span class="frac-ask">' +
+        (curKind === 'fd' ? 'what decimal is…' : 'what fraction is…') +
+        '</span><span class="frac-big" data-prompt>' + prompt + '</span></div>';
+      if (phase === 'ask') {
+        if (curKind === 'fd') {
+          h += '<div class="frac-answer"><input data-ans type="text" inputmode="decimal" autocomplete="off" ' +
+            'aria-label="your decimal answer" placeholder=".000">' +
+            '<button class="primary" data-check>CHECK</button></div>';
+        } else {
+          h += '<div class="frac-choices">' + choices.map(function (c, i) {
+            return '<button data-pick="' + i + '">' + c.txt + '</button>';
+          }).join('') + '</div>';
+        }
+      } else {
+        var good = phase === 'right';
+        h += '<div class="callout' + (good ? '' : ' warn') + '">' +
+          (good ? '<b>Right.</b> ' : '<b>Not yet.</b> ') + cur.txt + ' = ' + frac4(cur.dec) +
+          '<div class="frac-break" style="margin-top:8px">' + fracSteps(cur).join('<br>') + '</div></div>' +
+          '<div class="btnrow" style="margin-top:10px"><button class="primary" data-go-on>' +
+          (good ? 'NEXT →' : 'SAME CARD — AGAIN') + '</button></div>';
+      }
+      return h;
+    }
+
+    var SECS = [['chart', 'CHART'], ['trick', 'THE TRICK'], ['reps', 'REPS']];
+    function render() {
+      panel.innerHTML =
+        '<div class="ref-head"><span>🔢 FRACTION TRAINER</span>' +
+        '<button data-close aria-label="Close the fraction trainer">✕</button></div>' +
+        '<div class="ref-tabs">' + SECS.map(function (s0) {
+          return '<button data-sec="' + s0[0] + '" class="' + (sec === s0[0] ? 'on' : '') + '">' + s0[1] + '</button>';
+        }).join('') + '</div>' +
+        '<div class="ref-body">' +
+        (sec === 'chart' ? chartHTML() : sec === 'trick' ? trickHTML() : repsHTML()) +
+        '</div>';
+      panel.querySelector('[data-close]').addEventListener('click', function () { setOpen(false); });
+      panel.querySelectorAll('[data-sec]').forEach(function (b) {
+        b.addEventListener('click', function () { sec = b.getAttribute('data-sec'); render(); });
+      });
+      var table = panel.querySelector('.frac-table');
+      if (table) table.addEventListener('click', function (e) {
+        var tr = e.target && e.target.closest ? e.target.closest('tr[data-n]') : null;
+        if (!tr) return;
+        var n = Number(tr.getAttribute('data-n'));
+        openBreak = openBreak === n ? 0 : n;
+        render();
+      });
+      panel.querySelectorAll('[data-mode]').forEach(function (b) {
+        b.addEventListener('click', function () { mode = b.getAttribute('data-mode'); refill(); nextCard(); render(); });
+      });
+      panel.querySelectorAll('[data-fam]').forEach(function (b) {
+        b.addEventListener('click', function () { fam = Number(b.getAttribute('data-fam')); refill(); nextCard(); render(); });
+      });
+      function grade(good) {
+        if (good) {
+          sessionReps += 1; streak += 1;
+          state.frac.reps += 1;
+          if (streak > state.frac.best) state.frac.best = streak;
+          save();
+          phase = 'right';
+        } else {
+          streak = 0;
+          phase = 'wrong';
+          queue.splice(3, 0, cur);            /* a miss comes back three cards later, too */
+        }
+        render();
+      }
+      var check = panel.querySelector('[data-check]');
+      if (check) {
+        var inp = panel.querySelector('[data-ans]');
+        var doCheck = function () {
+          var v = parseNum(inp.value);
+          if (isNaN(v)) { inp.value = ''; inp.focus(); return; }
+          grade(Math.abs(v - cur.dec) <= 0.0005);
+        };
+        check.addEventListener('click', doCheck);
+        inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') doCheck(); });
+        inp.focus();
+      }
+      panel.querySelectorAll('[data-pick]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          grade(choices[Number(b.getAttribute('data-pick'))].n === cur.n);
+        });
+      });
+      var goOn = panel.querySelector('[data-go-on]');
+      if (goOn) goOn.addEventListener('click', function () {
+        if (phase === 'right') nextCard();
+        else { phase = 'ask'; if (curKind === 'df') choices = shuffle(choices); }
+        render();
+      });
+    }
+    function setOpen(open) {
+      panel.style.display = open ? 'flex' : 'none';
+      fab.classList.toggle('on', open);
+      if (open) render();
+    }
+    fab.addEventListener('click', function () { setOpen(panel.style.display === 'none'); });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape' && panel.style.display !== 'none') { setOpen(false); e.stopPropagation(); }
+    }, true);
+    document.body.appendChild(fab);
+    document.body.appendChild(panel);
+  }
+
+  function mountPanels() { refMount(); fracMount(); }
+  if (document.body) mountPanels();
+  else document.addEventListener('DOMContentLoaded', mountPanels);
 
   /* ---------------- level page chrome ---------------- */
   function levelPage(id, parts) {
@@ -1655,5 +1918,6 @@
     dro: dro, runGame: runGame, daily10Questions: daily10Questions,
     levelPage: levelPage,
     lineSVG: lineSVG, refMount: refMount, refAllow: refAllow,
+    fracMount: fracMount, fracRows: fracRows, fracSteps: fracSteps, frac4: frac4,
   };
 })();
